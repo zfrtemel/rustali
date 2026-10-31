@@ -30,6 +30,7 @@ pub mod middleware;
 pub mod router;
 pub mod services;
 pub mod telemetry;
+pub mod validation;
 
 pub use app::{App, AppBuilder, AppContext};
 pub use command::{Command, CommandFuture, Commands};
@@ -37,6 +38,7 @@ pub use config::Config;
 pub use error::{Error, ErrorBody, Result};
 pub use extract::{Ctx, Inject};
 pub use services::{MissingService, Provider, RegisterFuture, Registry, Services};
+pub use validation::ValidationErrors;
 
 /// Paths used by generated code. Not part of the public API; may change at any time.
 #[doc(hidden)]

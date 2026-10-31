@@ -88,7 +88,13 @@ pub struct AppBuilder {
     router: Router<AppContext>,
     routes: RouteTable,
     gate: Gate,
+    hooks: Vec<RouterHook>,
 }
+
+/// Deferred router customisation, run in [`AppBuilder::build`] once configuration and
+/// services exist. Packages use it to add layers that need runtime settings.
+pub type RouterHook =
+    Box<dyn FnOnce(&AppContext, Router<AppContext>) -> Router<AppContext> + Send + 'static>;
 
 impl Default for AppBuilder {
     fn default() -> Self {
@@ -102,6 +108,7 @@ impl Default for AppBuilder {
             router: Router::new(),
             routes: RouteTable::default(),
             gate: Gate::default(),
+            hooks: Vec::new(),
         }
     }
 }
@@ -194,6 +201,18 @@ impl AppBuilder {
         self
     }
 
+    /// Customise the router after configuration and services are available — for
+    /// example to add a layer whose settings come from `config/`. Hooks run in order,
+    /// inside the default middleware stack, around everything mounted before `build`.
+    #[must_use]
+    pub fn configure<F>(mut self, hook: F) -> Self
+    where
+        F: FnOnce(&AppContext, Router<AppContext>) -> Router<AppContext> + Send + 'static,
+    {
+        self.hooks.push(Box::new(hook));
+        self
+    }
+
     /// Add a tower layer around all routes registered so far.
     ///
     /// User layers sit *inside* the default stack (request id, tracing, panic
@@ -239,7 +258,11 @@ impl AppBuilder {
                 commands,
             }),
         };
-        let router = middleware::apply_defaults(self.router, ctx.clone()).with_state(ctx.clone());
+        let mut router = self.router;
+        for hook in self.hooks {
+            router = hook(&ctx, router);
+        }
+        let router = middleware::apply_defaults(router, ctx.clone()).with_state(ctx.clone());
         Ok((ctx, router))
     }
 

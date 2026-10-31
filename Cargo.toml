@@ -23,6 +23,9 @@ rustali-core = { path = "crates/rustali-core", version = "0.1.0-alpha.0" }
 rustali-macros = { path = "crates/rustali-macros", version = "0.1.0-alpha.0" }
 rustali-orm = { path = "crates/rustali-orm", version = "0.1.0-alpha.0" }
 rustali-migrate = { path = "crates/rustali-migrate", version = "0.1.0-alpha.0" }
+rustali-validate = { path = "crates/rustali-validate", version = "0.1.0-alpha.0" }
+rustali-session = { path = "crates/rustali-session", version = "0.1.0-alpha.0" }
+rustali-view = { path = "crates/rustali-view", version = "0.1.0-alpha.0" }
 
 # --- async runtime & HTTP stack ---
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "net", "fs", "sync", "time"] }
@@ -37,6 +40,8 @@ bytes = "1"
 # --- serialization & config ---
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+serde_urlencoded = "0.7"
+base64 = "0.22"
 toml = "0.9"
 figment = { version = "0.10", features = ["toml", "env"] }
 dotenvy = "0.15"
@@ -62,7 +67,7 @@ tera = { version = "1", default-features = false }
 # --- auth & security ---
 argon2 = "0.5"
 jsonwebtoken = "10"
-tower-sessions = "0.15"
+tower-sessions = { version = "0.15", default-features = false, features = ["axum-core", "memory-store", "signed"] }
 rand = "0.9"
 subtle = "2"
 

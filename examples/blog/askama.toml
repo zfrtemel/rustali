@@ -1,0 +1,3 @@
+# Askama reads this from the crate root at compile time.
+[general]
+dirs = ["templates"]

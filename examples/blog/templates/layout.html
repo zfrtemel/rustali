@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ app_name }}{% endblock %}</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 42rem; margin: 2rem auto; padding: 0 1rem; color: #222; }
+    a { color: #b7410e; }
+    .flash { padding: .6rem 1rem; border-radius: .4rem; margin: .5rem 0; }
+    .flash.success { background: #e6f4ea; } .flash.error { background: #fdecea; }
+    .field { margin: .75rem 0; } label { display: block; font-weight: 600; }
+    input, textarea { width: 100%; padding: .4rem; box-sizing: border-box; }
+    .error { color: #c0392b; font-size: .9rem; }
+    article { border-bottom: 1px solid #eee; padding: .75rem 0; }
+  </style>
+</head>
+<body>
+  <header><a href="/">{{ app_name }}</a></header>
+  {% for message in flash %}
+    <div class="flash {{ message.level }}">{{ message.text }}</div>
+  {% endfor %}
+  <main>{% block content %}{% endblock %}</main>
+</body>
+</html>

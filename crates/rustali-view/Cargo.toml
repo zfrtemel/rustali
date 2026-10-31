@@ -1,0 +1,36 @@
+[package]
+name = "rustali-view"
+description = "View layer for the Rustali web framework: a View response type, Askama (compile-time) and optional Tera (runtime) backends"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = ["askama"]
+askama = ["dep:askama"]
+tera = ["dep:tera", "dep:serde_json"]
+
+[dependencies]
+rustali-core = { workspace = true }
+axum = { workspace = true }
+thiserror = { workspace = true }
+askama = { workspace = true, optional = true }
+tera = { workspace = true, optional = true }
+serde = { workspace = true }
+serde_json = { workspace = true, optional = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+askama = { workspace = true }
+tokio = { workspace = true }
+http-body-util = { workspace = true }
+tower = { workspace = true }

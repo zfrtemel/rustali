@@ -1,0 +1,5 @@
+name = "Rustali Blog"
+env = "development"
+debug = true
+# A real app sets this from .env; the example uses a fixed dev key.
+key = "dev-only-insecure-key-change-me-0123456789"

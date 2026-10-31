@@ -1,0 +1,31 @@
+{% extends "layout.html" %}
+{% block title %}Posts · {{ app_name }}{% endblock %}
+{% block content %}
+<h1>Posts</h1>
+
+<form method="post" action="/posts">
+  {{ csrf_field|safe }}
+  <div class="field">
+    <label for="title">Title</label>
+    <input id="title" name="title" value="{{ old_title }}">
+    {% if let Some(message) = title_error %}<p class="error">{{ message }}</p>{% endif %}
+  </div>
+  <div class="field">
+    <label for="body">Body</label>
+    <textarea id="body" name="body" rows="3">{{ old_body }}</textarea>
+    {% if let Some(message) = body_error %}<p class="error">{{ message }}</p>{% endif %}
+  </div>
+  <button type="submit">Publish</button>
+</form>
+
+{% if posts.is_empty() %}
+  <p>No posts yet.</p>
+{% else %}
+  {% for post in posts %}
+    <article>
+      <h2>{{ post.title }}</h2>
+      <p>{{ post.body }}</p>
+    </article>
+  {% endfor %}
+{% endif %}
+{% endblock %}

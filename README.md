@@ -66,7 +66,10 @@ What works today (run from a checkout):
 cargo run -p hello                        # SSR page + JSON endpoint, negotiated errors
 cargo run -p todo-api -- migrate          # SQLite schema via sea-orm-migration
 cargo run -p todo-api                     # CRUD JSON API on a #[derive(Entity)] struct
-cargo run -p todo-api -- help             # the app binary is also its console
+cargo run -p todo-api -- routes           # list controller routes (Laravel's route:list)
+cargo run -p blog -- migrate && cargo run -p blog
+#                                           server-rendered CRUD: Askama views,
+#                                           #[derive(Validate)], flash messages, CSRF
 ```
 
 ## Contributing

@@ -17,9 +17,13 @@ readme = "../../README.md"
 workspace = true
 
 [features]
-default = ["macros", "orm", "sqlite"]
+default = ["macros", "orm", "sqlite", "views", "sessions", "validation"]
 macros = ["dep:rustali-macros"]
 orm = ["dep:rustali-orm", "dep:rustali-migrate"]
+views = ["dep:rustali-view"]
+sessions = ["dep:rustali-session"]
+validation = ["dep:rustali-validate"]
+tera = ["rustali-view?/tera"]
 sqlite = ["rustali-orm?/sqlite", "rustali-migrate?/sqlite"]
 postgres = ["rustali-orm?/postgres", "rustali-migrate?/postgres"]
 mysql = ["rustali-orm?/mysql", "rustali-migrate?/mysql"]
@@ -29,6 +33,9 @@ rustali-core = { workspace = true }
 rustali-macros = { workspace = true, optional = true }
 rustali-orm = { workspace = true, optional = true, default-features = false }
 rustali-migrate = { workspace = true, optional = true, default-features = false }
+rustali-view = { workspace = true, optional = true }
+rustali-session = { workspace = true, optional = true }
+rustali-validate = { workspace = true, optional = true }
 axum = { workspace = true }
 tokio = { workspace = true }
 

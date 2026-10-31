@@ -173,6 +173,9 @@ fn problem_json(
     if let Some(id) = request_id {
         doc["request_id"] = id.into();
     }
+    if let Some(errors) = &body.validation {
+        doc["errors"] = serde_json::to_value(&errors.fields).unwrap_or_default();
+    }
     (
         body.status,
         [(header::CONTENT_TYPE, HeaderValue::from_static(PROBLEM_JSON))],

@@ -22,7 +22,25 @@ pub use rustali_core::{
 };
 
 #[cfg(feature = "macros")]
-pub use rustali_macros::{Entity, controller};
+pub use rustali_macros::{Entity, Validate, controller};
+
+/// View layer: the `View` response type and Askama/Tera backends.
+#[cfg(feature = "views")]
+pub mod view {
+    pub use rustali_view::*;
+}
+
+/// Sessions, flash messages and CSRF protection.
+#[cfg(feature = "sessions")]
+pub mod session {
+    pub use rustali_session::*;
+}
+
+/// Input validation: rules and the `Validated` extractors.
+#[cfg(feature = "validation")]
+pub mod validate {
+    pub use rustali_validate::*;
+}
 
 /// Data layer: entities, queries, pagination, the `Db` extractor.
 #[cfg(feature = "orm")]
@@ -57,7 +75,7 @@ pub mod prelude {
     };
 
     #[cfg(feature = "macros")]
-    pub use crate::{Entity, controller};
+    pub use crate::{Entity, Validate, controller};
 
     #[cfg(feature = "orm")]
     pub use crate::{
@@ -66,6 +84,15 @@ pub mod prelude {
         // `Query<Params>` extractor, which handlers use far more often.
         orm::{DatabaseProvider, Db, DbExt, DbResultExt, Page, prelude::*},
     };
+
+    #[cfg(feature = "views")]
+    pub use crate::view::{View, askama::Template};
+
+    #[cfg(feature = "sessions")]
+    pub use crate::session::{Csrf, Flash, Session, SessionProvider, session_layers};
+
+    #[cfg(feature = "validation")]
+    pub use crate::validate::Validated;
 }
 
 /// Paths used by generated code. Not part of the public API; may change at any time.

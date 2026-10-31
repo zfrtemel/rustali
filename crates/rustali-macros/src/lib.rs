@@ -7,6 +7,7 @@
 
 mod controller;
 mod entity;
+mod validate;
 
 use proc_macro::TokenStream;
 
@@ -55,6 +56,45 @@ use proc_macro::TokenStream;
 #[proc_macro_derive(Entity, attributes(table, entity, key, column, skip))]
 pub fn derive_entity(input: TokenStream) -> TokenStream {
     entity::expand(input.into())
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+/// Declarative input validation.
+///
+/// ```ignore
+/// #[derive(Deserialize, Validate)]
+/// struct CreatePost {
+///     #[rule(required, length(min = 3, max = 200))]
+///     title: String,
+///     #[rule(email)]
+///     author_email: Option<String>,
+///     #[rule(range(min = 1, max = 5))]
+///     rating: u8,
+///     #[rule(one_of("draft", "published"))]
+///     status: String,
+///     #[rule(confirmed)]
+///     password: String,
+///     password_confirmation: String,
+///     #[rule(custom = "no_profanity")]
+///     body: String,
+///     #[rule(nested)]
+///     address: Address,
+/// }
+///
+/// fn no_profanity(body: &String) -> Result<(), String> { /* ... */ }
+/// ```
+///
+/// Rules: `required`, `length(min, max)`, `range(min, max)`, `email`, `url`,
+/// `alpha_num`, `one_of("a", "b")`, `confirmed` (compares with
+/// `<field>_confirmation`), `custom = "fn_path"` (`fn(&T) -> Result<(), impl Display>`),
+/// `nested` (field implements `Validate`). On `Option<T>` fields every rule except
+/// `required` is skipped when the value is `None`. All failures are collected.
+///
+/// Option: `#[validate(crate = "rustali_validate")]`.
+#[proc_macro_derive(Validate, attributes(rule, validate))]
+pub fn derive_validate(input: TokenStream) -> TokenStream {
+    validate::expand(input.into())
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }

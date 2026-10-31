@@ -1,0 +1,29 @@
+[package]
+name = "rustali-validate"
+description = "Input validation for the Rustali web framework: rules, #[derive(Validate)], Validated<Form<T>> / Validated<Json<T>> extractors"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+rustali-core = { workspace = true }
+axum = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_urlencoded = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+rustali-macros = { workspace = true }
+tokio = { workspace = true }
+http-body-util = { workspace = true }
+tower = { workspace = true }

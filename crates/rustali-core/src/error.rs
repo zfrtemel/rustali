@@ -12,6 +12,8 @@ use axum::{
     response::{IntoResponse, Response},
 };
 
+pub use crate::validation::ValidationErrors;
+
 /// Convenience alias used throughout the framework.
 pub type Result<T, E = Error> = core::result::Result<T, E>;
 
@@ -45,6 +47,12 @@ pub enum Error {
         /// Seconds until the client may retry.
         retry_after_secs: u64,
     },
+
+    /// Input failed validation (422). JSON clients receive the field map under
+    /// `errors`; SSR forms are normally redirected back by the `Validated` extractor
+    /// before this is rendered.
+    #[error("validation failed: {0}")]
+    Validation(ValidationErrors),
 
     /// Configuration could not be loaded or is invalid (startup only).
     ///
@@ -93,6 +101,7 @@ impl Error {
             Self::Unauthorized => StatusCode::UNAUTHORIZED,
             Self::Forbidden => StatusCode::FORBIDDEN,
             Self::TooManyRequests { .. } => StatusCode::TOO_MANY_REQUESTS,
+            Self::Validation(_) => StatusCode::UNPROCESSABLE_ENTITY,
             Self::Config(_) | Self::Database(_) | Self::Internal(_) => {
                 StatusCode::INTERNAL_SERVER_ERROR
             }
@@ -110,6 +119,16 @@ impl Error {
     pub fn public_detail(&self) -> Option<String> {
         match self {
             Self::BadRequest(message) => Some(message.clone()),
+            Self::Validation(_) => Some("The given data was invalid.".to_owned()),
+            _ => None,
+        }
+    }
+
+    /// Field errors when this is a validation failure.
+    #[must_use]
+    pub const fn validation(&self) -> Option<&ValidationErrors> {
+        match self {
+            Self::Validation(errors) => Some(errors),
             _ => None,
         }
     }
@@ -142,6 +161,8 @@ pub struct ErrorBody {
     pub detail: Option<String>,
     /// Full error text; only rendered when `app.debug` is on.
     pub debug_detail: String,
+    /// Field errors for validation failures (rendered as `errors` in JSON).
+    pub validation: Option<ValidationErrors>,
 }
 
 impl IntoResponse for Error {
@@ -158,6 +179,7 @@ impl IntoResponse for Error {
             title: self.title(),
             detail: self.public_detail(),
             debug_detail: self.to_string(),
+            validation: self.validation().cloned(),
         };
         // Plain-text fallback for apps that remove the negotiation layer.
         let mut response = (status, body.title).into_response();

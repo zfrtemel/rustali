@@ -57,6 +57,10 @@ pub struct AppConfig {
     pub env: String,
     /// Enables verbose error pages and hot reload helpers. Never true in production.
     pub debug: bool,
+    /// Secret used to sign cookies and tokens (`APP__APP__KEY`, usually set from
+    /// `.env`). At least 32 characters; `rustali key:generate` produces one. Empty in
+    /// development means "generate a throwaway key at boot".
+    pub key: String,
 }
 
 /// HTTP server settings (`config/server.toml`).
@@ -86,6 +90,7 @@ impl Default for AppConfig {
             name: "Rustali".into(),
             env: "development".into(),
             debug: true,
+            key: String::new(),
         }
     }
 }
