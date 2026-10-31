@@ -70,6 +70,9 @@ cargo run -p todo-api -- routes           # list controller routes (Laravel's ro
 cargo run -p blog -- migrate && cargo run -p blog
 #                                           server-rendered CRUD: Askama views,
 #                                           #[derive(Validate)], flash messages, CSRF
+cargo run -p auth-app -- migrate && cargo run -p auth-app
+#                                           register / login / logout / protected page:
+#                                           argon2 hashing, sessions, CSRF, validation
 ```
 
 ## Contributing

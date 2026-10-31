@@ -1,0 +1,10 @@
+{% extends "layout.html" %}
+{% block title %}Dashboard · {{ app_name }}{% endblock %}
+{% block content %}
+<h2>Welcome, {{ user_name }}</h2>
+<p>You are signed in as {{ user_email }}.</p>
+<form method="post" action="/logout">
+  {{ csrf_field|safe }}
+  <button type="submit">Sign out</button>
+</form>
+{% endblock %}

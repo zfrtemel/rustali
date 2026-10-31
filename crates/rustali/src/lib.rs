@@ -42,6 +42,12 @@ pub mod validate {
     pub use rustali_validate::*;
 }
 
+/// Authentication: password hashing, guards, `Auth`/`Login` extractors.
+#[cfg(feature = "auth")]
+pub mod auth_kit {
+    pub use rustali_auth::*;
+}
+
 /// Data layer: entities, queries, pagination, the `Db` extractor.
 #[cfg(feature = "orm")]
 pub mod orm {
@@ -93,6 +99,12 @@ pub mod prelude {
 
     #[cfg(feature = "validation")]
     pub use crate::validate::Validated;
+
+    #[cfg(feature = "auth")]
+    pub use crate::auth_kit::{
+        Auth, AuthProvider, Authenticatable, Guest, Login, OptionalAuth, StoreFuture, UserStore,
+        password,
+    };
 }
 
 /// Paths used by generated code. Not part of the public API; may change at any time.

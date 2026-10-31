@@ -1,0 +1,1 @@
+url = "sqlite://db/auth.db?mode=rwc"

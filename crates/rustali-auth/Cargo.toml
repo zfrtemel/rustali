@@ -1,0 +1,37 @@
+[package]
+name = "rustali-auth"
+description = "Authentication for the Rustali web framework: password hashing, session/JWT/token guards, login and registration"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = ["jwt"]
+jwt = ["dep:jsonwebtoken"]
+
+[dependencies]
+rustali-core = { workspace = true }
+rustali-session = { workspace = true }
+axum = { workspace = true }
+argon2 = { workspace = true }
+jsonwebtoken = { workspace = true, optional = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+subtle = { workspace = true }
+rand = { workspace = true }
+base64 = { workspace = true }
+chrono = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

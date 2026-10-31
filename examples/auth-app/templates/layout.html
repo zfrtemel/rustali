@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ app_name }}{% endblock %}</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 26rem; margin: 3rem auto; padding: 0 1rem; }
+    .field { margin: .75rem 0; } label { display:block; font-weight:600; }
+    input { width:100%; padding:.4rem; box-sizing:border-box; }
+    .error { color:#c0392b; font-size:.9rem; } a { color:#b7410e; }
+    .flash { background:#e6f4ea; padding:.5rem 1rem; border-radius:.4rem; }
+  </style>
+</head>
+<body>
+  <h1>{{ app_name }}</h1>
+  {% block content %}{% endblock %}
+</body>
+</html>

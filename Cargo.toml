@@ -26,6 +26,7 @@ rustali-migrate = { path = "crates/rustali-migrate", version = "0.1.0-alpha.0" }
 rustali-validate = { path = "crates/rustali-validate", version = "0.1.0-alpha.0" }
 rustali-session = { path = "crates/rustali-session", version = "0.1.0-alpha.0" }
 rustali-view = { path = "crates/rustali-view", version = "0.1.0-alpha.0" }
+rustali-auth = { path = "crates/rustali-auth", version = "0.1.0-alpha.0" }
 
 # --- async runtime & HTTP stack ---
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "net", "fs", "sync", "time"] }

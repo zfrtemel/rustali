@@ -1,0 +1,29 @@
+{% extends "layout.html" %}
+{% block title %}Register · {{ app_name }}{% endblock %}
+{% block content %}
+<h2>Create an account</h2>
+<form method="post" action="/register">
+  {{ csrf_field|safe }}
+  <div class="field">
+    <label for="name">Name</label>
+    <input id="name" name="name" value="{{ old_name }}">
+    {% if let Some(e) = name_error %}<p class="error">{{ e }}</p>{% endif %}
+  </div>
+  <div class="field">
+    <label for="email">Email</label>
+    <input id="email" name="email" type="email" value="{{ old_email }}">
+    {% if let Some(e) = email_error %}<p class="error">{{ e }}</p>{% endif %}
+  </div>
+  <div class="field">
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password">
+    {% if let Some(e) = password_error %}<p class="error">{{ e }}</p>{% endif %}
+  </div>
+  <div class="field">
+    <label for="password_confirmation">Confirm password</label>
+    <input id="password_confirmation" name="password_confirmation" type="password">
+  </div>
+  <button type="submit">Register</button>
+</form>
+<p>Already have an account? <a href="/login">Sign in</a>.</p>
+{% endblock %}

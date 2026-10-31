@@ -1,0 +1,4 @@
+name = "Rustali Auth Demo"
+env = "development"
+debug = true
+key = "dev-only-insecure-key-change-me-0123456789"
