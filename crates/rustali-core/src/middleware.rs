@@ -1,8 +1,12 @@
 //! Built-in middleware and the default stack applied to every application.
 //!
-//! Order (outermost first): request id → tracing → panic catching → error
-//! negotiation → user layers → routes. Everything is a plain tower layer, so
-//! applications can add their own with [`crate::AppBuilder::layer`].
+//! Order (outermost first): request id → tracing → panic catching → context
+//! injection → error negotiation → user layers → routes. Everything is a plain tower
+//! layer, so applications can add their own with [`crate::AppBuilder::layer`].
+
+pub mod throttle;
+
+use std::sync::Arc;
 
 use axum::{
     Router,
@@ -11,12 +15,14 @@ use axum::{
     middleware::{Next, from_fn_with_state},
     response::{Html, IntoResponse, Response},
 };
+pub use tower_http::cors::{Any as CorsAny, CorsLayer as Cors};
 use tower_http::{
     catch_panic::CatchPanicLayer,
     request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer},
     trace::TraceLayer,
 };
 
+pub use self::throttle::Throttle;
 use crate::{AppContext, Error, error::ErrorBody};
 
 /// Header carrying the per-request identifier.
@@ -25,11 +31,15 @@ pub const REQUEST_ID_HEADER: &str = "x-request-id";
 /// Media type of RFC 9457 problem documents.
 pub const PROBLEM_JSON: &str = "application/problem+json";
 
+/// Headers that an error response keeps when it is re-rendered.
+const PRESERVED_HEADERS: &[header::HeaderName] = &[header::RETRY_AFTER, header::WWW_AUTHENTICATE];
+
 /// Wrap `router` in the default stack. Called by the app builder.
 pub(crate) fn apply_defaults(router: Router<AppContext>, ctx: AppContext) -> Router<AppContext> {
     router
         .fallback(not_found)
-        .layer(from_fn_with_state(ctx, negotiate_errors))
+        .layer(from_fn_with_state(ctx.clone(), negotiate_errors))
+        .layer(from_fn_with_state(ctx, inject_context))
         .layer(CatchPanicLayer::new())
         .layer(TraceLayer::new_for_http())
         .layer(PropagateRequestIdLayer::x_request_id())
@@ -41,17 +51,53 @@ async fn not_found() -> Error {
     Error::NotFound
 }
 
+/// Store the [`AppContext`] in request extensions so plain tower layers (authorize,
+/// throttle, user middleware) can reach services without axum state.
+pub async fn inject_context(
+    State(ctx): State<AppContext>,
+    mut request: Request,
+    next: Next,
+) -> Response {
+    request.extensions_mut().insert(ctx);
+    next.run(request).await
+}
+
+/// Facts about the failed request handed to a custom error renderer.
+#[derive(Debug, Clone)]
+pub struct ErrorRequest {
+    /// Request path.
+    pub path: String,
+    /// `true` when the client prefers JSON.
+    pub wants_json: bool,
+    /// Request id, when the default stack assigned one.
+    pub request_id: Option<String>,
+    /// Debug mode is on, so detail may be shown.
+    pub debug: bool,
+}
+
+/// Application-provided error renderer (the "exception filter" override).
+///
+/// Return `Some(response)` to take over, `None` to fall back to the built-in
+/// JSON/HTML rendering. Installed with [`crate::AppBuilder::on_error`].
+pub type ErrorRenderer =
+    Arc<dyn Fn(&ErrorBody, &ErrorRequest) -> Option<Response> + Send + Sync + 'static>;
+
+/// Service wrapper for the installed [`ErrorRenderer`].
+#[derive(Clone)]
+pub struct ErrorRendererHandle(pub ErrorRenderer);
+
 /// Render [`ErrorBody`] responses as JSON or HTML depending on the client.
 ///
 /// JSON is chosen when the `Accept` header mentions JSON, or when it does not ask
-/// for HTML and the path is under `/api/`. Everything else gets an HTML page.
+/// for HTML and the path is under `/api/`. Everything else gets an HTML page. A
+/// renderer installed with `on_error` is consulted first.
 pub async fn negotiate_errors(
     State(ctx): State<AppContext>,
     request: Request,
     next: Next,
 ) -> Response {
     let path = request.uri().path().to_owned();
-    let json = wants_json(request.headers(), &path);
+    let wants_json = wants_json(request.headers(), &path);
     let request_id = request
         .headers()
         .get(REQUEST_ID_HEADER)
@@ -63,16 +109,37 @@ pub async fn negotiate_errors(
         return response;
     };
 
-    let detail = body
-        .detail
-        .clone()
-        .or_else(|| ctx.config().app.debug.then(|| body.debug_detail.clone()));
+    let debug = ctx.config().app.debug;
+    let info = ErrorRequest {
+        path,
+        wants_json,
+        request_id,
+        debug,
+    };
 
-    if json {
-        problem_json(&body, detail, &path, request_id.as_deref())
-    } else {
-        error_page(&body, detail)
+    let custom = ctx
+        .services()
+        .get::<ErrorRendererHandle>()
+        .and_then(|renderer| (renderer.0)(&body, &info));
+
+    let mut rendered = custom.unwrap_or_else(|| {
+        let detail = body
+            .detail
+            .clone()
+            .or_else(|| debug.then(|| body.debug_detail.clone()));
+        if wants_json {
+            problem_json(&body, detail, &info.path, info.request_id.as_deref())
+        } else {
+            error_page(&body, detail)
+        }
+    });
+
+    for name in PRESERVED_HEADERS {
+        if let Some(value) = response.headers().get(name) {
+            rendered.headers_mut().insert(name.clone(), value.clone());
+        }
     }
+    rendered
 }
 
 /// Decide whether a client prefers a JSON representation.
@@ -132,7 +199,9 @@ h2{{font-weight:400;margin:.5rem 0 1rem}}.detail{{font-family:ui-monospace,monos
     (body.status, Html(html)).into_response()
 }
 
-fn escape(input: &str) -> String {
+/// Minimal HTML escaping for error pages.
+#[must_use]
+pub fn escape(input: &str) -> String {
     let mut out = String::with_capacity(input.len());
     for ch in input.chars() {
         match ch {

@@ -1,0 +1,5 @@
+error: unknown route option; expected `name = "..."`
+ --> tests/ui/controller_bad_option.rs:7:16
+  |
+7 |     #[get("/", nmae = "typo")]
+  |                ^^^^

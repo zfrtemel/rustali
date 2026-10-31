@@ -11,18 +11,18 @@
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<()> {
-//!     App::builder().run().await
+//!     App::builder().controllers().run().await
 //! }
 //! ```
 
 pub use rustali_core::{
     App, AppBuilder, AppContext, Command, CommandFuture, Config, Ctx, Error, ErrorBody, Inject,
-    Provider, RegisterFuture, Registry, Result, Services, command, config, middleware, services,
-    telemetry,
+    Provider, RegisterFuture, Registry, Result, Services, auth, command, config, middleware,
+    router, services, telemetry,
 };
 
 #[cfg(feature = "macros")]
-pub use rustali_macros::Entity;
+pub use rustali_macros::{Entity, controller};
 
 /// Data layer: entities, queries, pagination, the `Db` extractor.
 #[cfg(feature = "orm")]
@@ -49,10 +49,15 @@ pub mod prelude {
         response::{Html, IntoResponse, Redirect},
     };
 
-    pub use crate::{App, AppContext, Config, Ctx, Error, Inject, Result};
+    pub use crate::{
+        App, AppContext, Config, Ctx, Error, Inject, Result,
+        auth::{Actor, AuthFuture, AuthorizeLayer, Check, Gate, Policy},
+        middleware::{Cors, Throttle},
+        router::Controller,
+    };
 
     #[cfg(feature = "macros")]
-    pub use crate::Entity;
+    pub use crate::{Entity, controller};
 
     #[cfg(feature = "orm")]
     pub use crate::{
@@ -66,6 +71,5 @@ pub mod prelude {
 /// Paths used by generated code. Not part of the public API; may change at any time.
 #[doc(hidden)]
 pub mod __private {
-    pub use axum;
-    pub use rustali_core;
+    pub use rustali_core::__private::*;
 }

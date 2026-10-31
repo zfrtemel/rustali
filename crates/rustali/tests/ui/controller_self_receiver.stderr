@@ -1,0 +1,5 @@
+error: route handlers take no `self`; controllers are stateless namespaces (use extractors)
+ --> tests/ui/controller_self_receiver.rs:8:14
+  |
+8 |     async fn index(&self) -> &'static str {
+  |              ^^^^^

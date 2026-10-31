@@ -39,6 +39,13 @@ pub enum Error {
     #[error("forbidden")]
     Forbidden,
 
+    /// Rate limit exceeded (429). Rendered with a `Retry-After` header.
+    #[error("too many requests; retry after {retry_after_secs}s")]
+    TooManyRequests {
+        /// Seconds until the client may retry.
+        retry_after_secs: u64,
+    },
+
     /// Configuration could not be loaded or is invalid (startup only).
     ///
     /// Boxed because `figment::Error` is large and would bloat every `Result<T>`.
@@ -85,6 +92,7 @@ impl Error {
             Self::BadRequest(_) => StatusCode::BAD_REQUEST,
             Self::Unauthorized => StatusCode::UNAUTHORIZED,
             Self::Forbidden => StatusCode::FORBIDDEN,
+            Self::TooManyRequests { .. } => StatusCode::TOO_MANY_REQUESTS,
             Self::Config(_) | Self::Database(_) | Self::Internal(_) => {
                 StatusCode::INTERNAL_SERVER_ERROR
             }
@@ -153,6 +161,13 @@ impl IntoResponse for Error {
         };
         // Plain-text fallback for apps that remove the negotiation layer.
         let mut response = (status, body.title).into_response();
+        if let Self::TooManyRequests { retry_after_secs } = &self
+            && let Ok(value) = axum::http::HeaderValue::from_str(&retry_after_secs.to_string())
+        {
+            response
+                .headers_mut()
+                .insert(axum::http::header::RETRY_AFTER, value);
+        }
         response.extensions_mut().insert(body);
         response
     }

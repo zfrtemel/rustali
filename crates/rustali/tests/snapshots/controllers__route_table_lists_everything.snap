@@ -1,0 +1,10 @@
+---
+source: crates/rustali/tests/controllers.rs
+expression: rows
+---
+- "GET /posts PostController::index Some(\"posts.index\") [\"Throttle::per_minute(1000)\"] None"
+- "GET /posts/{id} PostController::show Some(\"posts.show\") [\"Throttle::per_minute(1000)\"] None"
+- "POST /posts PostController::store None [\"Throttle::per_minute(1000)\"] Some(\"role:editor\")"
+- "PATCH /posts/{id} PostController::update None [\"Throttle::per_minute(1000)\"] Some(\"post.update\")"
+- "DELETE /posts/{id} PostController::destroy None [\"Throttle::per_minute(2)\", \"Throttle::per_minute(1000)\"] Some(\"authenticated\")"
+- "GET /health HealthController::health None [] None"

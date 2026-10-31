@@ -6,9 +6,30 @@
 ```rust
 use rustali::prelude::*;
 
+pub struct PostController;
+
+#[controller("/posts")]
+#[middleware(Throttle::per_minute(60))]
+impl PostController {
+    #[get("/{id}", name = "posts.show")]
+    async fn show(db: Db, Path(id): Path<i64>) -> Result<Json<Post>> {
+        Ok(Json(Post::find_or_404(&db, id).await?))
+    }
+
+    #[post("/")]
+    #[authorize(role = "editor")]
+    async fn store(db: Db, Json(input): Json<NewPost>) -> Result<Json<Post>> {
+        Ok(Json(Post::from(input).insert(&db).await?))
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
-    App::builder().serve().await
+    App::builder()
+        .provider(DatabaseProvider)
+        .controllers()
+        .run()
+        .await
 }
 ```
 

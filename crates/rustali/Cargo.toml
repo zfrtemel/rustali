@@ -31,3 +31,11 @@ rustali-orm = { workspace = true, optional = true, default-features = false }
 rustali-migrate = { workspace = true, optional = true, default-features = false }
 axum = { workspace = true }
 tokio = { workspace = true }
+
+[dev-dependencies]
+http-body-util = { workspace = true }
+insta = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tower = { workspace = true }
+trybuild = { workspace = true }

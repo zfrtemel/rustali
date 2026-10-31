@@ -1,0 +1,5 @@
+error: `#[controller]` found no routes; annotate methods with #[get("/")], #[post(..)], ...
+ --> tests/ui/controller_no_routes.rs:6:6
+  |
+6 | impl Ctl {
+  |      ^^^

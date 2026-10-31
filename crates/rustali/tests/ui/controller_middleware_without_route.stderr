@@ -1,0 +1,5 @@
+error: `#[middleware]` / `#[authorize]` need a route attribute such as #[get("/")]
+  --> tests/ui/controller_middleware_without_route.rs:13:14
+   |
+13 |     async fn helper() {}
+   |              ^^^^^^

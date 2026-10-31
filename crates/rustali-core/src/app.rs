@@ -8,8 +8,11 @@ use tower::{Layer, Service};
 
 use crate::{
     Config, Result,
+    auth::{Gate, Policy},
     command::{Command, Commands, UnknownCommand},
-    middleware,
+    error::ErrorBody,
+    middleware::{self, ErrorRendererHandle, ErrorRequest},
+    router::{Controller, RouteDef, RouteTable, RoutesCommand},
     services::{Provider, Registry, Services},
     telemetry,
 };
@@ -77,13 +80,30 @@ impl App {
 
 /// Fluent builder that assembles configuration, providers, routes, middleware and
 /// commands, then serves or runs a command.
-#[derive(Default)]
 pub struct AppBuilder {
     config: Option<Config>,
     providers: Vec<Box<dyn Provider>>,
     services: Services,
     commands: Commands,
     router: Router<AppContext>,
+    routes: RouteTable,
+    gate: Gate,
+}
+
+impl Default for AppBuilder {
+    fn default() -> Self {
+        let mut commands = Commands::default();
+        commands.insert(RoutesCommand);
+        Self {
+            config: None,
+            providers: Vec::new(),
+            services: Services::default(),
+            commands,
+            router: Router::new(),
+            routes: RouteTable::default(),
+            gate: Gate::default(),
+        }
+    }
 }
 
 impl AppBuilder {
@@ -116,19 +136,69 @@ impl AppBuilder {
         self
     }
 
-    /// Merge an axum router. Attribute-routed controllers register through this
-    /// same path once `rustali-router` lands.
+    /// Register an authorization policy (see [`crate::auth`]).
+    #[must_use]
+    pub fn policy(mut self, policy: impl Policy) -> Self {
+        self.gate.define(policy);
+        self
+    }
+
+    /// Install a custom error renderer: the exception filter override.
+    ///
+    /// ```ignore
+    /// App::builder().on_error(|error, request| {
+    ///     (error.status == StatusCode::NOT_FOUND && !request.wants_json)
+    ///         .then(|| Redirect::to("/").into_response())
+    /// })
+    /// ```
+    #[must_use]
+    pub fn on_error<F>(self, renderer: F) -> Self
+    where
+        F: Fn(&ErrorBody, &ErrorRequest) -> Option<axum::response::Response>
+            + Send
+            + Sync
+            + 'static,
+    {
+        self.provide(ErrorRendererHandle(Arc::new(renderer)))
+    }
+
+    /// Mount one `#[controller]` type.
+    #[must_use]
+    pub fn controller<C: Controller>(mut self) -> Self {
+        self.router = self.router.merge(C::router());
+        self.routes.extend(C::routes());
+        self
+    }
+
+    /// Mount every `#[controller]` linked into the binary.
+    #[must_use]
+    pub fn controllers(mut self) -> Self {
+        for registration in crate::router::registered() {
+            self.router = self.router.merge((registration.router)());
+            self.routes.extend((registration.routes)());
+        }
+        self
+    }
+
+    /// Merge a plain axum router. Such routes are not listed by `routes`.
     #[must_use]
     pub fn routes(mut self, router: Router<AppContext>) -> Self {
         self.router = self.router.merge(router);
         self
     }
 
+    /// Register route metadata for routers added with [`Self::routes`].
+    #[must_use]
+    pub fn describe(mut self, routes: impl IntoIterator<Item = RouteDef>) -> Self {
+        self.routes.extend(routes);
+        self
+    }
+
     /// Add a tower layer around all routes registered so far.
     ///
     /// User layers sit *inside* the default stack (request id, tracing, panic
-    /// catching, error negotiation), so they see the request id and their errors
-    /// are still rendered consistently.
+    /// catching, context injection, error negotiation), so they see the request id
+    /// and their errors are still rendered consistently.
     #[must_use]
     pub fn layer<L>(mut self, layer: L) -> Self
     where
@@ -159,6 +229,8 @@ impl AppBuilder {
             let mut registry = Registry::new(&config, &mut services, &mut commands);
             provider.register(&mut registry).await?;
         }
+        services.insert(self.routes);
+        services.insert(self.gate);
 
         let ctx = AppContext {
             inner: Arc::new(Inner {
@@ -181,9 +253,12 @@ impl AppBuilder {
         let addr = SocketAddr::new(ctx.config().server.host, ctx.config().server.port);
         let listener = TcpListener::bind(addr).await?;
         tracing::info!(%addr, name = %ctx.config().app.name, env = %ctx.config().app.env, "listening");
-        axum::serve(listener, router)
-            .with_graceful_shutdown(shutdown_signal())
-            .await?;
+        axum::serve(
+            listener,
+            router.into_make_service_with_connect_info::<SocketAddr>(),
+        )
+        .with_graceful_shutdown(shutdown_signal())
+        .await?;
         Ok(())
     }
 

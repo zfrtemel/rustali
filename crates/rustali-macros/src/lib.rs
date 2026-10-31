@@ -2,9 +2,10 @@
 //!
 //! This crate is an implementation detail re-exported by `rustali`; it must only
 //! depend on the proc-macro toolkit. Generated code refers to the framework through a
-//! configurable path (default `::rustali::orm`) so it works whether the user depends
-//! on the meta crate or on `rustali-orm` directly.
+//! configurable path (default `::rustali`) so it works whether the user depends on
+//! the meta crate or on the individual crates.
 
+mod controller;
 mod entity;
 
 use proc_macro::TokenStream;
@@ -54,6 +55,51 @@ use proc_macro::TokenStream;
 #[proc_macro_derive(Entity, attributes(table, entity, key, column, skip))]
 pub fn derive_entity(input: TokenStream) -> TokenStream {
     entity::expand(input.into())
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+/// Attribute routing: declare routes on the handlers themselves.
+///
+/// ```ignore
+/// use rustali::prelude::*;
+///
+/// pub struct PostController;
+///
+/// #[controller("/posts")]
+/// #[middleware(Throttle::per_minute(60))]
+/// impl PostController {
+///     #[get("/")]
+///     async fn index(db: Db) -> Result<Json<Vec<Post>>> { /* ... */ }
+///
+///     #[get("/{id}", name = "posts.show")]
+///     async fn show(db: Db, Path(id): Path<i64>) -> Result<Json<Post>> { /* ... */ }
+///
+///     #[post("/")]
+///     #[authorize(role = "editor")]
+///     async fn store(db: Db, Json(input): Json<NewPost>) -> Result<Json<Post>> { /* ... */ }
+/// }
+/// ```
+///
+/// Inside the `impl`:
+///
+/// - `#[get("/path")]`, `#[post]`, `#[put]`, `#[patch]`, `#[delete]`, `#[head]`,
+///   `#[options]` — one per handler; optional `name = "..."`. Paths use axum syntax
+///   (`{id}`) and are joined with the controller prefix.
+/// - `#[middleware(expr)]` — a tower layer for one handler (on a method) or for the
+///   whole controller (on the `impl`). Method layers run inside controller layers.
+/// - `#[authorize("ability")]` / `#[authorize(role = "name")]` — require an ability
+///   through the application's `Gate`.
+///
+/// Handlers are `async fn` without `self`; the type is a stateless namespace. The
+/// macro implements `rustali::router::Controller` (giving `PostController::router()`
+/// and `::routes()`) and registers the controller for `App::builder().controllers()`.
+///
+/// Options: `#[controller("/prefix", crate = "rustali_core")]` changes the framework
+/// path used by generated code.
+#[proc_macro_attribute]
+pub fn controller(attr: TokenStream, item: TokenStream) -> TokenStream {
+    controller::expand(attr.into(), item.into())
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }
