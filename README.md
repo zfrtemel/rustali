@@ -73,6 +73,9 @@ cargo run -p blog -- migrate && cargo run -p blog
 cargo run -p auth-app -- migrate && cargo run -p auth-app
 #                                           register / login / logout / protected page:
 #                                           argon2 hashing, sessions, CSRF, validation
+cargo run -p todo-api -- migrate:diff "add a field"
+#                                           code-first: change an entity, diff against
+#                                           the snapshot, get a reviewed migration
 ```
 
 ## Contributing

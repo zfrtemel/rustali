@@ -2677,9 +2677,11 @@ dependencies = [
 name = "rustali-migrate"
 version = "0.1.0-alpha.0"
 dependencies = [
+ "chrono",
  "rustali-core",
  "rustali-orm",
  "sea-orm-migration",
+ "serde_json",
  "tokio",
  "tracing",
 ]
@@ -2690,10 +2692,12 @@ version = "0.1.0-alpha.0"
 dependencies = [
  "axum",
  "chrono",
+ "inventory",
  "rustali-core",
  "rustali-macros",
  "sea-orm",
  "serde",
+ "serde_json",
  "tokio",
  "tracing",
  "trybuild",

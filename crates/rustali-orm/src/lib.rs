@@ -16,22 +16,29 @@ pub mod extract;
 pub mod page;
 pub mod provider;
 pub mod query;
+pub mod registry;
+pub mod schema;
 
 pub use chrono;
 pub use sea_orm;
 
 pub use config::DatabaseConfig;
-pub use entity::{ColumnMeta, Entity};
+pub use entity::{ColumnMeta, Entity, TableMeta};
 pub use error::{DbResultExt, map_db_err};
 pub use extract::Db;
 pub use page::Page;
 pub use provider::{Database, DatabaseProvider, DbExt};
 pub use query::Query;
+pub use registry::{EntityRegistration, desired_schema, registered_tables};
+pub use schema::{Schema, SchemaChange};
 
 /// Paths used by `#[derive(Entity)]` output. Not public API.
 #[doc(hidden)]
 pub mod __private {
+    pub use inventory;
     pub use rustali_core::{Error, Result};
+
+    pub use crate::{TableMeta, registry::EntityRegistration};
 }
 
 /// Items generated code and application models usually import.

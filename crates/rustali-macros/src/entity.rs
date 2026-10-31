@@ -455,6 +455,10 @@ fn generate(input: &Input) -> Result<TokenStream> {
             }
         }
 
+        #krate::__private::inventory::submit! {
+            #krate::__private::EntityRegistration { schema: <#ident as #krate::Entity>::schema }
+        }
+
         impl #krate::Entity for #ident {
             type Sea = #mod_name::Entity;
             type Key = #key_ty;

@@ -102,5 +102,6 @@ impl MigrateAppExt for AppBuilder {
             .command(crate::commands::Refresh)
             .command(crate::commands::Reset)
             .command(crate::commands::Status)
+            .command(crate::diff::DiffCommand)
     }
 }

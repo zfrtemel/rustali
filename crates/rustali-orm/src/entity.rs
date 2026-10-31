@@ -7,7 +7,7 @@
 
 use sea_orm::{EntityTrait, PrimaryKeyTrait};
 
-/// Static description of one column, used by schema tooling and `rustali schema`.
+/// Static description of one column, used by schema tooling and code-first diffs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[allow(clippy::struct_excessive_bools)] // a descriptor of independent flags, not a state machine
 pub struct ColumnMeta {
@@ -25,6 +25,16 @@ pub struct ColumnMeta {
     pub unique: bool,
     /// Maximum length for string columns (`#[column(max_len = N)]`).
     pub max_len: Option<u32>,
+}
+
+/// Static schema of one entity's table, the input to the code-first diff engine
+/// ([`crate::schema`]). Produced by `#[derive(Entity)]` via [`Entity::schema`].
+#[derive(Debug, Clone, Copy)]
+pub struct TableMeta {
+    /// Table name.
+    pub table: &'static str,
+    /// Columns in declaration order.
+    pub columns: &'static [ColumnMeta],
 }
 
 /// Bridge between a plain struct and its generated SeaORM entity.
@@ -50,6 +60,15 @@ pub trait Entity:
 
     /// Column metadata in declaration order.
     const COLUMNS: &'static [ColumnMeta];
+
+    /// This entity's table as a [`TableMeta`], for the code-first diff engine.
+    #[must_use]
+    fn schema() -> TableMeta {
+        TableMeta {
+            table: Self::TABLE,
+            columns: Self::COLUMNS,
+        }
+    }
 
     /// Primary key of this row.
     fn key(&self) -> Self::Key;
