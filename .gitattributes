@@ -1,0 +1,11 @@
+# Normalise line endings to LF in the repository regardless of platform.
+* text=auto eol=lf
+
+# Binary assets
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff2 binary
+
+# Snapshot files must not be touched by normalisation
+*.snap text eol=lf -diff

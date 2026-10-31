@@ -2,7 +2,8 @@
 //!
 //! `rustali-core` owns the pieces every other crate builds on: the [`App`] builder
 //! and its shared [`AppContext`], layered [`Config`] loading, the framework-wide
-//! [`Error`] type with content-negotiated responses, and the request extractors.
+//! [`Error`] type with content-negotiated responses, the default middleware stack
+//! and the request extractors such as [`Ctx`].
 //!
 //! End users normally depend on the `rustali` meta crate instead of this one.
 //!
@@ -20,7 +21,11 @@
 pub mod app;
 pub mod config;
 pub mod error;
+pub mod extract;
+pub mod middleware;
+pub mod telemetry;
 
 pub use app::{App, AppBuilder, AppContext};
 pub use config::Config;
-pub use error::{Error, Result};
+pub use error::{Error, ErrorBody, Result};
+pub use extract::Ctx;

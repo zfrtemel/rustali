@@ -1,21 +1,36 @@
 //! Layered application configuration.
 //!
-//! Precedence, lowest to highest: compiled defaults → `config/*.toml` →
-//! `config/{APP_ENV}.toml` → `.env` file → process environment variables prefixed
-//! with `APP__` (double underscore separates nesting, e.g. `APP__SERVER__PORT=9000`).
+//! Layout follows Laravel: one file per section.
+//!
+//! ```text
+//! config/
+//! ├── app.toml            → [app]      (keys: name, env, debug)
+//! ├── server.toml         → [server]   (host, port)
+//! ├── log.toml            → [log]
+//! └── production/         → same files, merged on top when APP_ENV=production
+//!     └── app.toml
+//! ```
+//!
+//! Precedence, lowest to highest: compiled defaults → `config/<section>.toml` →
+//! `config/<APP_ENV>/<section>.toml` → `.env` file → process environment variables
+//! prefixed with `APP__` (double underscore separates nesting, e.g.
+//! `APP__SERVER__PORT=9000`). Unknown sections are kept and can be read with
+//! [`Config::extract`].
 
-use std::{net::IpAddr, path::Path};
+use std::{
+    net::IpAddr,
+    path::{Path, PathBuf},
+};
 
 use figment::{
     Figment,
-    providers::{Env, Format, Serialized, Toml},
+    providers::{Env, Serialized},
 };
 use serde::{Deserialize, Serialize};
 
-use crate::Result;
+use crate::{Error, Result};
 
-/// Root configuration object. Applications extend it with their own sections by
-/// deserialising the same sources into their own struct through [`Config::extract`].
+/// Root configuration object.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
@@ -23,9 +38,11 @@ pub struct Config {
     pub app: AppConfig,
     /// HTTP server settings.
     pub server: ServerConfig,
+    /// Logging settings.
+    pub log: LogConfig,
 }
 
-/// General application settings (`[app]` table).
+/// General application settings (`config/app.toml`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct AppConfig {
@@ -37,7 +54,7 @@ pub struct AppConfig {
     pub debug: bool,
 }
 
-/// HTTP server settings (`[server]` table).
+/// HTTP server settings (`config/server.toml`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ServerConfig {
@@ -45,6 +62,17 @@ pub struct ServerConfig {
     pub host: IpAddr,
     /// TCP port to bind.
     pub port: u16,
+}
+
+/// Logging settings (`config/log.toml`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct LogConfig {
+    /// `tracing` filter directive, e.g. `info` or `info,tower_http=debug`.
+    /// Overridden by the `RUST_LOG` environment variable when present.
+    pub level: String,
+    /// Emit one JSON object per line instead of human-readable text.
+    pub json: bool,
 }
 
 impl Default for AppConfig {
@@ -66,8 +94,17 @@ impl Default for ServerConfig {
     }
 }
 
+impl Default for LogConfig {
+    fn default() -> Self {
+        Self {
+            level: "info,tower_http=debug".into(),
+            json: false,
+        }
+    }
+}
+
 impl Config {
-    /// Environment variable that selects the profile file (`config/{env}.toml`).
+    /// Environment variable that selects the profile directory (`config/<env>/`).
     pub const ENV_VAR: &'static str = "APP_ENV";
     /// Prefix for environment-variable overrides.
     pub const ENV_PREFIX: &'static str = "APP__";
@@ -77,15 +114,15 @@ impl Config {
         Self::load_from("config")
     }
 
-    /// Load configuration using `dir` as the directory holding the TOML files.
+    /// Load configuration using `dir` as the directory holding the section files.
     pub fn load_from(dir: impl AsRef<Path>) -> Result<Self> {
-        Self::figment(dir.as_ref()).extract().map_err(Into::into)
+        Self::extract(dir)
     }
 
-    /// Deserialise an application-defined configuration struct from the same layered
-    /// sources. Use this for custom sections instead of re-reading files.
+    /// Deserialise any type from the same layered sources. Use this for
+    /// application-defined sections (`config/payments.toml` → `struct Payments`).
     pub fn extract<T: for<'de> Deserialize<'de>>(dir: impl AsRef<Path>) -> Result<T> {
-        Self::figment(dir.as_ref()).extract().map_err(Into::into)
+        Self::figment(dir.as_ref())?.extract().map_err(Into::into)
     }
 
     /// `true` when running under the `production` profile.
@@ -94,16 +131,49 @@ impl Config {
         self.app.env == "production"
     }
 
-    fn figment(dir: &Path) -> Figment {
+    fn figment(dir: &Path) -> Result<Figment> {
         // `.env` is optional and must never override real environment variables.
         let _ = dotenvy::dotenv();
         let profile = std::env::var(Self::ENV_VAR).unwrap_or_else(|_| "development".into());
 
-        Figment::from(Serialized::defaults(Self::default()))
-            .merge(Toml::file(dir.join("app.toml")))
-            .merge(Toml::file(dir.join("server.toml")))
-            .merge(Toml::file(dir.join(format!("{profile}.toml"))))
-            .merge(Env::prefixed(Self::ENV_PREFIX).split("__"))
+        let mut figment = Figment::from(Serialized::defaults(Self::default()));
+        figment = Self::merge_dir(figment, dir)?;
+        figment = Self::merge_dir(figment, &dir.join(&profile))?;
+        Ok(figment.merge(Env::prefixed(Self::ENV_PREFIX).split("__")))
+    }
+
+    /// Merge every `<section>.toml` in `dir` under the key `<section>`.
+    fn merge_dir(mut figment: Figment, dir: &Path) -> Result<Figment> {
+        for path in Self::section_files(dir) {
+            let Some(section) = path.file_stem().and_then(|s| s.to_str()) else {
+                continue;
+            };
+            let text = std::fs::read_to_string(&path)?;
+            let value: toml::Value = toml::from_str(&text)
+                .map_err(|err| Error::bad_config(format!("{}: {err}", path.display())))?;
+            figment = figment.merge(Serialized::default(section, value));
+        }
+        Ok(figment)
+    }
+
+    fn section_files(dir: &Path) -> Vec<PathBuf> {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return Vec::new(); // a missing directory simply contributes nothing
+        };
+        let mut files: Vec<PathBuf> = entries
+            .filter_map(std::result::Result::ok)
+            .map(|entry| entry.path())
+            .filter(|path| path.is_file() && path.extension().is_some_and(|ext| ext == "toml"))
+            .collect();
+        files.sort(); // deterministic merge order
+        files
+    }
+}
+
+impl Error {
+    /// Configuration failure with a custom message (unreadable or malformed file).
+    pub(crate) fn bad_config(message: impl Into<String>) -> Self {
+        Self::Config(Box::new(figment::Error::from(message.into())))
     }
 }
 
@@ -122,6 +192,36 @@ mod tests {
     }
 
     #[test]
+    fn section_files_map_to_sections() {
+        figment::Jail::expect_with(|jail| {
+            jail.create_dir("config")?;
+            jail.create_file("config/server.toml", "port = 9000")?;
+            jail.create_file("config/app.toml", "name = \"Shop\"")?;
+            let cfg = Config::load_from("config").expect("config loads");
+            assert_eq!(cfg.server.port, 9000);
+            assert_eq!(cfg.app.name, "Shop");
+            Ok(())
+        });
+    }
+
+    #[test]
+    fn profile_directory_overrides_base_files() {
+        figment::Jail::expect_with(|jail| {
+            jail.create_dir("config/production")?;
+            jail.create_file("config/app.toml", "debug = true")?;
+            jail.create_file(
+                "config/production/app.toml",
+                "debug = false\nenv = \"production\"",
+            )?;
+            jail.set_env("APP_ENV", "production");
+            let cfg = Config::load_from("config").expect("config loads");
+            assert!(!cfg.app.debug);
+            assert!(cfg.is_production());
+            Ok(())
+        });
+    }
+
+    #[test]
     fn env_overrides_win() {
         figment::Jail::expect_with(|jail| {
             jail.create_dir("config")?;
@@ -129,6 +229,45 @@ mod tests {
             jail.set_env("APP__SERVER__PORT", "9100");
             let cfg = Config::load_from("config").expect("config loads");
             assert_eq!(cfg.server.port, 9100);
+            Ok(())
+        });
+    }
+
+    #[test]
+    fn custom_sections_are_available_via_extract() {
+        #[derive(Deserialize)]
+        struct Payments {
+            provider: String,
+        }
+        #[derive(Deserialize)]
+        struct Root {
+            payments: Payments,
+        }
+        figment::Jail::expect_with(|jail| {
+            jail.create_dir("config")?;
+            jail.create_file("config/payments.toml", "provider = \"stripe\"")?;
+            let root: Root = Config::extract("config").expect("extract");
+            assert_eq!(root.payments.provider, "stripe");
+            Ok(())
+        });
+    }
+
+    #[test]
+    fn wrong_types_are_errors() {
+        figment::Jail::expect_with(|jail| {
+            jail.create_dir("config")?;
+            jail.create_file("config/server.toml", "port = \"not-a-number\"")?;
+            assert!(matches!(Config::load_from("config"), Err(Error::Config(_))));
+            Ok(())
+        });
+    }
+
+    #[test]
+    fn malformed_toml_is_an_error() {
+        figment::Jail::expect_with(|jail| {
+            jail.create_dir("config")?;
+            jail.create_file("config/app.toml", "name = ")?;
+            assert!(matches!(Config::load_from("config"), Err(Error::Config(_))));
             Ok(())
         });
     }

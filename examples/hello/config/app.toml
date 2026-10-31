@@ -1,0 +1,3 @@
+name = "Hello Rustali"
+env = "development"
+debug = true

@@ -1,0 +1,50 @@
+//! Request extractors provided by the kernel.
+
+use std::{
+    convert::Infallible,
+    future::{Future, ready},
+    ops::Deref,
+};
+
+use axum::{
+    extract::{FromRef, FromRequestParts},
+    http::request::Parts,
+};
+
+use crate::AppContext;
+
+/// Extracts the shared [`AppContext`].
+///
+/// Equivalent to `State<AppContext>` but reads better in handler signatures and
+/// dereferences straight to the context:
+///
+/// ```ignore
+/// async fn home(ctx: Ctx) -> String {
+///     ctx.config().app.name.clone()
+/// }
+/// ```
+#[derive(Debug, Clone)]
+pub struct Ctx(pub AppContext);
+
+impl<S> FromRequestParts<S> for Ctx
+where
+    AppContext: FromRef<S>,
+    S: Send + Sync,
+{
+    type Rejection = Infallible;
+
+    fn from_request_parts(
+        _parts: &mut Parts,
+        state: &S,
+    ) -> impl Future<Output = Result<Self, Self::Rejection>> + Send {
+        ready(Ok(Self(AppContext::from_ref(state))))
+    }
+}
+
+impl Deref for Ctx {
+    type Target = AppContext;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}

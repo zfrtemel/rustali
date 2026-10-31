@@ -23,12 +23,15 @@ http = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 figment = { workspace = true }
+toml = { workspace = true }
 dotenvy = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
+uuid = { workspace = true }
 
 [dev-dependencies]
 figment = { workspace = true, features = ["test"] }
+http-body-util = { workspace = true }
 insta = { workspace = true }
 tokio-test = { workspace = true }

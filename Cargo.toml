@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/*", "xtask"]
+members = ["crates/*", "examples/*", "xtask"]
 # Starters are templates, not workspace members; examples join as they are added.
 exclude = ["starters/*"]
 
@@ -29,6 +29,7 @@ tower = { version = "0.5", features = ["util", "timeout", "limit"] }
 tower-http = { version = "0.6", features = ["trace", "cors", "compression-full", "fs", "request-id", "catch-panic", "normalize-path", "set-header", "timeout"] }
 hyper = { version = "1", features = ["server", "http1", "http2"] }
 http = "1"
+http-body-util = "0.1"
 bytes = "1"
 
 # --- serialization & config ---

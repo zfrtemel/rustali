@@ -1,0 +1,11 @@
+---
+source: crates/rustali-core/tests/http.rs
+expression: json
+---
+{
+  "instance": "/api/missing",
+  "request_id": "[request-id]",
+  "status": 404,
+  "title": "Not Found",
+  "type": "about:blank"
+}
