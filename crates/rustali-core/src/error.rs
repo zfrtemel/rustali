@@ -45,6 +45,11 @@ pub enum Error {
     #[error("configuration error: {0}")]
     Config(Box<figment::Error>),
 
+    /// A database operation failed (500). Produced by the ORM layer; `core` stays
+    /// independent of any database crate.
+    #[error("database error: {0}")]
+    Database(Box<dyn std::error::Error + Send + Sync + 'static>),
+
     /// Any other failure; rendered as 500.
     #[error(transparent)]
     Internal(#[from] Box<dyn std::error::Error + Send + Sync + 'static>),
@@ -64,6 +69,14 @@ impl Error {
         Self::BadRequest(message.into())
     }
 
+    /// Wrap a database driver error.
+    pub fn database<E>(err: E) -> Self
+    where
+        E: std::error::Error + Send + Sync + 'static,
+    {
+        Self::Database(Box::new(err))
+    }
+
     /// The HTTP status this error renders as.
     #[must_use]
     pub const fn status(&self) -> StatusCode {
@@ -72,7 +85,9 @@ impl Error {
             Self::BadRequest(_) => StatusCode::BAD_REQUEST,
             Self::Unauthorized => StatusCode::UNAUTHORIZED,
             Self::Forbidden => StatusCode::FORBIDDEN,
-            Self::Config(_) | Self::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::Config(_) | Self::Database(_) | Self::Internal(_) => {
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
         }
     }
 

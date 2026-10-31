@@ -39,6 +39,15 @@ no runtime reflection.
 Pre-alpha. The roadmap, architecture and coding standard live in
 [VISION.md](VISION.md) and [docs/adr](docs/adr). Nothing is published to crates.io yet.
 
+What works today (run from a checkout):
+
+```bash
+cargo run -p hello                        # SSR page + JSON endpoint, negotiated errors
+cargo run -p todo-api -- migrate          # SQLite schema via sea-orm-migration
+cargo run -p todo-api                     # CRUD JSON API on a #[derive(Entity)] struct
+cargo run -p todo-api -- help             # the app binary is also its console
+```
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Security reports: [SECURITY.md](SECURITY.md).

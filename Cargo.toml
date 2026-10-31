@@ -21,6 +21,8 @@ categories = ["web-programming::http-server", "web-programming"]
 # --- internal crates (path deps; versions follow workspace.package.version) ---
 rustali-core = { path = "crates/rustali-core", version = "0.1.0-alpha.0" }
 rustali-macros = { path = "crates/rustali-macros", version = "0.1.0-alpha.0" }
+rustali-orm = { path = "crates/rustali-orm", version = "0.1.0-alpha.0" }
+rustali-migrate = { path = "crates/rustali-migrate", version = "0.1.0-alpha.0" }
 
 # --- async runtime & HTTP stack ---
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "net", "fs", "sync", "time"] }
@@ -47,6 +49,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"]
 
 # --- data layer ---
 sea-orm = { version = "2.0", default-features = false, features = ["runtime-tokio-rustls", "macros", "with-chrono", "with-json", "with-uuid"] }
+sea-orm-migration = { version = "2.0", default-features = false, features = ["runtime-tokio-rustls", "with-chrono", "with-json", "with-uuid"] }
 sea-query = "1"
 sea-schema = "1"
 chrono = { version = "0.4", features = ["serde"] }
@@ -72,6 +75,7 @@ opendal = { version = "0.54", default-features = false }
 syn = { version = "2", features = ["full", "extra-traits"] }
 quote = "1"
 proc-macro2 = "1"
+heck = "0.5"
 inventory = "0.3"
 
 # --- CLI ---
@@ -100,6 +104,8 @@ module_name_repetitions = "allow"
 must_use_candidate = "allow"
 missing_errors_doc = "allow"
 missing_panics_doc = "allow"
+# Conflicts with rustc's `unreachable_pub`, which we prefer.
+redundant_pub_crate = "allow"
 # Never acceptable in library code.
 unwrap_used = "deny"
 expect_used = "deny"

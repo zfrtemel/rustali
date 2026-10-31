@@ -1,8 +1,59 @@
 //! Procedural macros for the Rustali web framework.
 //!
 //! This crate is an implementation detail re-exported by `rustali`; it must only
-//! depend on the proc-macro toolkit and emit paths under `::rustali::__private`.
-//!
-//! Macros arrive with their phases: `#[controller]`/`#[get]` (Faz 3),
-//! `#[derive(Entity)]` (Faz 2), `#[derive(Validate)]` (Faz 4), `#[authorize]` and
-//! `#[middleware]` (Faz 3).
+//! depend on the proc-macro toolkit. Generated code refers to the framework through a
+//! configurable path (default `::rustali::orm`) so it works whether the user depends
+//! on the meta crate or on `rustali-orm` directly.
+
+mod entity;
+
+use proc_macro::TokenStream;
+
+/// Turn a plain struct into a Rustali entity backed by a generated SeaORM entity.
+///
+/// ```ignore
+/// use rustali::prelude::*;
+///
+/// #[derive(Entity, Debug, Clone, Serialize)]
+/// #[table("todos")]
+/// pub struct Todo {
+///     #[key]
+///     pub id: i64,
+///     #[column(max_len = 200)]
+///     pub title: String,
+///     pub done: bool,
+///     pub created_at: DateTime<Utc>,
+///     pub updated_at: DateTime<Utc>,
+/// }
+/// ```
+///
+/// # Container attributes
+///
+/// - `#[table("name")]` — table name (default: `snake_case` struct name + `s`).
+/// - `#[entity(crate = "path")]` — path to `rustali_orm` (default `::rustali::orm`).
+///
+/// # Field attributes
+///
+/// - `#[key]` / `#[key(auto = false)]` — primary key; integer keys auto-increment
+///   unless told otherwise. Without any `#[key]`, a field named `id` is the key.
+/// - `#[column(name = "col", unique, max_len = N)]` — column options.
+/// - `#[skip]` — not stored; must implement `Default`.
+///
+/// # Conventions
+///
+/// `Option<T>` fields are nullable. Fields named `created_at` / `updated_at` are
+/// maintained automatically on insert and update.
+///
+/// # Generated API
+///
+/// `Todo::query()`, `Todo::find(&db, id)`, `Todo::find_or_404(&db, id)`,
+/// `Todo::all(&db)`, `Todo::count(&db)`, `todo.insert(&db)`, `todo.update(&db)`,
+/// `todo.delete(&db)`, typed column constants (`Todo::TITLE`), plus the
+/// `rustali_orm::Entity` implementation and a hidden `todo_entity` module with the
+/// SeaORM types.
+#[proc_macro_derive(Entity, attributes(table, entity, key, column, skip))]
+pub fn derive_entity(input: TokenStream) -> TokenStream {
+    entity::expand(input.into())
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}

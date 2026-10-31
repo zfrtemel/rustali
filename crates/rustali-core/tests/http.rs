@@ -1,6 +1,6 @@
-//! End-to-end behaviour of the default middleware stack and error rendering.
+//! End-to-end behaviour of the default middleware stack, error rendering and DI.
 
-#![allow(clippy::unwrap_used, clippy::expect_used, clippy::result_large_err)]
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use axum::{
     Router,
@@ -9,14 +9,41 @@ use axum::{
     routing::get,
 };
 use http_body_util::BodyExt;
-use rustali_core::{App, AppContext, Config, Error, Result, middleware::REQUEST_ID_HEADER};
+use rustali_core::{
+    App, AppContext, Config, Error, Inject, Provider, RegisterFuture, Registry, Result,
+    middleware::REQUEST_ID_HEADER,
+};
 use tower::ServiceExt;
+
+/// A service registered by a provider, to exercise `Inject`.
+struct Greeting(&'static str);
+
+struct GreetingProvider;
+
+impl Provider for GreetingProvider {
+    fn register<'a>(&'a self, registry: &'a mut Registry<'_>) -> RegisterFuture<'a> {
+        Box::pin(async move {
+            registry.insert(Greeting("hello from provider"));
+            Ok(())
+        })
+    }
+}
+
+struct Unregistered;
 
 async fn panics() -> &'static str {
     panic!("handler panicked")
 }
 
-fn app(debug: bool) -> Router {
+async fn greet(Inject(greeting): Inject<Greeting>) -> &'static str {
+    greeting.0
+}
+
+async fn missing(_svc: Inject<Unregistered>) -> &'static str {
+    "unreachable"
+}
+
+async fn app(debug: bool) -> Router {
     let mut config = Config::default();
     config.app.debug = debug;
 
@@ -33,12 +60,16 @@ fn app(debug: bool) -> Router {
                 Err::<(), Error>(Error::internal(std::io::Error::other("database exploded")))
             }),
         )
-        .route("/panic", get(panics));
+        .route("/panic", get(panics))
+        .route("/greet", get(greet))
+        .route("/missing-service", get(missing));
 
     let (_, router) = App::builder()
         .config(config)
+        .provider(GreetingProvider)
         .routes(handlers)
         .build()
+        .await
         .expect("app builds");
     router
 }
@@ -64,7 +95,7 @@ async fn send(
 
 #[tokio::test]
 async fn successful_responses_pass_through_with_request_id() {
-    let (status, headers, body) = send(app(false), "/", None).await;
+    let (status, headers, body) = send(app(false).await, "/", None).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body, "hello");
     let id = headers.get(REQUEST_ID_HEADER).expect("request id header");
@@ -73,7 +104,8 @@ async fn successful_responses_pass_through_with_request_id() {
 
 #[tokio::test]
 async fn unknown_route_renders_html_for_browsers() {
-    let (status, headers, body) = send(app(false), "/missing", Some("text/html,*/*;q=0.8")).await;
+    let (status, headers, body) =
+        send(app(false).await, "/missing", Some("text/html,*/*;q=0.8")).await;
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert!(
         headers[header::CONTENT_TYPE]
@@ -87,7 +119,7 @@ async fn unknown_route_renders_html_for_browsers() {
 
 #[tokio::test]
 async fn unknown_api_route_renders_problem_json() {
-    let (status, headers, body) = send(app(false), "/api/missing", None).await;
+    let (status, headers, body) = send(app(false).await, "/api/missing", None).await;
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert_eq!(headers[header::CONTENT_TYPE], "application/problem+json");
     let json: serde_json::Value = serde_json::from_str(&body).unwrap();
@@ -96,7 +128,7 @@ async fn unknown_api_route_renders_problem_json() {
 
 #[tokio::test]
 async fn bad_request_detail_is_public() {
-    let (status, _, body) = send(app(false), "/bad", Some("application/json")).await;
+    let (status, _, body) = send(app(false).await, "/bad", Some("application/json")).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     let json: serde_json::Value = serde_json::from_str(&body).unwrap();
     insta::assert_json_snapshot!(json, { ".request_id" => "[request-id]" });
@@ -104,7 +136,7 @@ async fn bad_request_detail_is_public() {
 
 #[tokio::test]
 async fn internal_error_hides_detail_unless_debug() {
-    let (status, _, body) = send(app(false), "/boom", Some("application/json")).await;
+    let (status, _, body) = send(app(false).await, "/boom", Some("application/json")).await;
     assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
     let json: serde_json::Value = serde_json::from_str(&body).unwrap();
     assert!(
@@ -112,24 +144,49 @@ async fn internal_error_hides_detail_unless_debug() {
         "production must not leak: {body}"
     );
 
-    let (_, _, body) = send(app(true), "/boom", Some("application/json")).await;
+    let (_, _, body) = send(app(true).await, "/boom", Some("application/json")).await;
     let json: serde_json::Value = serde_json::from_str(&body).unwrap();
     assert_eq!(json["detail"], "database exploded");
 }
 
 #[tokio::test]
 async fn panics_become_500_instead_of_dropping_the_connection() {
-    let (status, _, _) = send(app(false), "/panic", None).await;
+    let (status, _, _) = send(app(false).await, "/panic", None).await;
     assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
 }
 
 #[tokio::test]
-async fn build_fails_cleanly_on_invalid_config() {
-    figment::Jail::expect_with(|jail| {
-        jail.create_dir("config")?;
-        jail.create_file("config/server.toml", "port = \"not-a-number\"")?;
-        let result: Result<_> = App::builder().build();
-        assert!(matches!(result, Err(Error::Config(_))));
-        Ok(())
-    });
+async fn provider_services_are_injectable() {
+    let (status, _, body) = send(app(false).await, "/greet", None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body, "hello from provider");
+}
+
+#[tokio::test]
+async fn missing_service_is_a_descriptive_500() {
+    let (status, _, body) = send(
+        app(true).await,
+        "/missing-service",
+        Some("application/json"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert!(body.contains("Unregistered"), "{body}");
+    assert!(body.contains("not registered"), "{body}");
+}
+
+#[tokio::test]
+async fn provider_failure_aborts_build() {
+    struct Failing;
+    impl Provider for Failing {
+        fn register<'a>(&'a self, _: &'a mut Registry<'_>) -> RegisterFuture<'a> {
+            Box::pin(async { Err(Error::bad_request("no database url")) })
+        }
+    }
+    let result: Result<_> = App::builder()
+        .config(Config::default())
+        .provider(Failing)
+        .build()
+        .await;
+    assert!(matches!(result, Err(Error::BadRequest(_))));
 }

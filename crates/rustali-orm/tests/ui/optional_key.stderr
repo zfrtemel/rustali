@@ -1,0 +1,5 @@
+error: a primary key cannot be `Option<_>`
+ --> tests/ui/optional_key.rs:6:5
+  |
+6 |     #[key]
+  |     ^

@@ -11,17 +11,30 @@
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<()> {
-//!     App::builder().serve().await
+//!     App::builder().run().await
 //! }
 //! ```
 
 pub use rustali_core::{
-    App, AppBuilder, AppContext, Config, Ctx, Error, ErrorBody, Result, config, middleware,
+    App, AppBuilder, AppContext, Command, CommandFuture, Config, Ctx, Error, ErrorBody, Inject,
+    Provider, RegisterFuture, Registry, Result, Services, command, config, middleware, services,
     telemetry,
 };
 
-// `#[cfg(feature = "macros")] pub use rustali_macros::*;` is added together with the
-// first macro (Faz 2); re-exporting an empty proc-macro crate triggers lints.
+#[cfg(feature = "macros")]
+pub use rustali_macros::Entity;
+
+/// Data layer: entities, queries, pagination, the `Db` extractor.
+#[cfg(feature = "orm")]
+pub mod orm {
+    pub use rustali_orm::*;
+}
+
+/// Database migrations: runner, console commands, migration prelude.
+#[cfg(feature = "orm")]
+pub mod migrate {
+    pub use rustali_migrate::*;
+}
 
 /// Re-exports of the underlying HTTP stack for advanced use.
 pub mod http {
@@ -36,7 +49,18 @@ pub mod prelude {
         response::{Html, IntoResponse, Redirect},
     };
 
-    pub use crate::{App, AppContext, Config, Ctx, Error, Result};
+    pub use crate::{App, AppContext, Config, Ctx, Error, Inject, Result};
+
+    #[cfg(feature = "macros")]
+    pub use crate::Entity;
+
+    #[cfg(feature = "orm")]
+    pub use crate::{
+        migrate::MigrateAppExt,
+        // `orm::Query` is reachable as `Todo::query()`; the name stays free for axum's
+        // `Query<Params>` extractor, which handlers use far more often.
+        orm::{DatabaseProvider, Db, DbExt, DbResultExt, Page, prelude::*},
+    };
 }
 
 /// Paths used by generated code. Not part of the public API; may change at any time.

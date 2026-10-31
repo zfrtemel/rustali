@@ -1,0 +1,5 @@
+error: unknown `column` option; expected `name`, `unique`, `max_len` or `index`
+ --> tests/ui/unknown_column_option.rs:7:14
+  |
+7 |     #[column(lenght = 10)]
+  |              ^^^^^^

@@ -1,0 +1,30 @@
+[package]
+name = "rustali-migrate"
+description = "Database migrations for the Rustali web framework: runner, console commands and (later) code-first schema diffing"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = ["sqlite"]
+sqlite = ["sea-orm-migration/sqlx-sqlite", "rustali-orm/sqlite"]
+postgres = ["sea-orm-migration/sqlx-postgres", "rustali-orm/postgres"]
+mysql = ["sea-orm-migration/sqlx-mysql", "rustali-orm/mysql"]
+
+[dependencies]
+rustali-core = { workspace = true }
+rustali-orm = { workspace = true, default-features = false }
+sea-orm-migration = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

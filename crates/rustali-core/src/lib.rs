@@ -1,9 +1,10 @@
 //! Application kernel for the Rustali web framework.
 //!
 //! `rustali-core` owns the pieces every other crate builds on: the [`App`] builder
-//! and its shared [`AppContext`], layered [`Config`] loading, the framework-wide
-//! [`Error`] type with content-negotiated responses, the default middleware stack
-//! and the request extractors such as [`Ctx`].
+//! and its shared [`AppContext`], layered [`Config`] loading, explicit dependency
+//! injection ([`Provider`], [`Services`], [`Inject`]), the framework-wide [`Error`]
+//! type with content-negotiated responses, the default middleware stack and the
+//! request extractors such as [`Ctx`].
 //!
 //! End users normally depend on the `rustali` meta crate instead of this one.
 //!
@@ -19,13 +20,17 @@
 //! ```
 
 pub mod app;
+pub mod command;
 pub mod config;
 pub mod error;
 pub mod extract;
 pub mod middleware;
+pub mod services;
 pub mod telemetry;
 
 pub use app::{App, AppBuilder, AppContext};
+pub use command::{Command, CommandFuture, Commands};
 pub use config::Config;
 pub use error::{Error, ErrorBody, Result};
-pub use extract::Ctx;
+pub use extract::{Ctx, Inject};
+pub use services::{MissingService, Provider, RegisterFuture, Registry, Services};

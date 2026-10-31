@@ -7,6 +7,7 @@
 //! ├── app.toml            → [app]      (keys: name, env, debug)
 //! ├── server.toml         → [server]   (host, port)
 //! ├── log.toml            → [log]
+//! ├── database.toml       → [database] (read by rustali-orm)
 //! └── production/         → same files, merged on top when APP_ENV=production
 //!     └── app.toml
 //! ```
@@ -14,10 +15,11 @@
 //! Precedence, lowest to highest: compiled defaults → `config/<section>.toml` →
 //! `config/<APP_ENV>/<section>.toml` → `.env` file → process environment variables
 //! prefixed with `APP__` (double underscore separates nesting, e.g.
-//! `APP__SERVER__PORT=9000`). Unknown sections are kept and can be read with
-//! [`Config::extract`].
+//! `APP__SERVER__PORT=9000`). Sections the kernel does not know are kept in
+//! [`Config::extra`] and read by packages with [`Config::section`].
 
 use std::{
+    collections::BTreeMap,
     net::IpAddr,
     path::{Path, PathBuf},
 };
@@ -26,7 +28,7 @@ use figment::{
     Figment,
     providers::{Env, Serialized},
 };
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 use crate::{Error, Result};
 
@@ -40,6 +42,9 @@ pub struct Config {
     pub server: ServerConfig,
     /// Logging settings.
     pub log: LogConfig,
+    /// Every other section, keyed by name (`database`, `mail`, your own...).
+    #[serde(flatten)]
+    pub extra: BTreeMap<String, toml::Value>,
 }
 
 /// General application settings (`config/app.toml`).
@@ -116,13 +121,27 @@ impl Config {
 
     /// Load configuration using `dir` as the directory holding the section files.
     pub fn load_from(dir: impl AsRef<Path>) -> Result<Self> {
-        Self::extract(dir)
+        Self::figment(dir.as_ref())?.extract().map_err(Into::into)
     }
 
-    /// Deserialise any type from the same layered sources. Use this for
-    /// application-defined sections (`config/payments.toml` → `struct Payments`).
-    pub fn extract<T: for<'de> Deserialize<'de>>(dir: impl AsRef<Path>) -> Result<T> {
-        Self::figment(dir.as_ref())?.extract().map_err(Into::into)
+    /// Deserialise a package- or application-defined section, e.g.
+    /// `config.section::<DatabaseConfig>("database")`. `Ok(None)` when absent.
+    pub fn section<T: DeserializeOwned>(&self, name: &str) -> Result<Option<T>> {
+        self.extra.get(name).map_or_else(
+            || Ok(None),
+            |value| {
+                value
+                    .clone()
+                    .try_into::<T>()
+                    .map(Some)
+                    .map_err(|err| Error::bad_config(format!("[{name}] {err}")))
+            },
+        )
+    }
+
+    /// Like [`Self::section`] but falls back to `T::default()` when absent.
+    pub fn section_or_default<T: DeserializeOwned + Default>(&self, name: &str) -> Result<T> {
+        self.section(name).map(Option::unwrap_or_default)
     }
 
     /// `true` when running under the `production` profile.
@@ -189,6 +208,7 @@ mod tests {
         assert_eq!(cfg.server.port, 8000);
         assert!(cfg.app.debug);
         assert!(!cfg.is_production());
+        assert!(cfg.extra.is_empty());
     }
 
     #[test]
@@ -233,21 +253,45 @@ mod tests {
         });
     }
 
+    #[derive(Debug, Default, Deserialize, PartialEq)]
+    #[serde(default)]
+    struct Payments {
+        provider: String,
+        retries: u32,
+    }
+
     #[test]
-    fn custom_sections_are_available_via_extract() {
-        #[derive(Deserialize)]
-        struct Payments {
-            provider: String,
-        }
-        #[derive(Deserialize)]
-        struct Root {
-            payments: Payments,
-        }
+    fn unknown_sections_are_kept_and_typed_on_demand() {
         figment::Jail::expect_with(|jail| {
             jail.create_dir("config")?;
-            jail.create_file("config/payments.toml", "provider = \"stripe\"")?;
-            let root: Root = Config::extract("config").expect("extract");
-            assert_eq!(root.payments.provider, "stripe");
+            jail.create_file("config/payments.toml", "provider = \"stripe\"\nretries = 3")?;
+            jail.set_env("APP__PAYMENTS__RETRIES", "5");
+            let cfg = Config::load_from("config").expect("config loads");
+            let payments: Payments = cfg.section("payments").expect("typed").expect("present");
+            assert_eq!(
+                payments,
+                Payments {
+                    provider: "stripe".into(),
+                    retries: 5
+                }
+            );
+            assert!(cfg.section::<Payments>("missing").expect("ok").is_none());
+            assert_eq!(
+                cfg.section_or_default::<Payments>("missing").expect("ok"),
+                Payments::default()
+            );
+            Ok(())
+        });
+    }
+
+    #[test]
+    fn section_type_errors_name_the_section() {
+        figment::Jail::expect_with(|jail| {
+            jail.create_dir("config")?;
+            jail.create_file("config/payments.toml", "retries = \"many\"")?;
+            let cfg = Config::load_from("config").expect("config loads");
+            let err = cfg.section::<Payments>("payments").unwrap_err();
+            assert!(err.to_string().contains("[payments]"), "{err}");
             Ok(())
         });
     }

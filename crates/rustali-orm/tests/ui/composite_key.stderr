@@ -1,0 +1,5 @@
+error: composite primary keys are not supported yet; use a single `#[key]` field
+ --> tests/ui/composite_key.rs:5:8
+  |
+5 | struct Membership {
+  |        ^^^^^^^^^^

@@ -1,0 +1,5 @@
+error: `#[derive(Entity)]` requires named fields
+ --> tests/ui/tuple_struct.rs:5:8
+  |
+5 | struct Point(i64, i64);
+  |        ^^^^^

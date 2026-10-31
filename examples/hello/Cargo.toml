@@ -5,8 +5,14 @@ version = "0.0.0"
 edition = "2024"
 publish = false
 
-[lints]
-workspace = true
+# Application lint profile (also used by generated starters): strict on safety,
+# relaxed on library-only lints such as `unreachable_pub` and `missing_docs`.
+[lints.rust]
+unsafe_code = "forbid"
+rust_2018_idioms = { level = "warn", priority = -1 }
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
 
 [dependencies]
 rustali = { path = "../../crates/rustali" }

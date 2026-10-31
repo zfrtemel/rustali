@@ -17,11 +17,17 @@ readme = "../../README.md"
 workspace = true
 
 [features]
-default = ["macros"]
+default = ["macros", "orm", "sqlite"]
 macros = ["dep:rustali-macros"]
+orm = ["dep:rustali-orm", "dep:rustali-migrate"]
+sqlite = ["rustali-orm?/sqlite", "rustali-migrate?/sqlite"]
+postgres = ["rustali-orm?/postgres", "rustali-migrate?/postgres"]
+mysql = ["rustali-orm?/mysql", "rustali-migrate?/mysql"]
 
 [dependencies]
 rustali-core = { workspace = true }
 rustali-macros = { workspace = true, optional = true }
+rustali-orm = { workspace = true, optional = true, default-features = false }
+rustali-migrate = { workspace = true, optional = true, default-features = false }
 axum = { workspace = true }
 tokio = { workspace = true }

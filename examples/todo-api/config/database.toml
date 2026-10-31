@@ -1,0 +1,4 @@
+# Relative to the example directory (main.rs switches to it before loading).
+url = "sqlite://db/todo.db?mode=rwc"
+max_connections = 5
+logging = true

@@ -1,0 +1,5 @@
+error: no primary key: mark a field with `#[key]` or add an `id` field
+ --> tests/ui/no_key.rs:5:8
+  |
+5 | struct Tag {
+  |        ^^^
