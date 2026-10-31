@@ -1,0 +1,6 @@
+[alias]
+xtask = "run --quiet --package xtask --"
+
+[env]
+# Tests load config relative to the crate; keep output deterministic.
+RUST_BACKTRACE = "1"

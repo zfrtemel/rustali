@@ -1,0 +1,6 @@
+# Workspace-wide clippy configuration. Lint *levels* live in each crate's lib.rs
+# (`#![warn(clippy::pedantic)]` etc.); only lint *parameters* belong here.
+cognitive-complexity-threshold = 20
+too-many-arguments-threshold = 7
+type-complexity-threshold = 300
+doc-valid-idents = ["SeaORM", "PostgreSQL", "SQLite", "MySQL", "JWT", "CSRF", "OpenAPI", "WebSocket"]

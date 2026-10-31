@@ -1,0 +1,36 @@
+# Rust
+/target/
+**/target/
+Cargo.lock.bak
+
+# Snapshot test scratch files
+*.snap.new
+*.pending-snap
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Local databases
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Editors / OS
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Docs build output
+/docs/book/
+/docs/dist/
+
+# Node (optional Vite asset pipeline)
+node_modules/

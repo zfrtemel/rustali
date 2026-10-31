@@ -1,0 +1,120 @@
+[workspace]
+resolver = "3"
+members = ["crates/*", "xtask"]
+# Starters are templates, not workspace members; examples join as they are added.
+exclude = ["starters/*"]
+
+[workspace.package]
+version = "0.1.0-alpha.0"
+edition = "2024"
+rust-version = "1.97"
+license = "MIT OR Apache-2.0"
+authors = ["The Rustali Contributors"]
+repository = "https://github.com/rustali/rustali"
+homepage = "https://rustali.dev"
+documentation = "https://docs.rs/rustali"
+keywords = ["web", "framework", "http", "orm", "laravel"]
+categories = ["web-programming::http-server", "web-programming"]
+
+# Every third-party version lives here exactly once (ADR-0001).
+[workspace.dependencies]
+# --- internal crates (path deps; versions follow workspace.package.version) ---
+rustali-core = { path = "crates/rustali-core", version = "0.1.0-alpha.0" }
+rustali-macros = { path = "crates/rustali-macros", version = "0.1.0-alpha.0" }
+
+# --- async runtime & HTTP stack ---
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "net", "fs", "sync", "time"] }
+axum = { version = "0.8", features = ["macros", "form", "query", "json", "multipart", "ws"] }
+tower = { version = "0.5", features = ["util", "timeout", "limit"] }
+tower-http = { version = "0.6", features = ["trace", "cors", "compression-full", "fs", "request-id", "catch-panic", "normalize-path", "set-header", "timeout"] }
+hyper = { version = "1", features = ["server", "http1", "http2"] }
+http = "1"
+bytes = "1"
+
+# --- serialization & config ---
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.9"
+figment = { version = "0.10", features = ["toml", "env"] }
+dotenvy = "0.15"
+
+# --- errors, logging ---
+thiserror = "2"
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"] }
+
+# --- data layer ---
+sea-orm = { version = "2.0", default-features = false, features = ["runtime-tokio-rustls", "macros", "with-chrono", "with-json", "with-uuid"] }
+sea-query = "1"
+sea-schema = "1"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4", "v7", "serde"] }
+
+# --- views ---
+askama = "0.16"
+tera = { version = "1", default-features = false }
+
+# --- auth & security ---
+argon2 = "0.5"
+jsonwebtoken = "10"
+tower-sessions = "0.15"
+rand = "0.9"
+subtle = "2"
+
+# --- background work, mail, cache, storage ---
+apalis = "1.0"
+lettre = { version = "0.11", default-features = false, features = ["smtp-transport", "tokio1", "tokio1-rustls", "builder"] }
+opendal = { version = "0.54", default-features = false }
+
+# --- proc-macro toolkit ---
+syn = { version = "2", features = ["full", "extra-traits"] }
+quote = "1"
+proc-macro2 = "1"
+inventory = "0.3"
+
+# --- CLI ---
+clap = { version = "4", features = ["derive", "env", "wrap_help"] }
+minijinja = "2"
+console = "0.16"
+
+# --- testing ---
+insta = { version = "1", features = ["json", "yaml", "redactions"] }
+trybuild = "1"
+tokio-test = "0.4"
+tower-test = "0.4"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "deny"
+rust_2018_idioms = { level = "deny", priority = -1 }
+unreachable_pub = "warn"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+# Deliberate exceptions: these fight readability more than they help.
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+# Never acceptable in library code.
+unwrap_used = "deny"
+expect_used = "deny"
+dbg_macro = "deny"
+todo = "warn"
+
+[profile.dev]
+# Faster incremental builds for the framework itself; users tune their own profile.
+opt-level = 0
+debug = 1
+
+[profile.dev.package."*"]
+# Dependencies are built once; optimise them so test runs stay fast.
+opt-level = 2
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "debuginfo"

@@ -1,0 +1,27 @@
+[package]
+name = "rustali"
+description = "Batteries-included full-stack web framework for Rust: Laravel's developer experience with .NET-style engineering"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+keywords.workspace = true
+categories.workspace = true
+readme = "../../README.md"
+
+[lints]
+workspace = true
+
+[features]
+default = ["macros"]
+macros = ["dep:rustali-macros"]
+
+[dependencies]
+rustali-core = { workspace = true }
+rustali-macros = { workspace = true, optional = true }
+axum = { workspace = true }
+tokio = { workspace = true }
