@@ -22,6 +22,19 @@ blog/
     └── home.html         # omitted with `rustali new --api`
 ```
 
+What each top-level piece is for:
+
+- **`config/`** — one TOML file per subsystem (`app`, `database`, and later `session`,
+  `mail`, …). Each provider reads its own section; see [Configuration](configuration).
+- **`.env`** — local, git-ignored overrides (secrets, a local database URL). Values here win
+  over `config/`.
+- **`db/`** — the SQLite file (in development), your migrations, and the schema snapshot that
+  drives `migrate:diff`.
+- **`src/`** — your code. `main.rs` boots the app; everything else is the controllers,
+  models and so on that the generators create.
+- **`templates/`** — Askama templates, compiled into the binary (absent in an `--api`
+  project).
+
 ## `main.rs`
 
 The entry point is deliberately tiny — it names the providers your app uses and mounts
