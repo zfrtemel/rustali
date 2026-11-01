@@ -71,15 +71,29 @@ fn no_links(body: &String) -> Result<(), String> {
 
 ### Nested validation
 
+`#[rule(nested)]` validates a field that is itself a `Validate` type, so you can compose
+DTOs instead of flattening everything into one struct:
+
 ```rust
 #[derive(Deserialize, Validate)]
+struct Address {
+    #[rule(required)]
+    city: String,
+    #[rule(required, length(min = 4, max = 10))]
+    postcode: String,
+}
+
+#[derive(Deserialize, Validate)]
 struct Order {
+    #[rule(required)]
+    item: String,
     #[rule(nested)]
-    address: Address,   // Address: Validate
+    address: Address,
 }
 ```
 
-Errors from the child are keyed under the parent, e.g. `address.city`.
+Errors from the child are keyed under the parent, so a bad postcode comes back as
+`address.postcode` — the client can map each message straight to its form field.
 
 ## Using it in a handler
 
@@ -110,10 +124,13 @@ with the field errors under `errors`:
 
 ### HTML forms
 
-The *same* extractor behaves differently for a browser form: on failure it flashes the
-errors and the submitted values into the session and **redirects back**, so the form
-re-renders filled in with messages. (Without the session package installed, it falls back
-to the 422 page.)
+`Validated<Json<T>>` and `Validated<Form<T>>` are two types, so you pick the behaviour by
+which one the handler asks for. The form variant behaves differently on failure: it flashes
+the errors and the submitted values into the session and **redirects back** — to the
+`Referer`, or `/` if there is none — so the form re-renders filled in with messages.
+(Without the session package installed, it falls back to the 422 page. A request to an
+`/api/*` path or one that asks for JSON always gets the 422 document, even through the form
+variant.)
 
 ```rust
 #[post("/posts")]
