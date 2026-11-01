@@ -67,12 +67,26 @@ cover a typical full-stack app; trim them for a leaner build.
 | `queue` | ✅ | Background jobs and a worker |
 | `test` | | The in-process `TestClient` (put it in `dev-dependencies`) |
 
-For a JSON API on Postgres with no views, for example:
+To trim features, turn off the defaults with `default-features = false` and list only what
+you need. A JSON API on Postgres with no views, for example:
 
 ```toml
 [dependencies]
 rustali = { version = "0.1", default-features = false, features = ["macros", "orm", "postgres", "auth", "validation"] }
 ```
+
+A few things to keep in mind when trimming:
+
+- A database driver is separate from `orm`: keep `orm` **and** one of `sqlite` / `postgres` /
+  `mysql`. Turning on `orm` without a driver gives you the ORM types but nothing to connect
+  to.
+- `auth` implies `sessions`, so you get cookie sessions and CSRF even in an API-leaning build
+  — drop `auth` too if you truly want neither.
+- `redis` and `tera` are opt-in extensions of `cache` and `views`; they do nothing unless the
+  base feature is also on.
+
+`rustali new --api` scaffolds this leaner shape for you: a JSON-only project with the view
+layer left out.
 
 ## Editor setup
 
