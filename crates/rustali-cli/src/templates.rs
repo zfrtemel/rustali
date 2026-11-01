@@ -31,8 +31,31 @@ use serde::Serialize;
 #[table("{{ table }}")]
 pub struct {{ name }} {
     pub id: i64,
+    // Add your own fields here.
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub deleted_at: Option<DateTime<Utc>>,
+}
+
+// The shared base-model accessors (id / timestamps), like a .NET BaseEntity.
+impl BaseEntity for {{ name }} {
+    type Id = i64;
+    fn id(&self) -> Self::Id {
+        self.id
+    }
+    fn created_at(&self) -> DateTime<Utc> {
+        self.created_at
+    }
+    fn updated_at(&self) -> DateTime<Utc> {
+        self.updated_at
+    }
+}
+
+// Soft delete: a trashed row keeps `deleted_at` set instead of being removed.
+impl SoftDelete for {{ name }} {
+    fn deleted_at(&self) -> Option<DateTime<Utc>> {
+        self.deleted_at
+    }
 }
 "#;
 

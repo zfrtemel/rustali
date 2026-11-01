@@ -9,6 +9,7 @@
 //! SeaORM itself stays reachable through [`sea_orm`] for anything the sugar does not
 //! cover — there is no second query language to learn.
 
+pub mod base;
 pub mod config;
 pub mod entity;
 pub mod error;
@@ -23,6 +24,7 @@ pub mod schema;
 pub use chrono;
 pub use sea_orm;
 
+pub use base::{BaseEntity, SoftDelete};
 pub use config::DatabaseConfig;
 pub use entity::{ColumnMeta, Entity, TableMeta};
 pub use error::{DbResultExt, map_db_err};
@@ -49,5 +51,5 @@ pub mod prelude {
         PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, Set, TransactionTrait, Unchanged,
     };
 
-    pub use crate::{Db, DbExt, DbResultExt, Entity, Page, Query};
+    pub use crate::{BaseEntity, Db, DbExt, DbResultExt, Entity, Page, Query, SoftDelete};
 }
