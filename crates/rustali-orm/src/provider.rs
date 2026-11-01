@@ -107,6 +107,7 @@ impl Provider for DatabaseProvider {
             let config: DatabaseConfig = registry
                 .config()
                 .section_or_default(DatabaseConfig::SECTION)?;
+            crate::soft_delete::set_enabled(config.soft_delete);
             let database = Database::connect(config).await?;
             registry.insert(database);
             Ok(())

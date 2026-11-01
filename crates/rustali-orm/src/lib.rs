@@ -12,6 +12,7 @@
 pub mod base;
 pub mod config;
 pub mod entity;
+pub mod soft_delete;
 pub mod error;
 pub mod extract;
 pub mod page;

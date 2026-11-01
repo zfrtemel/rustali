@@ -626,6 +626,10 @@ fn generate(input: &Input) -> Result<TokenStream> {
     let has_updated = columns
         .iter()
         .any(|c| c.ident == "updated_at" && is_datetime(&c.ty));
+    // A nullable `deleted_at` opts the entity into soft delete (gated at runtime by config).
+    let has_deleted = columns
+        .iter()
+        .any(|c| c.ident == "deleted_at" && c.nullable);
     let is_timestamp = |c: &Column| {
         (c.ident == "created_at" && has_created) || (c.ident == "updated_at" && has_updated)
     };
@@ -752,6 +756,52 @@ fn generate(input: &Input) -> Result<TokenStream> {
     });
 
     let table_lit = LitStr::new(table, Span::call_site());
+
+    // --- soft delete -------------------------------------------------------------
+    // An entity with a nullable `deleted_at` can soft-delete: `delete` stamps the column
+    // instead of removing the row, and `query` hides trashed rows — both only when the
+    // project enabled it in config (checked at runtime). Without the column, these compile
+    // to the plain hard-delete / unfiltered query.
+    let hard_delete = quote! {
+        let key = <Self as #krate::Entity>::key(&self);
+        <#mod_name::Entity as #sea::EntityTrait>::delete_by_id(key)
+            .exec(db)
+            .await
+            .map_err(#krate::map_db_err)?;
+        ::core::result::Result::Ok(())
+    };
+    let delete_body = if has_deleted {
+        quote! {
+            if #krate::soft_delete::enabled() {
+                use #sea::ActiveModelTrait as _;
+                let mut active = <Self as #krate::Entity>::into_active_update(self);
+                active.deleted_at = #sea::ActiveValue::Set(::core::option::Option::Some(
+                    #krate::chrono::Utc::now(),
+                ));
+                active.update(db).await.map_err(#krate::map_db_err)?;
+                ::core::result::Result::Ok(())
+            } else {
+                #hard_delete
+            }
+        }
+    } else {
+        hard_delete
+    };
+    // The starting query: filtered to live rows when soft delete is on for this entity.
+    let base_query = if has_deleted {
+        quote! {
+            {
+                let mut q = #krate::Query::<Self>::new();
+                if #krate::soft_delete::enabled() {
+                    use #sea::{ColumnTrait as _, QueryFilter as _};
+                    q = q.filter(#mod_name::Column::DeletedAt.is_null());
+                }
+                q
+            }
+        }
+    } else {
+        quote! { #krate::Query::new() }
+    };
 
     let mut idents = BTreeSet::new();
     for column in columns {
@@ -881,20 +931,23 @@ fn generate(input: &Input) -> Result<TokenStream> {
             #(#rel_methods)*
 
             /// Start a typed query on this table.
+            ///
+            /// When soft delete is enabled and this entity has a `deleted_at`, the query
+            /// starts filtered to live rows (`deleted_at IS NULL`).
             pub fn query() -> #krate::Query<Self> {
-                #krate::Query::new()
+                #base_query
             }
 
-            /// Fetch one row by primary key.
+            /// Fetch one row by primary key (respecting soft delete).
             pub async fn find<C: #sea::ConnectionTrait>(
                 db: &C,
                 key: #key_ty,
             ) -> #krate::__private::Result<::core::option::Option<Self>> {
-                let model = <#mod_name::Entity as #sea::EntityTrait>::find_by_id(key)
-                    .one(db)
+                use #sea::{ColumnTrait as _, QueryFilter as _};
+                Self::query()
+                    .filter(#mod_name::Column::#key_variant.eq(key))
+                    .fetch_one(db)
                     .await
-                    .map_err(#krate::map_db_err)?;
-                Ok(model.map(::core::convert::Into::into))
             }
 
             /// Fetch one row by primary key or fail with `Error::NotFound`.
@@ -952,12 +1005,7 @@ fn generate(input: &Input) -> Result<TokenStream> {
                 self,
                 db: &C,
             ) -> #krate::__private::Result<()> {
-                let key = <Self as #krate::Entity>::key(&self);
-                <#mod_name::Entity as #sea::EntityTrait>::delete_by_id(key)
-                    .exec(db)
-                    .await
-                    .map_err(#krate::map_db_err)?;
-                Ok(())
+                #delete_body
             }
         }
     })

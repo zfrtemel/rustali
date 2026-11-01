@@ -29,6 +29,10 @@ pub struct DatabaseConfig {
     pub idle_timeout_secs: u64,
     /// Log every SQL statement at `debug` level.
     pub logging: bool,
+    /// Treat `deleted_at` as a soft-delete marker across models that have it: `delete`
+    /// stamps the column instead of removing the row, and queries hide trashed rows by
+    /// default. Off by default; see [`crate::soft_delete`].
+    pub soft_delete: bool,
 }
 
 impl Default for DatabaseConfig {
@@ -40,6 +44,7 @@ impl Default for DatabaseConfig {
             connect_timeout_secs: 8,
             idle_timeout_secs: 600,
             logging: false,
+            soft_delete: false,
         }
     }
 }
