@@ -1,8 +1,8 @@
 # From Laravel
 
-Rustali deliberately echoes Laravel's vocabulary. The table maps what you know to its
-Rustali equivalent; the big difference is that everything is typed and checked at
-compile time.
+If you are coming from Laravel, this table maps concepts you know to their Rustali
+equivalent. The main difference is that everything here is typed and checked at compile
+time.
 
 | Laravel | Rustali |
 |---|---|

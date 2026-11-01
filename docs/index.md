@@ -4,7 +4,7 @@ layout: home
 hero:
   name: Rustali
   text: A batteries-included web framework for Rust
-  tagline: Laravel's developer experience, .NET-grade engineering, Rust's safety and speed.
+  tagline: Everything you need to ship a web app — routing, ORM, migrations, views, auth and more — with Rust's safety and speed.
   actions:
     - theme: brand
       text: Get Started
@@ -22,7 +22,7 @@ features:
   - title: POCO entities
     details: One plain struct with #[derive(Entity)]. The SeaORM plumbing is generated and hidden.
   - title: Code-first migrations
-    details: Change the struct, run migrate:diff, review the generated migration. EF Core style.
+    details: Change the struct, run migrate:diff, review the generated migration.
   - title: Layered filter pipeline
     details: Global → controller → action middleware, #[authorize], exception filters — all tower layers.
   - title: Type-safe views

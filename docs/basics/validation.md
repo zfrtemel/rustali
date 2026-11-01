@@ -110,8 +110,8 @@ with the field errors under `errors`:
 
 ### HTML forms
 
-The *same* extractor behaves the Laravel way for a browser form: on failure it flashes
-the errors and the submitted values into the session and **redirects back**, so the form
+The *same* extractor behaves differently for a browser form: on failure it flashes the
+errors and the submitted values into the session and **redirects back**, so the form
 re-renders filled in with messages. (Without the session package installed, it falls back
 to the 422 page.)
 
@@ -165,5 +165,5 @@ Both the extractor and manual checks produce a `ValidationErrors` map (field →
 | `get(field)` | all messages for a field, `&[String]` |
 | `all()` | every message, flattened |
 
-Messages follow Laravel's wording ("The title field is required.") so they read naturally
-and will become translatable through the i18n package.
+Messages are plain English ("The title field is required.") and will become translatable
+through the i18n package.

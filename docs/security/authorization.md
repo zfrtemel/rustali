@@ -2,7 +2,7 @@
 
 Authorization answers "is this user allowed to do this?" Rustali models it as named
 **abilities** checked by a **Gate**, enforced declaratively with `#[authorize("...")]` on a
-route — the .NET-style authorization filter.
+route.
 
 ## Built-in abilities
 

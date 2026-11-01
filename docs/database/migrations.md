@@ -1,8 +1,8 @@
 # Migrations (Code-First)
 
 Rustali's headline database feature: change an entity, run `migrate:diff`, and get a
-reviewed migration — EF Core's code-first flow. You still own and read every migration;
-the diff just writes the first draft from what changed.
+reviewed migration. You still own and read every migration; the diff just writes the first
+draft from what changed.
 
 ## How it works
 

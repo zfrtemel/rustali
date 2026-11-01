@@ -2,9 +2,8 @@
 
 In Rustali a route lives **on the handler that serves it**. You do not maintain a
 separate route file; you annotate a method with the HTTP verb and path, and the
-`#[controller]` macro wires it into the router. This is the .NET-style attribute routing
-from the framework's design — the route and the code that answers it sit together, and
-`cargo run -- routes` prints the whole table (Laravel's `route:list`, back again).
+`#[controller]` macro wires it into the router — the route and the code that answers it
+sit together, and `cargo run -- routes` prints the whole table.
 
 ## A first controller
 

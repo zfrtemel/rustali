@@ -1,8 +1,8 @@
 # Configuration
 
-Configuration lives in the `config/` directory as TOML, **one file per section** — the
-same shape Laravel uses (`config/app.php`, `config/database.php`). Values are layered so
-you can keep defaults in files and override per environment or from the environment.
+Configuration lives in the `config/` directory as TOML, **one file per section**. Values
+are layered so you can keep defaults in files and override per environment or from the
+environment.
 
 ## Layout
 

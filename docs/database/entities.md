@@ -2,8 +2,8 @@
 
 An entity is a **plain struct** you annotate with `#[derive(Entity)]`. The struct is what
 you pass around, serialise and render; the derive generates the [SeaORM] plumbing
-(`Model`, `ActiveModel`, columns, primary key) into a hidden module you never touch. This
-is the POCO-entity design — one readable type, no visible ORM boilerplate.
+(`Model`, `ActiveModel`, columns, primary key) into a hidden module you never touch — one
+readable type, no visible ORM boilerplate.
 
 [SeaORM]: https://www.sea-ql.org/SeaORM/
 

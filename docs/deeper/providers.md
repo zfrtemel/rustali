@@ -1,8 +1,7 @@
 # Service Container & Providers
 
-Rustali has an explicit, type-indexed service container — closer to .NET's
-`IServiceCollection` than to a reflective container. Services are registered by **type** at
-startup and looked up by type at request time. There is no string binding and no
+Rustali has an explicit, type-indexed service container. Services are registered by **type**
+at startup and looked up by type at request time. There is no string binding and no
 auto-wiring magic.
 
 ## Registering a service
@@ -40,8 +39,8 @@ provider fails loudly rather than silently.
 
 ## Providers
 
-A **provider** is a package's startup hook — the equivalent of a Laravel service provider.
-It reads its own configuration section and registers what it owns. The framework's own
+A **provider** is a package's startup hook. It reads its own configuration section and
+registers what it owns. The framework's own
 subsystems are providers (`DatabaseProvider`, `SessionProvider`, `CacheProvider`,
 `MailProvider`, `AuthProvider`, `QueueProvider`), and you can write your own.
 
@@ -82,7 +81,6 @@ for things like pools and clients, not per-request state.
 
 ## Why explicit
 
-The trade-off is deliberate (see the design notes): you write one line to register and one
-type to inject, and in exchange there is no runtime reflection, no magic resolution order,
-and the compiler checks every service type. A missing dependency is an error with a name,
-not a mystery at runtime.
+The trade-off is deliberate: you write one line to register and one type to inject, and in
+exchange there is no runtime reflection, no magic resolution order, and the compiler checks
+every service type. A missing dependency is an error with a name, not a mystery at runtime.

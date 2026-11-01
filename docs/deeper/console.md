@@ -1,7 +1,7 @@
 # Console Commands
 
-Your application binary is also its console — Laravel's `artisan`, built in. With no
-arguments it serves; with a command it runs that instead. This is what `run()` does:
+Your application binary is also its console. With no arguments it serves; with a command it
+runs that instead. This is what `run()` does:
 
 ```rust
 #[tokio::main]
