@@ -56,6 +56,21 @@ Ok(View::new(login_page).with_status(StatusCode::UNPROCESSABLE_ENTITY))
 Because `View<T>` is just an `IntoResponse`, a handler that returns `Result<View<T>>` gets
 automatic error rendering like any other.
 
+### A template struct is a view model
+
+The template struct is exactly the data the page needs — nothing more. Shape it for the view
+rather than passing entities straight through: precompute a formatted date, a display name, a
+flag. Since a [paginated](../database/queries#pagination) `Page<T>` has `map`, you can turn
+rows into a view model while keeping the paging numbers:
+
+```rust
+let page = Post::query().fetch_page(&db, 1, 20).await?
+    .map(|post| PostRow { title: post.title, excerpt: truncate(&post.body, 140) });
+```
+
+Keeping presentation logic in the handler (plain Rust) rather than the template keeps the
+template simple and the logic testable.
+
 ## Layouts
 
 Askama supports template inheritance. A base layout declares blocks; pages extend it and
@@ -78,6 +93,41 @@ fill them in.
   {% for post in posts %}<article>{{ post.title }}</article>{% endfor %}
 {% endblock %}
 ```
+
+## Partials
+
+Pull a reusable fragment into another template with `{% include %}`. The partial sees the
+same context as the template that includes it:
+
+```html
+<!-- templates/posts/_card.html -->
+<article class="card"><h2>{{ post.title }}</h2><p>{{ post.body }}</p></article>
+```
+
+```html
+<!-- templates/posts/index.html -->
+{% for post in posts %}
+  {% include "posts/_card.html" %}
+{% endfor %}
+```
+
+## Template syntax at a glance
+
+Askama's syntax is Jinja-like. The pieces you reach for most:
+
+| Syntax | Does |
+|---|---|
+| <code v-pre>{{ expr }}</code> | Print a value (auto-escaped in `.html`). |
+| `{% if cond %} … {% else %} … {% endif %}` | Conditional. |
+| `{% if let Some(x) = opt %} … {% endif %}` | Match an `Option`/pattern (real Rust patterns). |
+| `{% for item in items %} … {% endfor %}` | Loop; `loop.index` gives the 1-based position. |
+| `{% extends "base.html" %}` / `{% block %}` | Layout inheritance. |
+| `{% include "partial.html" %}` | Inline another template. |
+| <code v-pre>{{ value\|filter }}</code> | Apply a filter, e.g. `\|safe`, `\|upper`. |
+
+Because templates compile to Rust, the expressions inside them are type-checked: calling a
+method that does not exist, or printing a field that is not on the struct, fails `cargo
+build`.
 
 ## Escaping
 
