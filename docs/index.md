@@ -29,4 +29,6 @@ features:
     details: Askama templates checked at compile time by default; Tera available for runtime flexibility.
   - title: SSR + API, one controller
     details: Return HTML or JSON per route. Errors are negotiated to match the client automatically.
+  - title: AI in-process
+    details: Embeddings, chat and RAG in the same Rust process via rustali-ai — no Python service.
 ---

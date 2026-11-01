@@ -113,6 +113,17 @@ function sidebar(locale: 'en' | 'tr') {
       ],
     },
     {
+      text: t('AI', 'Yapay Zekâ'),
+      collapsed: false,
+      items: [
+        { text: t('Overview', 'Genel Bakış'), link: `${p}/ai/` },
+        { text: t('Embeddings', 'Embedding’ler'), link: `${p}/ai/embeddings` },
+        { text: t('Chat', 'Sohbet'), link: `${p}/ai/chat` },
+        { text: t('Retrieval (RAG)', 'Getirim (RAG)'), link: `${p}/ai/rag` },
+        { text: t('Models', 'Modeller'), link: `${p}/ai/models` },
+      ],
+    },
+    {
       text: t('Reference', 'Referans'),
       collapsed: false,
       items: [
