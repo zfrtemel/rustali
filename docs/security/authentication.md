@@ -83,8 +83,12 @@ App::builder()
 ```
 
 By default the guard chain is `[Session, Bearer]` — a request is authenticated if either
-the session cookie or a `Authorization: Bearer <jwt>` resolves to a user. Change it with
-`AuthProvider::new(Users).guards([Guard::Session])`.
+the session cookie or a `Authorization: Bearer <jwt>` resolves to a user. The guards are
+tried in order and the first that resolves wins, so a single app serves both an SSR site
+(cookies) and an API (tokens) from the same handlers. Change the chain with
+`AuthProvider::new(Users).guards([Guard::Session])` — for example, a cookies-only app, or an
+API-only service that drops the session guard. The `Bearer` guard needs the `jwt` feature
+(on by default).
 
 ## Passwords
 
@@ -95,8 +99,12 @@ let hash = password::hash(&input.password)?;        // argon2id PHC string
 let user = User::new(&name, &email, hash).insert(&db).await?;
 ```
 
-Verification is constant-time and happens for you inside `Login::attempt` (below), or by
-hand with `password::verify(plain, &hash)?`.
+`password::hash` produces an argon2id **PHC string** — it embeds the algorithm, parameters
+and a random per-password salt, so you store just that one `password_hash` column and need no
+separate salt. Verification is constant-time and happens for you inside `Login::attempt`
+(below), or by hand with `password::verify(plain, &hash)?`. Both return `Result`: a malformed
+stored hash is an error, not a silent `false`, so corruption surfaces instead of locking
+everyone out quietly.
 
 ## Registering and logging in
 
