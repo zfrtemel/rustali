@@ -12,6 +12,7 @@ Any handler returns a type that implements `IntoResponse`. The common ones:
 | `Redirect::to("/path")` | a 303 redirect |
 | `StatusCode` | an empty response with that status |
 | `(StatusCode, T)` | `T`’s response with the status overridden |
+| `ApiResponse<T>` | the standard `{ success, data, error }` JSON envelope (see below) |
 | `Result<T>` | `T` on `Ok`, a rendered error on `Err` |
 
 ```rust
@@ -105,30 +106,66 @@ purpose — telling a caller *why* they were denied is itself a leak. And `inter
 errors hide their detail outside debug, so a stack message or SQL string never reaches a
 production client while still being logged with the request id for you.
 
+## The response envelope
+
+For a JSON API, wrap successful responses in `ApiResponse<T>` so every response — success
+**and** error — has the **same three fields**, `success` / `data` / `error`. A client parses
+one shape and never branches on which keys are present.
+
+```rust
+use rustali::prelude::*;
+
+#[get("/api/todos/{id}")]
+async fn show(db: Db, Path(id): Path<i64>) -> Result<ApiResponse<Todo>> {
+    let todo = Todo::find_or_404(&db, id).await?;   // a miss still becomes the error envelope
+    Ok(ApiResponse::ok(todo))
+}
+```
+
+A success serialises as:
+
+```json
+{ "success": true, "data": { "id": 1, "title": "write docs" }, "error": null }
+```
+
+Errors render into the **identical** envelope automatically — you do not build them by hand.
+`Todo::find_or_404` above returns `Err(Error::NotFound)`, and the error layer turns it into:
+
+```json
+{ "success": false, "data": null, "error": { "code": 404, "message": "Not Found", "details": null } }
+```
+
+The shape never varies: `data` is `null` on failure, `error` is `null` on success, and the
+three keys are always present. Anything specific to an error — per-field validation messages,
+the request id, the path — lives inside `error.details`, never as an extra top-level key:
+
+```json
+{
+  "success": false,
+  "data": null,
+  "error": {
+    "code": 422,
+    "message": "The given data was invalid.",
+    "details": { "fields": { "title": ["The title field is required."] },
+                 "request_id": "a1b2c3d4-...", "instance": "/api/todos" }
+  }
+}
+```
+
+So client code is simply: if `success`, read `data`; otherwise read `error`.
+
 ## Content negotiation
 
 The same error renders differently depending on who is asking — this is what lets one
 controller serve SSR and an API. The rule:
 
 - If `Accept` contains `text/html` → an **HTML error page**.
-- Otherwise, if `Accept` mentions `json`, **or** the path starts with `/api/` → **JSON**.
+- Otherwise, if `Accept` mentions `json`, **or** the path starts with `/api/` → the JSON
+  envelope above.
 
-A browser hitting a missing page gets a styled 404 page; a `fetch()` to `/api/...` gets an
-RFC 9457 *Problem Details* document:
-
-```json
-{
-  "type": "about:blank",
-  "title": "Not Found",
-  "status": 404,
-  "instance": "/api/todos/999",
-  "request_id": "a1b2c3d4-..."
-}
-```
-
-Validation failures add an `errors` object; client-safe errors add `detail`. Every
-response also carries an `x-request-id` header, echoed into the JSON body, to correlate
-logs.
+A browser hitting a missing page gets a styled 404 page; a `fetch()` to `/api/...` gets the
+`{ success, data, error }` envelope. Every response also carries an `x-request-id` header
+(echoed into `error.details.request_id` on failures) to correlate logs.
 
 ## Custom error pages
 
