@@ -31,9 +31,23 @@ Cookies are `HttpOnly`, `SameSite` as configured, signed with `app.key`, and `Se
 production. The store is in-memory for now (fine for a single node); a shared store is
 future work.
 
+### The cookie, field by field
+
+| Setting | Value | Why |
+|---|---|---|
+| `HttpOnly` | always | JavaScript cannot read the cookie, so an XSS bug cannot steal the session. |
+| `SameSite` | `same_site` config | `lax` (the default) blocks the cookie on most cross-site requests; `strict` is stricter; `none` allows cross-site (and forces `Secure`). |
+| signed | with `app.key` | the client cannot tamper with the cookie without detection. |
+| `Secure` | in production | the cookie is only sent over HTTPS outside development. |
+
+Because the store is per-process and in-memory, sessions do not survive a restart and are not
+shared across instances yet — the same caveat as the memory [cache](../deeper/cache).
+
 ## Using the session
 
-The raw `Session` extractor reads and writes arbitrary keyed values:
+The raw `Session` extractor reads and writes arbitrary keyed values. Values round-trip
+through JSON, so any `Serialize + DeserializeOwned` type works — `get` returns `None` for a
+missing key:
 
 ```rust
 #[get("/visit")]
@@ -43,6 +57,9 @@ async fn visit(session: Session) -> Result<String> {
     Ok(format!("visit #{}", count + 1))
 }
 ```
+
+The flash, old-input and CSRF helpers below are all built on this same session — they are
+conveniences for patterns you would otherwise hand-roll with `get`/`insert`.
 
 ## Flash messages
 
@@ -59,11 +76,37 @@ async fn store(db: Db, flash: Flash, /* ... */) -> Result<Redirect> {
 ```
 
 Levels: `success`, `info`, `warning`, `error` (`flash.success(..)`, `flash.error(..)`,
-etc.). Render and clear them with `take()`:
+etc.). Each queues one `Message` carrying a `level` and `text`.
+
+The full post-redirect-get loop: the action queues a message and redirects; the next page
+`take()`s the queued messages (which also clears them, so a refresh does not show them again)
+and the template renders them.
 
 ```rust
-flash: Vec<rustali::session::Message>,   // on the template struct
-// flash: flash.take().await,            // when building it
+// 1. the action queues a message, then redirects
+#[post("/posts")]
+async fn store(db: Db, flash: Flash, /* ... */) -> Result<Redirect> {
+    // ... create the post ...
+    flash.success("Post published.").await;
+    Ok(Redirect::to("/"))
+}
+
+// 2. the page it lands on drains the queue into its view
+#[get("/")]
+async fn index(flash: Flash) -> Result<View<Home>> {
+    Ok(View::new(Home {
+        flash: flash.take().await,        // Vec<Message>, cleared after this call
+        // ...
+    }))
+}
+```
+
+```rust
+// on the view struct
+struct Home {
+    flash: Vec<rustali::session::Message>,
+    // ...
+}
 ```
 
 ```html
@@ -72,7 +115,8 @@ flash: Vec<rustali::session::Message>,   // on the template struct
 {% endfor %}
 ```
 
-A `Message` has `level` and `text`.
+<code v-pre>{{ message.level }}</code> renders as `success` / `info` / `warning` / `error`
+(the `Level` enum implements `Display`), so it doubles as a CSS class.
 
 ## Old input and errors
 
@@ -111,6 +155,40 @@ async fn new_form(csrf: Csrf) -> Result<View<NewPost>> {
 
 `csrf.field()` renders a hidden `<input name="_token" ...>`. For JavaScript requests, send
 the raw `csrf.token().await` value in the `X-CSRF-Token` header instead.
+
+### How the check works
+
+The token is a random value stored in the visitor's session the first time it is needed. On
+an unsafe request the layer compares the submitted token (from the `_token` field or the
+`X-CSRF-Token` header) against the one in the session; a match passes, anything else is a
+403. Because the token lives in the session — tied to the signed cookie — an attacker on
+another site cannot read it to forge a request, which is the whole point of CSRF protection.
+
+### From a single-page app or fetch()
+
+When the page is driven by JavaScript rather than a server-rendered `<form>`, read the token
+once and send it as a header on every mutating request:
+
+```rust
+// expose the token to the page (e.g. in a <meta> tag or a JSON bootstrap)
+#[get("/app")]
+async fn app_shell(csrf: Csrf) -> Result<View<AppShell>> {
+    Ok(View::new(AppShell { csrf_token: csrf.token().await }))
+}
+```
+
+```js
+// then on the client
+fetch("/posts", {
+  method: "POST",
+  headers: { "Content-Type": "application/json", "X-CSRF-Token": token },
+  body: JSON.stringify({ title, body }),
+});
+```
+
+A pure API that authenticates with bearer tokens does not need any of this: `/api/*` paths
+are exempt, because a bearer token is not sent automatically by the browser the way a cookie
+is, so there is nothing to forge.
 
 Because your form DTO deserialises the whole body, accept the token field so it does not
 break deserialisation:
