@@ -168,6 +168,14 @@ rather than sent from your struct; on update, `updated_at` is always refreshed. 
 fields entirely and you simply have no timestamps; the hook is only generated when they
 exist.
 
+## Shared base fields & soft delete
+
+`rustali make:model` gives every new model the conventional `id` / `created_at` /
+`updated_at` / `deleted_at` fields plus the `BaseEntity` and `SoftDelete` trait impls — a
+shared base like a .NET base entity. With soft delete enabled in config, `delete` then stamps
+`deleted_at` instead of removing the row and queries hide trashed rows. See
+[Base Entity & Soft Delete](base-entity).
+
 ## Dropping to SeaORM
 
 The generated column constants implement SeaORM's traits, and

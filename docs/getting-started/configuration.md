@@ -77,9 +77,16 @@ level = "info,tower_http=debug"   # a tracing filter; RUST_LOG overrides it
 json = false                       # one JSON object per line when true
 ```
 
-`database.toml` is documented with the [ORM](../database/entities); packages like cache,
-mail, queue and sessions each read their own section (`cache`, `mail`, `queue`,
-`session`).
+```toml
+# config/database.toml
+url = "sqlite://db/app.db?mode=rwc"
+max_connections = 10
+soft_delete = false   # when true, delete() stamps deleted_at and queries hide trashed rows
+```
+
+`database.toml` is documented with the [ORM](../database/entities); `soft_delete` is covered
+in [Base Entity & Soft Delete](../database/base-entity). Packages like cache, mail, queue and
+sessions each read their own section (`cache`, `mail`, `queue`, `session`).
 
 ## The `key`
 

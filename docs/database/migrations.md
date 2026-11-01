@@ -191,3 +191,11 @@ you rename a column, do not trust the generated drop/add. Either edit the genera
 to a real `rename_column`, or write that migration by hand. This is exactly why the diff is a
 *draft you review*, not an automatic apply: the one change it cannot infer is the one that
 would lose data silently.
+
+### Soft delete is just a column
+
+The `deleted_at` column that scaffolded models carry is, to the diff, an ordinary nullable
+timestamp — it is migrated like any other column. The soft-delete *behaviour* (stamping it on
+`delete`, hiding trashed rows) is a runtime setting, `soft_delete` in `config/database.toml`,
+not something the migration or schema knows about. See
+[Base Entity & Soft Delete](base-entity).

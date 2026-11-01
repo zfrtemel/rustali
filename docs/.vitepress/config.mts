@@ -73,6 +73,7 @@ function sidebar(locale: 'en' | 'tr') {
       collapsed: false,
       items: [
         { text: t('Entities', 'Varlıklar (Entity)'), link: `${p}/database/entities` },
+        { text: t('Base Entity & Soft Delete', 'Temel Varlık & Soft Delete'), link: `${p}/database/base-entity` },
         { text: t('Model Methods', 'Model Metotları'), link: `${p}/database/model-methods` },
         { text: t('Queries', 'Sorgular'), link: `${p}/database/queries` },
         { text: t('Pagination', 'Sayfalama'), link: `${p}/database/pagination` },
