@@ -78,7 +78,10 @@ impl<E: Entity> Query<E> {
     }
 
     /// A 1-based page of results with totals.
-    pub async fn fetch_page<C: ConnectionTrait>(
+    ///
+    /// `page` is clamped to `>= 1` and `per_page` to `>= 1`, so out-of-range input from a
+    /// query string can never panic or divide by zero.
+    pub async fn paginate<C: ConnectionTrait>(
         self,
         db: &C,
         page: u64,
@@ -95,6 +98,19 @@ impl<E: Entity> Query<E> {
             per_page,
             total,
         ))
+    }
+
+    /// A 1-based page of results with totals.
+    ///
+    /// Alias for [`paginate`](Self::paginate), kept for the `fetch_*` naming of the other
+    /// terminal methods.
+    pub async fn fetch_page<C: ConnectionTrait>(
+        self,
+        db: &C,
+        page: u64,
+        per_page: u64,
+    ) -> Result<Page<E>> {
+        self.paginate(db, page, per_page).await
     }
 }
 
