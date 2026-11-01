@@ -40,6 +40,12 @@ cargo run -- migrate:diff "create posts"   # writes a reviewed migration + snaps
 cargo run -- migrate
 ```
 
+::: tip
+`migrate:diff` writes the generated migration under `db/migrations/`. Move it into
+`src/migrations/` and list it in your `Migrator` so it compiles — automatic placement is
+on the roadmap. See [Migrations](../database/migrations) for the full workflow.
+:::
+
 Mount the controller (`App::builder().controllers()` already picks up every
 `#[controller]` in the binary) and you have CRUD. See
-[Routing & Controllers](../basics/routing.md) next.
+[Routing & Controllers](../basics/routing) next.
