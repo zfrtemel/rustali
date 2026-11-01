@@ -93,6 +93,9 @@ connection — the [`Db`](queries#the-db-extractor) extractor, or `&*ctx.db()?`.
 | `todo.delete(&db)` | Delete this row. |
 | `Todo::ID`, `Todo::TITLE`, ... | Typed column handles for queries. |
 
+Each of these is covered method by method, with usage and return types, in
+[Model Methods](model-methods).
+
 ```rust
 // create
 let todo = Todo::new("write docs").insert(&db).await?;
