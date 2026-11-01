@@ -27,6 +27,36 @@ struct Column {
     max_len: Option<u32>,
 }
 
+/// The kind of a declared relation.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum RelationKind {
+    HasMany,
+    HasOne,
+    BelongsTo,
+    ManyToMany,
+}
+
+/// A relation declared with a container attribute, e.g. `#[has_many(Comment)]`.
+struct Relation {
+    kind: RelationKind,
+    /// Target entity type as written (`Comment`), used for `Comment::Sea`.
+    target: syn::Path,
+    /// Accessor method name (`comments`, `author`); defaults from the target.
+    method: Ident,
+    /// Meaning depends on `kind`:
+    /// - `belongs_to`: foreign-key column on *this* table (required).
+    /// - `has_many`/`has_one`: the local column the FK points back to (defaults to PK).
+    /// - `many_to_many`: the junction column pointing at *this* entity (required).
+    from: Option<Ident>,
+    /// Meaning depends on `kind`:
+    /// - `belongs_to`: referenced column on the target (defaults to its PK).
+    /// - `has_many`/`has_one`: the foreign-key column on the target (required).
+    /// - `many_to_many`: the junction column pointing at the *target* (required).
+    to: Option<Ident>,
+    /// `many_to_many` only: the junction entity type (`PostTag`).
+    via: Option<syn::Path>,
+}
+
 struct Input {
     ident: Ident,
     vis: syn::Visibility,
@@ -34,6 +64,7 @@ struct Input {
     table: String,
     columns: Vec<Column>,
     skipped: Vec<Ident>,
+    relations: Vec<Relation>,
 }
 
 pub(crate) fn expand(input: TokenStream) -> Result<TokenStream> {
@@ -58,6 +89,7 @@ fn parse(input: &DeriveInput) -> Result<Input> {
 
     let mut krate: syn::Path = syn::parse_quote!(::rustali::orm);
     let mut table: Option<String> = None;
+    let mut relations = Vec::new();
     for attr in &input.attrs {
         if attr.path().is_ident("table") {
             let lit: LitStr = attr.parse_args()?;
@@ -72,6 +104,8 @@ fn parse(input: &DeriveInput) -> Result<Input> {
                     Err(meta.error("unknown `entity` option; expected `crate = \"...\"`"))
                 }
             })?;
+        } else if let Some(kind) = relation_kind(attr) {
+            relations.push(parse_relation(attr, kind)?);
         }
     }
     let table = table.unwrap_or_else(|| format!("{}s", input.ident.to_string().to_snake_case()));
@@ -122,7 +156,329 @@ fn parse(input: &DeriveInput) -> Result<Input> {
         table,
         columns,
         skipped,
+        relations,
     })
+}
+
+/// Which relation kind, if any, an attribute declares.
+fn relation_kind(attr: &syn::Attribute) -> Option<RelationKind> {
+    if attr.path().is_ident("has_many") {
+        Some(RelationKind::HasMany)
+    } else if attr.path().is_ident("has_one") {
+        Some(RelationKind::HasOne)
+    } else if attr.path().is_ident("belongs_to") {
+        Some(RelationKind::BelongsTo)
+    } else if attr.path().is_ident("many_to_many") {
+        Some(RelationKind::ManyToMany)
+    } else {
+        None
+    }
+}
+
+/// Parse `#[has_many(Comment, to = post_id)]`, `#[has_one(Profile, to = user_id)]`,
+/// `#[belongs_to(User, from = user_id, to = id, as = author)]`,
+/// `#[many_to_many(Tag, via = PostTag, from = post_id, to = tag_id)]`.
+///
+/// For `has_many`/`has_one` (owner side): `to` is the foreign-key column on the target
+/// (required); `from` is the local column it points back to (defaults to the primary
+/// key). For `belongs_to` (reference side): `from` is the local foreign-key column
+/// (required); `to` is the referenced column on the target (defaults to its primary key).
+/// For `many_to_many`: `via` is the junction entity (required), `from` is the junction
+/// column pointing at this entity and `to` the junction column pointing at the target
+/// (both required).
+fn parse_relation(attr: &syn::Attribute, kind: RelationKind) -> Result<Relation> {
+    let mut target: Option<syn::Path> = None;
+    let mut from: Option<Ident> = None;
+    let mut to: Option<Ident> = None;
+    let mut rename: Option<Ident> = None;
+    let mut via: Option<syn::Path> = None;
+
+    attr.parse_nested_meta(|meta| {
+        if meta.input.peek(syn::Token![=]) {
+            // key = value form
+            if meta.path.is_ident("from") {
+                from = Some(meta.value()?.parse()?);
+            } else if meta.path.is_ident("to") {
+                to = Some(meta.value()?.parse()?);
+            } else if meta.path.is_ident("as") {
+                rename = Some(meta.value()?.parse()?);
+            } else if meta.path.is_ident("via") {
+                via = Some(meta.value()?.parse()?);
+            } else {
+                return Err(
+                    meta.error("unknown relation option; expected `from`, `to`, `as` or `via`")
+                );
+            }
+        } else if target.is_none() {
+            // the bare target type, e.g. `Comment` or `super::Comment`
+            target = Some(meta.path);
+        } else {
+            return Err(meta.error("unexpected token in relation; expected `key = value`"));
+        }
+        Ok(())
+    })?;
+
+    let target = target.ok_or_else(|| {
+        Error::new_spanned(
+            attr,
+            "relation needs a target type, e.g. #[has_many(Comment)]",
+        )
+    })?;
+    if kind == RelationKind::BelongsTo && from.is_none() {
+        return Err(Error::new_spanned(
+            attr,
+            "`belongs_to` needs the foreign-key column: #[belongs_to(User, from = user_id)]",
+        ));
+    }
+    if matches!(kind, RelationKind::HasMany | RelationKind::HasOne) && to.is_none() {
+        return Err(Error::new_spanned(
+            attr,
+            "`has_many`/`has_one` needs the target's foreign-key column: \
+             #[has_many(Comment, to = post_id)]",
+        ));
+    }
+    if kind == RelationKind::ManyToMany && (via.is_none() || from.is_none() || to.is_none()) {
+        return Err(Error::new_spanned(
+            attr,
+            "`many_to_many` needs the junction entity and both junction columns: \
+             #[many_to_many(Tag, via = PostTag, from = post_id, to = tag_id)]",
+        ));
+    }
+
+    // Default accessor name from the target type's last segment.
+    let target_name = target
+        .segments
+        .last()
+        .map_or_else(|| "related".to_owned(), |s| s.ident.to_string());
+    let method = rename.unwrap_or_else(|| {
+        let snake = target_name.to_snake_case();
+        let name = match kind {
+            RelationKind::HasMany | RelationKind::ManyToMany => format!("{snake}s"), // comments, tags
+            _ => snake, // user / profile
+        };
+        format_ident!("{name}")
+    });
+
+    Ok(Relation {
+        kind,
+        target,
+        method,
+        from,
+        to,
+        via,
+    })
+}
+
+/// The `Relation` enum variant name for a relation, derived from its accessor name
+/// (`comments` -> `Comments`, `author` -> `Author`). Unique because accessor names are.
+fn rel_variant_ident(rel: &Relation) -> Ident {
+    format_ident!("{}", rel.method.to_string().to_upper_camel_case())
+}
+
+/// `Comments,` — one arm of the generated `pub enum Relation`.
+fn rel_variant(rel: &Relation) -> TokenStream {
+    let variant = rel_variant_ident(rel);
+    quote! { #variant, }
+}
+
+/// `Self::Comments => Entity::has_many(<Target as Entity>::Sea::default_sea()).into(),`
+///
+/// One match arm of the hand-written `impl RelationTrait`. SeaORM builds the def from
+/// `Entity` (the local one, in scope inside the module) and the target's SeaORM entity,
+/// reached as `<Target as rustali::orm::Entity>::Sea`.
+fn rel_def_arm(
+    rel: &Relation,
+    krate: &syn::Path,
+    sea: &TokenStream,
+    key_ident: &Ident,
+) -> TokenStream {
+    let variant = rel_variant_ident(rel);
+    let target = &rel.target;
+    let target_sea = quote! { <#target as #krate::Entity>::Sea };
+    let target_default = quote! { <#target_sea as ::core::default::Default>::default() };
+    let col = |id: &Ident| format_ident!("{}", id.to_string().to_upper_camel_case());
+
+    match rel.kind {
+        // has_many / has_one are the "owner" side: `from` is a column on *this* table
+        // (defaults to the primary key), `to` is the foreign-key column on the target.
+        RelationKind::HasMany | RelationKind::HasOne => {
+            let from = rel.from.clone().unwrap_or_else(|| key_ident.clone());
+            let from_variant = col(&from);
+            // `to` is required for these kinds (enforced in `parse_relation`); the
+            // `id` fallback only keeps this total.
+            let to = rel.to.clone().unwrap_or_else(|| key_ident.clone());
+            let to_variant = col(&to);
+            let builder = if rel.kind == RelationKind::HasMany {
+                quote!(has_many)
+            } else {
+                quote!(has_one)
+            };
+            quote! {
+                Self::#variant => Entity::#builder(#target_default)
+                    .from(Column::#from_variant)
+                    .to(<#target_sea as #sea::EntityTrait>::Column::#to_variant)
+                    .into(),
+            }
+        }
+        // belongs_to is the "reference" side: `from` is the foreign-key column on *this*
+        // table, `to` is the referenced column on the target (defaults to its PK).
+        RelationKind::BelongsTo => {
+            // `from` is required for belongs_to (enforced in `parse_relation`); the
+            // `key_ident` fallback only keeps this total.
+            let from = rel.from.clone().unwrap_or_else(|| key_ident.clone());
+            let from_variant = col(&from);
+            // SeaORM's builder requires the referenced column; default to the target's
+            // `Id` column (the framework's default primary key) when `to` is omitted.
+            let to_variant = rel.to.as_ref().map_or_else(|| format_ident!("Id"), col);
+            quote! {
+                Self::#variant => Entity::belongs_to(#target_default)
+                    .from(Column::#from_variant)
+                    .to(<#target_sea as #sea::EntityTrait>::Column::#to_variant)
+                    .into(),
+            }
+        }
+        // Filtered out before this point: M-N contributes no `Relation` enum variant.
+        RelationKind::ManyToMany => quote! {},
+    }
+}
+
+/// `impl Related<Target::Sea> for Entity { ... }`.
+///
+/// For direct relations `to()` delegates to the generated `Relation` enum. For
+/// many-to-many, `to()` and `via()` are built from the junction entity's columns so no
+/// variant on either side's `Relation` enum is required (`via` points at the junction,
+/// `to` from the junction to the target).
+fn rel_related_impl(
+    rel: &Relation,
+    krate: &syn::Path,
+    sea: &TokenStream,
+    key_ident: &Ident,
+) -> TokenStream {
+    let target = &rel.target;
+    let target_sea = quote! { <#target as #krate::Entity>::Sea };
+
+    // `via` is present iff the relation is many-to-many (enforced in `parse_relation`).
+    if let Some(via) = rel.via.as_ref() {
+        let col = |id: &Ident| format_ident!("{}", id.to_string().to_upper_camel_case());
+        let via_sea = quote! { <#via as #krate::Entity>::Sea };
+        let target_default = quote! { <#target_sea as ::core::default::Default>::default() };
+        // `from` / `to` are the junction's FK columns toward this entity / the target.
+        let from = rel.from.clone().unwrap_or_else(|| key_ident.clone());
+        let to = rel.to.clone().unwrap_or_else(|| key_ident.clone());
+        let from_variant = col(&from);
+        let to_variant = col(&to);
+        // Mirrors SeaORM's generated many-to-many `Related` impl:
+        //   to():  junction -> target  == junction.belongs_to(Target)
+        //   via(): this -> junction     == junction.belongs_to(Self).rev()
+        return quote! {
+            impl #sea::entity::Related<#target_sea> for Entity {
+                fn to() -> #sea::entity::RelationDef {
+                    #via_sea::belongs_to(#target_default)
+                        .from(<#via_sea as #sea::EntityTrait>::Column::#to_variant)
+                        .to(<#target_sea as #sea::EntityTrait>::Column::Id)
+                        .into()
+                }
+                fn via() -> ::core::option::Option<#sea::entity::RelationDef> {
+                    ::core::option::Option::Some(
+                        #sea::entity::RelationDef::rev(
+                            #via_sea::belongs_to(Entity::default())
+                                .from(<#via_sea as #sea::EntityTrait>::Column::#from_variant)
+                                .to(Column::Id)
+                                .into()
+                        )
+                    )
+                }
+            }
+        };
+    }
+
+    let variant = rel_variant_ident(rel);
+    quote! {
+        impl #sea::entity::Related<#target_sea> for Entity {
+            fn to() -> #sea::entity::RelationDef {
+                Relation::#variant.def()
+            }
+        }
+    }
+}
+
+/// Lazy accessor + eager loader methods on the entity struct for one relation.
+///
+/// - `has_many`: `async fn comments(&self, db) -> Result<Vec<Comment>>`
+///   plus `async fn with_comments(parents, db) -> Result<Vec<(Self, Vec<Comment>)>>`.
+/// - `has_one`/`belongs_to`: `async fn author(&self, db) -> Result<Option<User>>`
+///   plus `async fn with_author(parents, db) -> Result<Vec<(Self, Option<User>)>>`.
+/// - `many_to_many`: `async fn tags(&self, db) -> Result<Vec<Tag>>`
+///   plus `async fn with_tags(parents, db) -> Result<Vec<(Self, Vec<Tag>)>>`.
+fn rel_accessor(rel: &Relation, krate: &syn::Path, sea: &TokenStream) -> TokenStream {
+    let method = &rel.method;
+    let with_method = format_ident!("with_{method}");
+    let target = &rel.target;
+
+    let lazy_doc = format!("Lazily load the `{method}` relation for this row.");
+    let eager_doc = format!(
+        "Eagerly load the `{method}` relation for many rows in one extra query (no N+1), \
+         pairing each row with its related data."
+    );
+
+    match rel.kind {
+        RelationKind::ManyToMany => {
+            // `via` is present for many-to-many (enforced in `parse_relation`); the
+            // `target` fallback only keeps this total.
+            let via = rel.via.as_ref().unwrap_or(target);
+            quote! {
+                #[doc = #lazy_doc]
+                pub async fn #method<C: #sea::ConnectionTrait>(
+                    &self,
+                    db: &C,
+                ) -> #krate::__private::Result<::std::vec::Vec<#target>> {
+                    #krate::__private::relations::load_many::<Self, #target, C>(self, db).await
+                }
+
+                #[doc = #eager_doc]
+                pub async fn #with_method<C: #sea::ConnectionTrait>(
+                    parents: ::std::vec::Vec<Self>,
+                    db: &C,
+                ) -> #krate::__private::Result<::std::vec::Vec<(Self, ::std::vec::Vec<#target>)>> {
+                    #krate::__private::relations::eager_many_to_many::<Self, #target, #via, C>(parents, db).await
+                }
+            }
+        }
+        RelationKind::HasMany => quote! {
+            #[doc = #lazy_doc]
+            pub async fn #method<C: #sea::ConnectionTrait>(
+                &self,
+                db: &C,
+            ) -> #krate::__private::Result<::std::vec::Vec<#target>> {
+                #krate::__private::relations::load_many::<Self, #target, C>(self, db).await
+            }
+
+            #[doc = #eager_doc]
+            pub async fn #with_method<C: #sea::ConnectionTrait>(
+                parents: ::std::vec::Vec<Self>,
+                db: &C,
+            ) -> #krate::__private::Result<::std::vec::Vec<(Self, ::std::vec::Vec<#target>)>> {
+                #krate::__private::relations::eager_many::<Self, #target, C>(parents, db).await
+            }
+        },
+        RelationKind::HasOne | RelationKind::BelongsTo => quote! {
+            #[doc = #lazy_doc]
+            pub async fn #method<C: #sea::ConnectionTrait>(
+                &self,
+                db: &C,
+            ) -> #krate::__private::Result<::core::option::Option<#target>> {
+                #krate::__private::relations::load_one::<Self, #target, C>(self, db).await
+            }
+
+            #[doc = #eager_doc]
+            pub async fn #with_method<C: #sea::ConnectionTrait>(
+                parents: ::std::vec::Vec<Self>,
+                db: &C,
+            ) -> #krate::__private::Result<::std::vec::Vec<(Self, ::core::option::Option<#target>)>> {
+                #krate::__private::relations::eager_one::<Self, #target, C>(parents, db).await
+            }
+        },
+    }
 }
 
 fn parse_column(field: &Field, ident: Ident) -> Result<Column> {
@@ -251,6 +607,7 @@ fn generate(input: &Input) -> Result<TokenStream> {
         table,
         columns,
         skipped,
+        relations,
     } = input;
     let mod_name = format_ident!("{}_entity", ident.to_string().to_snake_case());
     let sea = quote!(#krate::sea_orm);
@@ -402,6 +759,26 @@ fn generate(input: &Input) -> Result<TokenStream> {
     }
     let field_type_idents = idents.iter().map(|name| format_ident!("{name}"));
 
+    // --- relations ---------------------------------------------------------------
+    // SeaORM: a Relation enum variant + RelationTrait arm per direct relation, and an
+    // `impl Related<Target::Sea> for Entity`. We generate the `impl RelationTrait`
+    // by hand (the exact expansion of DeriveRelation) so the empty-enum case and the
+    // populated case share one path. Many-to-many relations contribute no enum variant
+    // (their `Related` impl builds the junction defs inline), so they are filtered out
+    // of the enum and `RelationTrait` arms.
+    let direct: Vec<&Relation> = relations
+        .iter()
+        .filter(|r| r.kind != RelationKind::ManyToMany)
+        .collect();
+    let rel_variants = direct.iter().map(|r| rel_variant(r));
+    let rel_defs = direct
+        .iter()
+        .map(|r| rel_def_arm(r, krate, &sea, key_ident));
+    let rel_related = relations
+        .iter()
+        .map(|r| rel_related_impl(r, krate, &sea, key_ident));
+    let rel_methods = relations.iter().map(|r| rel_accessor(r, krate, &sea));
+
     Ok(quote! {
         #[doc(hidden)]
         #[allow(
@@ -432,8 +809,22 @@ fn generate(input: &Input) -> Result<TokenStream> {
                 #(#model_fields)*
             }
 
-            #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-            pub enum Relation {}
+            #[derive(Copy, Clone, Debug, EnumIter)]
+            pub enum Relation {
+                #(#rel_variants)*
+            }
+
+            impl #sea::entity::RelationTrait for Relation {
+                fn def(&self) -> #sea::entity::RelationDef {
+                    match self {
+                        #(#rel_defs)*
+                        #[allow(unreachable_patterns)]
+                        _ => panic!("no RelationDef for this variant"),
+                    }
+                }
+            }
+
+            #(#rel_related)*
 
             #behavior
         }
@@ -486,6 +877,8 @@ fn generate(input: &Input) -> Result<TokenStream> {
         #[allow(dead_code, unreachable_pub)]
         impl #ident {
             #(#column_consts)*
+
+            #(#rel_methods)*
 
             /// Start a typed query on this table.
             pub fn query() -> #krate::Query<Self> {

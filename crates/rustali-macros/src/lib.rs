@@ -53,7 +53,20 @@ use proc_macro::TokenStream;
 /// `todo.delete(&db)`, typed column constants (`Todo::TITLE`), plus the
 /// `rustali_orm::Entity` implementation and a hidden `todo_entity` module with the
 /// SeaORM types.
-#[proc_macro_derive(Entity, attributes(table, entity, key, column, skip))]
+#[proc_macro_derive(
+    Entity,
+    attributes(
+        table,
+        entity,
+        key,
+        column,
+        skip,
+        has_many,
+        has_one,
+        belongs_to,
+        many_to_many
+    )
+)]
 pub fn derive_entity(input: TokenStream) -> TokenStream {
     entity::expand(input.into())
         .unwrap_or_else(syn::Error::into_compile_error)

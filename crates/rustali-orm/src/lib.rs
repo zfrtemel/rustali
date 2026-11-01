@@ -17,6 +17,7 @@ pub mod page;
 pub mod provider;
 pub mod query;
 pub mod registry;
+pub mod relations;
 pub mod schema;
 
 pub use chrono;
@@ -38,7 +39,7 @@ pub mod __private {
     pub use inventory;
     pub use rustali_core::{Error, Result};
 
-    pub use crate::{TableMeta, registry::EntityRegistration};
+    pub use crate::{TableMeta, registry::EntityRegistration, relations};
 }
 
 /// Items generated code and application models usually import.
