@@ -1,0 +1,28 @@
+[package]
+name = "rustali-mail"
+description = "Email for the Rustali web framework: a Mailable trait with SMTP, log and in-memory transports"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = ["smtp"]
+smtp = ["dep:lettre"]
+
+[dependencies]
+rustali-core = { workspace = true }
+serde = { workspace = true }
+tracing = { workspace = true }
+lettre = { workspace = true, optional = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt"] }

@@ -17,3 +17,8 @@ rustali = { path = "../../crates/rustali" }
 askama = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }
+
+[dev-dependencies]
+rustali = { path = "../../crates/rustali", features = ["test"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+toml = { workspace = true }

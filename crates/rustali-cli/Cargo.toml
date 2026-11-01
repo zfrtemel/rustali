@@ -1,0 +1,30 @@
+[package]
+name = "rustali-cli"
+description = "The `rustali` command-line tool: scaffold new projects and generate controllers, models, migrations and more"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[[bin]]
+name = "rustali"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true }
+minijinja = { workspace = true }
+console = { workspace = true }
+heck = { workspace = true }
+chrono = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"

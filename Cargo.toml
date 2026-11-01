@@ -27,6 +27,11 @@ rustali-validate = { path = "crates/rustali-validate", version = "0.1.0-alpha.0"
 rustali-session = { path = "crates/rustali-session", version = "0.1.0-alpha.0" }
 rustali-view = { path = "crates/rustali-view", version = "0.1.0-alpha.0" }
 rustali-auth = { path = "crates/rustali-auth", version = "0.1.0-alpha.0" }
+rustali-cache = { path = "crates/rustali-cache", version = "0.1.0-alpha.0" }
+rustali-mail = { path = "crates/rustali-mail", version = "0.1.0-alpha.0" }
+rustali-queue = { path = "crates/rustali-queue", version = "0.1.0-alpha.0" }
+rustali-test = { path = "crates/rustali-test", version = "0.1.0-alpha.0" }
+rustali-cli = { path = "crates/rustali-cli", version = "0.1.0-alpha.0" }
 
 # --- async runtime & HTTP stack ---
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "net", "fs", "sync", "time"] }
@@ -74,7 +79,7 @@ subtle = "2"
 
 # --- background work, mail, cache, storage ---
 apalis = "1.0"
-lettre = { version = "0.11", default-features = false, features = ["smtp-transport", "tokio1", "tokio1-rustls", "builder"] }
+lettre = { version = "0.11", default-features = false, features = ["smtp-transport", "tokio1", "tokio1-rustls", "ring", "webpki-roots", "builder"] }
 opendal = { version = "0.54", default-features = false }
 
 # --- proc-macro toolkit ---

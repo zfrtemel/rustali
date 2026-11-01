@@ -48,6 +48,30 @@ pub mod auth_kit {
     pub use rustali_auth::*;
 }
 
+/// Caching: the `Cache` trait, `remember()`, memory and Redis stores.
+#[cfg(feature = "cache")]
+pub mod cache {
+    pub use rustali_cache::*;
+}
+
+/// Email: the `Mailable` trait and SMTP/log/memory transports.
+#[cfg(feature = "mail")]
+pub mod mail {
+    pub use rustali_mail::*;
+}
+
+/// Background jobs: the `Job` trait, dispatch, retries and a worker.
+#[cfg(feature = "queue")]
+pub mod queue {
+    pub use rustali_queue::*;
+}
+
+/// Testing: an in-process `TestClient` with fluent response assertions.
+#[cfg(feature = "test")]
+pub mod test {
+    pub use rustali_test::*;
+}
+
 /// Data layer: entities, queries, pagination, the `Db` extractor.
 #[cfg(feature = "orm")]
 pub mod orm {
@@ -105,6 +129,15 @@ pub mod prelude {
         Auth, AuthProvider, Authenticatable, Guest, Login, OptionalAuth, StoreFuture, UserStore,
         password,
     };
+
+    #[cfg(feature = "cache")]
+    pub use crate::cache::{Cache, CacheContextExt, CacheExt, CacheProvider};
+
+    #[cfg(feature = "mail")]
+    pub use crate::mail::{MailProvider, Mailable, MailerExt};
+
+    #[cfg(feature = "queue")]
+    pub use crate::queue::{Job, QueueExt, QueueProvider, Worker, async_trait};
 }
 
 /// Paths used by generated code. Not part of the public API; may change at any time.

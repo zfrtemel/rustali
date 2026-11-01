@@ -3,6 +3,15 @@
 > Laravel's developer experience, .NET-grade engineering, Rust's safety and speed.
 > A batteries-included full-stack web framework — **pre-alpha, under construction.**
 
+```bash
+# Scaffold and run a new app (once 0.1.0 is published):
+cargo install rustali-cli
+rustali new blog && cd blog
+cargo run -- migrate
+cargo run                 # http://127.0.0.1:8000
+rustali make:controller Post   # generate a controller
+```
+
 ```rust
 use rustali::prelude::*;
 
@@ -76,7 +85,12 @@ cargo run -p auth-app -- migrate && cargo run -p auth-app
 cargo run -p todo-api -- migrate:diff "add a field"
 #                                           code-first: change an entity, diff against
 #                                           the snapshot, get a reviewed migration
+cargo test -p blog                        # drive the whole app in-process with TestClient
 ```
+
+Ecosystem packages (all behind default-on features): `cache` (`remember()`, memory +
+Redis), `mail` (`Mailable` + SMTP/log/memory), `queue` (`Job` + worker + retries),
+plus a `test` kit (`TestClient` with fluent assertions).
 
 ## Contributing
 
