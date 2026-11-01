@@ -29,13 +29,34 @@ impl Job for SendWelcome {
 }
 ```
 
-`RETRY` defaults to `Retry::NONE` (one attempt). `Retry::times(n, backoff)` retries `n`
-more times with a fixed delay.
+### Retries
+
+`RETRY` controls what happens when `handle` returns an `Err`:
+
+| Value | Attempts | On final failure |
+|---|---|---|
+| `Retry::NONE` (default) | 1 | logged and dropped |
+| `Retry::times(n, backoff)` | 1 + `n` | logged and dropped |
+
+`times(n, ...)` means `n` retries **beyond** the first attempt, so `Retry::times(3, ...)` is
+up to four runs in total. The backoff is a **fixed** delay between attempts (exponential
+backoff may come later). A job that exhausts its retries is logged and dropped — there is no
+dead-letter store yet — so treat retries as a best-effort cushion, not a guarantee.
+
+### Write jobs to be safe to retry
+
+Because a job can run more than once (a retry, or — with a durable backend later — an
+at-least-once delivery), make `handle` **idempotent** where it matters: guard against
+sending the same email twice, charging twice, or inserting a duplicate row. A job that is
+safe to run again is a job you never have to think hard about when it retries.
 
 ## Registering jobs and the worker
 
-The worker needs to know each job type by name (to deserialise it), so build a `Worker`
-listing them and pass it to `QueueProvider`:
+When a job is dispatched it is **serialised** (it is `Serialize`), tagged with its `NAME`,
+and put on the queue. The worker reads the name to pick the right type and **deserialise** it
+back — which is why `NAME` must be unique across your jobs, and why changing a job's fields
+is a format change for anything already queued. Build a `Worker` listing every job type so
+the worker knows how to route each name, and pass it to `QueueProvider`:
 
 ```rust
 let worker = Worker::builder()
@@ -65,16 +86,21 @@ async fn signup(ctx: Ctx, db: Db, /* ... */) -> Result<Redirect> {
 }
 ```
 
+A job type the worker does not know about cannot be deserialised: the worker reports a clear
+"no handler registered for job `<name>`" error rather than running the wrong code. So adding
+a new job type means adding one `.register::<T>()` line.
+
 ## Running the worker
 
-Process queued jobs with the console command:
+Process queued jobs with the console command (registered by `QueueProvider`):
 
 ```bash
 cargo run -- queue:work        # drains the queue until Ctrl-C
 ```
 
 In development you can run it alongside `cargo run`; in production run it as a separate
-process.
+process. The worker and the web process share the same `App::builder()`, so a job's `handle`
+has the exact same context — database, mailer, your services — as a request handler.
 
 ## What ships today
 
