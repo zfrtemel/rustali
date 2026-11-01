@@ -55,11 +55,12 @@ pub struct AppConfig {
     pub name: String,
     /// Deployment environment: `development`, `test` or `production`.
     pub env: String,
-    /// Enables verbose error pages and hot reload helpers. Never true in production.
+    /// Enables verbose error detail in responses. Turn it off for production (set
+    /// `debug = false` in `config/production/app.toml`); it is not forced off automatically.
     pub debug: bool,
-    /// Secret used to sign cookies and tokens (`APP__APP__KEY`, usually set from
-    /// `.env`). At least 32 characters; `rustali key:generate` produces one. Empty in
-    /// development means "generate a throwaway key at boot".
+    /// Secret used to sign cookies and tokens (`APP__APP__KEY`, usually set from `.env`).
+    /// Must be at least 16 characters. Empty in development means "generate a throwaway key
+    /// at boot".
     pub key: String,
 }
 
