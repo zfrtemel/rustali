@@ -86,7 +86,7 @@ pub mod migrate {
 
 /// Re-exports of the underlying HTTP stack for advanced use.
 pub mod http {
-    pub use axum::{Router, extract, http::*, response, routing};
+    pub use axum::{Router, extract, http::*, middleware, response, routing};
 }
 
 /// Everything a typical application file imports.
