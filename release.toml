@@ -1,0 +1,15 @@
+# cargo-release configuration (install: `cargo install cargo-release`).
+#
+# All crates share one version and release together (ADR-0001). Dry run:
+#   cargo release --workspace <level>
+# Actually publish + tag (needs a crates.io token: `cargo login`):
+#   cargo release --workspace <level> --execute
+#
+# Publish order follows the dependency graph; cargo-release computes it.
+shared-version = true
+tag-name = "v{{version}}"
+tag-message = "Rustali {{version}}"
+pre-release-commit-message = "chore(release): {{version}}"
+consolidate-commits = true
+# The meta crate and examples are not published separately as libraries.
+publish = true

@@ -1,0 +1,34 @@
+# git-cliff configuration: generate CHANGELOG.md from Conventional Commits.
+# Usage: git cliff -o CHANGELOG.md
+[changelog]
+header = """
+# Changelog
+
+All notable changes to Rustali are documented here. The format follows
+[Keep a Changelog](https://keepachangelog.com) and
+[Conventional Commits](https://www.conventionalcommits.org).\n
+"""
+body = """
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | upper_first }}
+{% for commit in commits %}
+- {{ commit.message | upper_first }}{% endfor %}
+{% endfor %}
+"""
+trim = true
+
+[git]
+conventional_commits = true
+filter_unconventional = true
+commit_parsers = [
+    { message = "^feat", group = "Features" },
+    { message = "^fix", group = "Bug Fixes" },
+    { message = "^perf", group = "Performance" },
+    { message = "^refactor", group = "Refactor" },
+    { message = "^doc", group = "Documentation" },
+    { message = "^test", group = "Testing" },
+    { message = "^chore", group = "Chores", skip = true },
+    { message = "^ci", skip = true },
+]
+protect_breaking_commits = true
+tag_pattern = "v[0-9]*"

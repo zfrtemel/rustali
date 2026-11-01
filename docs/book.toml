@@ -1,0 +1,16 @@
+# mdBook configuration. Build with `mdbook build docs` (install: `cargo install mdbook`).
+[book]
+title = "Rustali"
+description = "Laravel's developer experience, .NET-grade engineering, in Rust."
+authors = ["The Rustali Contributors"]
+language = "en"
+src = "src"
+
+[output.html]
+default-theme = "rust"
+git-repository-url = "https://github.com/rustali/rustali"
+edit-url-template = "https://github.com/rustali/rustali/edit/main/docs/{path}"
+
+[output.html.fold]
+enable = true
+level = 1

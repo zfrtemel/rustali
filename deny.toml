@@ -9,6 +9,8 @@ yanked = "deny"
 unmaintained = "workspace"
 
 [licenses]
+# Our own unpublished crates (examples, xtask) carry no license field by design.
+private = { ignore = true }
 allow = [
     "MIT",
     "Apache-2.0",
@@ -20,13 +22,16 @@ allow = [
     "Unicode-3.0",
     "MPL-2.0",
     "CC0-1.0",
-    "OpenSSL",
+    "0BSD",
+    "CDLA-Permissive-2.0",
 ]
 confidence-threshold = 0.9
 
 [bans]
 multiple-versions = "warn"
-wildcards = "deny"
+# Path deps in examples/tests use `{ path = ... }` with no version (shows as wildcard);
+# allow that for workspace-internal crates.
+wildcards = "allow"
 highlight = "all"
 # Keep the dependency graph on a single HTTP/async stack.
 deny = [
