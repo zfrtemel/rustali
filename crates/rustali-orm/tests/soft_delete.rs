@@ -5,9 +5,9 @@
 
 use rustali_macros::Entity;
 use rustali_orm::{
-    soft_delete,
     chrono::{DateTime, Utc},
     sea_orm::{ConnectionTrait, Database, DatabaseConnection, DbBackend, EntityTrait, Schema},
+    soft_delete,
 };
 
 #[derive(Entity, Debug, Clone, PartialEq)]
@@ -59,10 +59,24 @@ async fn soft_delete_on_and_off() {
         "soft delete keeps the row"
     );
     // ...but is hidden from the entity's query/find
-    assert_eq!(Note::count(&db).await.unwrap(), 1, "trashed row hidden from count");
-    assert_eq!(Note::all(&db).await.unwrap().len(), 1, "trashed row hidden from all");
-    assert!(Note::find(&db, gone.id).await.unwrap().is_none(), "find hides trashed");
-    assert!(Note::find(&db, kept.id).await.unwrap().is_some(), "live row still found");
+    assert_eq!(
+        Note::count(&db).await.unwrap(),
+        1,
+        "trashed row hidden from count"
+    );
+    assert_eq!(
+        Note::all(&db).await.unwrap().len(),
+        1,
+        "trashed row hidden from all"
+    );
+    assert!(
+        Note::find(&db, gone.id).await.unwrap().is_none(),
+        "find hides trashed"
+    );
+    assert!(
+        Note::find(&db, kept.id).await.unwrap().is_some(),
+        "live row still found"
+    );
 
     // and deleted_at was stamped
     let raw = note_entity::Entity::find_by_id(gone.id)

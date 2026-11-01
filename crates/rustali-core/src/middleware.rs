@@ -28,9 +28,6 @@ use crate::{AppContext, Error, error::ErrorBody};
 /// Header carrying the per-request identifier.
 pub const REQUEST_ID_HEADER: &str = "x-request-id";
 
-/// Media type of RFC 9457 problem documents.
-pub const PROBLEM_JSON: &str = "application/problem+json";
-
 /// Headers that an error response keeps when it is re-rendered.
 const PRESERVED_HEADERS: &[header::HeaderName] = &[header::RETRY_AFTER, header::WWW_AUTHENTICATE];
 
@@ -161,24 +158,40 @@ fn problem_json(
     instance: &str,
     request_id: Option<&str>,
 ) -> Response {
-    let mut doc = serde_json::json!({
-        "type": "about:blank",
-        "title": body.title,
-        "status": body.status.as_u16(),
-        "instance": instance,
-    });
-    if let Some(detail) = detail {
-        doc["detail"] = detail.into();
-    }
+    // The failure half of the fixed `{ success, data, error }` envelope (see
+    // `crate::response::ApiResponse`): success responses and errors share one shape, so
+    // everything specific to an error lives inside `error.details` rather than as extra
+    // top-level keys.
+    let mut details = serde_json::Map::new();
+    details.insert("instance".into(), instance.into());
     if let Some(id) = request_id {
-        doc["request_id"] = id.into();
+        details.insert("request_id".into(), id.into());
     }
     if let Some(errors) = &body.validation {
-        doc["errors"] = serde_json::to_value(&errors.fields).unwrap_or_default();
+        details.insert(
+            "fields".into(),
+            serde_json::to_value(&errors.fields).unwrap_or_default(),
+        );
     }
+    let details = (!details.is_empty()).then_some(serde_json::Value::Object(details));
+
+    // `message` is the public detail when there is one, else the generic title.
+    let message = detail.unwrap_or_else(|| body.title.to_owned());
+    let doc = serde_json::json!({
+        "success": false,
+        "data": serde_json::Value::Null,
+        "error": {
+            "code": body.status.as_u16(),
+            "message": message,
+            "details": details,
+        },
+    });
     (
         body.status,
-        [(header::CONTENT_TYPE, HeaderValue::from_static(PROBLEM_JSON))],
+        [(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/json"),
+        )],
         doc.to_string(),
     )
         .into_response()

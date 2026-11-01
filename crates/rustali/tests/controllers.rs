@@ -243,7 +243,18 @@ async fn method_throttle_limits_and_sets_headers() {
         headers.contains_key(header::RETRY_AFTER),
         "Retry-After survives re-rendering"
     );
-    assert!(body.contains("Too Many Requests"), "{body}");
+    // The fixed { success, data, error } envelope with the 429 inside error.
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(json["success"], false);
+    assert_eq!(json["error"]["code"], 429);
+    assert!(
+        json["error"]["message"]
+            .as_str()
+            .unwrap()
+            .to_lowercase()
+            .contains("too many requests"),
+        "{body}"
+    );
 }
 
 #[tokio::test]

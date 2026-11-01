@@ -16,9 +16,9 @@
 //! ```
 
 pub use rustali_core::{
-    App, AppBuilder, AppContext, Command, CommandFuture, Config, Ctx, Error, ErrorBody, Inject,
-    Provider, RegisterFuture, Registry, Result, Services, auth, command, config, middleware,
-    router, services, telemetry,
+    ApiError, ApiResponse, App, AppBuilder, AppContext, Command, CommandFuture, Config, Ctx, Error,
+    ErrorBody, Inject, Provider, RegisterFuture, Registry, Result, Services, auth, command, config,
+    middleware, response, router, services, telemetry,
 };
 
 #[cfg(feature = "macros")]
@@ -98,7 +98,7 @@ pub mod prelude {
     };
 
     pub use crate::{
-        App, AppContext, Config, Ctx, Error, Inject, Result,
+        ApiError, ApiResponse, App, AppContext, Config, Ctx, Error, Inject, Result,
         auth::{Actor, AuthFuture, AuthorizeLayer, Check, Gate, Policy},
         middleware::{Cors, Throttle},
         router::Controller,

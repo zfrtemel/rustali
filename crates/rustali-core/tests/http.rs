@@ -118,12 +118,17 @@ async fn unknown_route_renders_html_for_browsers() {
 }
 
 #[tokio::test]
-async fn unknown_api_route_renders_problem_json() {
+async fn unknown_api_route_renders_json_envelope() {
     let (status, headers, body) = send(app(false).await, "/api/missing", None).await;
     assert_eq!(status, StatusCode::NOT_FOUND);
-    assert_eq!(headers[header::CONTENT_TYPE], "application/problem+json");
+    assert_eq!(headers[header::CONTENT_TYPE], "application/json");
     let json: serde_json::Value = serde_json::from_str(&body).unwrap();
-    insta::assert_json_snapshot!(json, { ".request_id" => "[request-id]" });
+    // The fixed { success, data, error } envelope.
+    assert_eq!(json["success"], false);
+    assert_eq!(json["data"], serde_json::Value::Null);
+    assert_eq!(json["error"]["code"], 404);
+    assert_eq!(json["error"]["message"], "Not Found");
+    assert_eq!(json["error"]["details"]["instance"], "/api/missing");
 }
 
 #[tokio::test]
@@ -131,22 +136,31 @@ async fn bad_request_detail_is_public() {
     let (status, _, body) = send(app(false).await, "/bad", Some("application/json")).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     let json: serde_json::Value = serde_json::from_str(&body).unwrap();
-    insta::assert_json_snapshot!(json, { ".request_id" => "[request-id]" });
+    assert_eq!(json["success"], false);
+    // A client error puts its public message in error.message.
+    assert_eq!(json["error"]["code"], 400);
+    assert!(
+        !json["error"]["message"].as_str().unwrap().is_empty(),
+        "bad request message is public: {body}"
+    );
 }
 
 #[tokio::test]
 async fn internal_error_hides_detail_unless_debug() {
+    // In production the message is the generic title, never the internal detail.
     let (status, _, body) = send(app(false).await, "/boom", Some("application/json")).await;
     assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
     let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(json["error"]["message"], "Internal Server Error");
     assert!(
-        json.get("detail").is_none(),
+        !body.contains("database exploded"),
         "production must not leak: {body}"
     );
 
+    // With debug on, the real detail surfaces in the message.
     let (_, _, body) = send(app(true).await, "/boom", Some("application/json")).await;
     let json: serde_json::Value = serde_json::from_str(&body).unwrap();
-    assert_eq!(json["detail"], "database exploded");
+    assert_eq!(json["error"]["message"], "database exploded");
 }
 
 #[tokio::test]

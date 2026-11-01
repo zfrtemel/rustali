@@ -27,6 +27,7 @@ pub mod config;
 pub mod error;
 pub mod extract;
 pub mod middleware;
+pub mod response;
 pub mod router;
 pub mod services;
 pub mod telemetry;
@@ -37,6 +38,7 @@ pub use command::{Command, CommandFuture, Commands};
 pub use config::Config;
 pub use error::{Error, ErrorBody, Result};
 pub use extract::{Ctx, Inject};
+pub use response::{ApiError, ApiResponse};
 pub use services::{MissingService, Provider, RegisterFuture, Registry, Services};
 pub use validation::ValidationErrors;
 

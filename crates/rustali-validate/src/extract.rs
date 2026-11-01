@@ -24,8 +24,9 @@ pub const BODY_LIMIT: usize = 2 * 1024 * 1024;
 /// Extract, deserialise and validate in one step.
 ///
 /// On failure:
-/// - JSON clients (or `/api/*` paths) get `422 Unprocessable Entity` as a problem
-///   document with an `errors` object;
+/// - JSON clients (or `/api/*` paths) get `422 Unprocessable Entity` in the standard
+///   `{ success, data, error }` envelope, with the per-field errors under
+///   `error.details.fields`;
 /// - HTML form posts are redirected back (`Referer`, else `/`) after the errors and
 ///   the submitted values were handed to the session package through
 ///   [`FormFeedbackHandle`], so the form re-renders filled in with messages. Without

@@ -3,9 +3,9 @@
 //! Every fallible framework API returns [`Result<T>`]. Handlers return it too. When an
 //! [`Error`] is converted into a response it carries an [`ErrorBody`] extension; the
 //! [`crate::middleware::negotiate_errors`] layer (part of the default stack) reads it
-//! and renders either an RFC 9457 *Problem Details* JSON document or an HTML error
-//! page, depending on what the client accepts. This is the pipeline's "exception
-//! filter".
+//! and renders either the standard `{ success, data, error }` JSON envelope (see
+//! [`crate::response::ApiResponse`]) or an HTML error page, depending on what the client
+//! accepts. This is the pipeline's "exception filter".
 
 use axum::{
     http::StatusCode,

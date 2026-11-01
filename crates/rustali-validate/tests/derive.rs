@@ -200,8 +200,14 @@ async fn json_extractor_validates() {
     .await;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
     let doc: serde_json::Value = serde_json::from_str(&body).unwrap();
-    assert_eq!(doc["status"], 422);
-    assert_eq!(doc["errors"]["name"][0], "The name field is required.");
+    // The fixed { success, data, error } envelope; field errors live under
+    // error.details.fields.
+    assert_eq!(doc["success"], false);
+    assert_eq!(doc["error"]["code"], 422);
+    assert_eq!(
+        doc["error"]["details"]["fields"]["name"][0],
+        "The name field is required."
+    );
 
     let (status, _) = send(
         "/api/signup",
