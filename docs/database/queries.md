@@ -1,4 +1,4 @@
-# Queries & Pagination
+# Queries
 
 `Todo::query()` returns a typed `Query<Todo>` builder. It forwards SeaORM's familiar
 filter, order and select methods, but its terminal methods return **your struct**, not a
@@ -114,7 +114,7 @@ See [Relationships](relations/) for the full guide.
 | `fetch_one_or_404(&db)` | `Todo` or `Err(Error::NotFound)` |
 | `count(&db)` | `u64` |
 | `exists(&db)` | `bool` |
-| `fetch_page(&db, page, per_page)` | `Page<Todo>` |
+| `paginate(&db, page, per_page)` | `Page<Todo>` — see [Pagination](pagination) |
 
 ```rust
 let user = User::query()
@@ -130,39 +130,8 @@ let already = User::query()
 
 ## Pagination
 
-`fetch_page` returns a `Page<T>` carrying the rows and the numbers a UI or API client
-needs. It is `Serialize`, so an API can return it directly.
-
-```rust
-#[derive(Deserialize)]
-struct Paging { page: Option<u64>, per_page: Option<u64> }
-
-#[get("/")]
-async fn index(db: Db, Query(p): Query<Paging>) -> Result<Json<Page<Todo>>> {
-    let page = Todo::query()
-        .order_by_desc(Todo::ID)
-        .fetch_page(&db, p.page.unwrap_or(1), p.per_page.unwrap_or(20).min(100))
-        .await?;
-    Ok(Json(page))
-}
-```
-
-`Page<T>` fields:
-
-| Field | Meaning |
-|---|---|
-| `items` | the rows on this page |
-| `page` | 1-based current page |
-| `per_page` | requested page size |
-| `total` | total rows across all pages |
-| `last_page` | number of the last page (≥ 1) |
-
-It also has `has_next()` / `has_prev()` helpers and `map(f)` to transform items while
-keeping the paging numbers (handy to turn entities into a view model).
-
-```json
-{ "items": [ /* ... */ ], "page": 1, "per_page": 20, "total": 57, "last_page": 3 }
-```
+Instead of loading every row, `paginate(&db, page, per_page)` returns one page plus the
+totals a UI or API client needs. It has its own page: [Pagination](pagination).
 
 ## Transactions
 
@@ -189,4 +158,4 @@ SeaORM API. Raw SeaORM calls that return a `DbErr` can be mapped with `.or_db()?
 (`DbResultExt`), which turns a missing row into `Error::NotFound` and anything else into
 `Error::Database`.
 
-Next: [Migrations (Code-First)](migrations).
+Next: [Pagination](pagination).

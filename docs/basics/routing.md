@@ -107,7 +107,7 @@ struct Paging {
 async fn index(db: Db, Query(paging): Query<Paging>) -> Result<Json<Page<Todo>>> {
     let page = Todo::query()
         .order_by_desc(Todo::ID)
-        .fetch_page(&db, paging.page.unwrap_or(1), paging.per_page.unwrap_or(20))
+        .paginate(&db, paging.page.unwrap_or(1), paging.per_page.unwrap_or(20))
         .await?;
     Ok(Json(page))
 }

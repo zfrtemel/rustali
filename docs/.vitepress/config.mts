@@ -74,7 +74,8 @@ function sidebar(locale: 'en' | 'tr') {
       items: [
         { text: t('Entities', 'Varlıklar (Entity)'), link: `${p}/database/entities` },
         { text: t('Model Methods', 'Model Metotları'), link: `${p}/database/model-methods` },
-        { text: t('Queries & Pagination', 'Sorgular & Sayfalama'), link: `${p}/database/queries` },
+        { text: t('Queries', 'Sorgular'), link: `${p}/database/queries` },
+        { text: t('Pagination', 'Sayfalama'), link: `${p}/database/pagination` },
         {
           text: t('Relationships', 'İlişkiler'),
           collapsed: true,

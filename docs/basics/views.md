@@ -64,7 +64,7 @@ flag. Since a [paginated](../database/queries#pagination) `Page<T>` has `map`, y
 rows into a view model while keeping the paging numbers:
 
 ```rust
-let page = Post::query().fetch_page(&db, 1, 20).await?
+let page = Post::query().paginate(&db, 1, 20).await?
     .map(|post| PostRow { title: post.title, excerpt: truncate(&post.body, 140) });
 ```
 
