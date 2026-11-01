@@ -28,9 +28,10 @@ Cargo.lock.bak
 .DS_Store
 Thumbs.db
 
-# Docs build output
-/docs/book/
-/docs/dist/
+# Docs build output (VitePress)
+docs/.vitepress/dist/
+docs/.vitepress/cache/
 
-# Node (optional Vite asset pipeline)
+# Node
 node_modules/
+package-lock.json

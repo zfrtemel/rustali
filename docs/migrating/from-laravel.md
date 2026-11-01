@@ -16,13 +16,13 @@ compile time.
 | Eloquent model | `#[derive(Entity)]` struct (a plain POCO) |
 | `$user->update([...])` | `user.update(&db).await?` |
 | Migrations (hand-written) | **code-first**: `migrate:diff` generates them |
-| Blade `{{ $var }}` | Askama `{{ var }}` (compile-time checked) or Tera (runtime) |
+| Blade <code v-pre>{{ $var }}</code> | Askama <code v-pre>{{ var }}</code> (compile-time checked) or Tera |
 | Form Request validation | `#[derive(Validate)]` + `Validated<Form<T>>` |
 | `$request->validate([...])` redirect back | same behaviour, automatic |
 | `Auth::user()` | `Auth<User>` extractor |
 | `Gate` / Policies | `Gate` / `Policy` + `#[authorize(...)]` |
 | `Hash::make` / `Hash::check` | `password::hash` / `password::verify` (argon2id) |
-| CSRF `@csrf` | `{{ csrf.field()|safe }}` |
+| CSRF `@csrf` | <code v-pre>{{ csrf.field()\|safe }}</code> |
 | `session()->flash()` | `flash.success(...)` |
 | Cache `Cache::remember` | `cache.remember(key, ttl, || async { ... })` |
 | Mailables | `impl Mailable` + `mailer.send(...)` |
