@@ -22,6 +22,28 @@ async fn store(db: Db, Json(input): Json<CreateTodo>) -> Result<(StatusCode, Jso
 }
 ```
 
+### Setting status and headers
+
+Tuples compose a response: add a status in front, and a header array in the middle. This is
+plain axum — any `IntoResponse` tuple shape works:
+
+```rust
+use rustali::http::{header, StatusCode};
+
+#[get("/report.csv")]
+async fn report() -> impl IntoResponse {
+    (
+        StatusCode::OK,
+        [(header::CONTENT_TYPE, "text/csv"),
+         (header::CONTENT_DISPOSITION, "attachment; filename=\"report.csv\"")],
+        csv_body,
+    )
+}
+```
+
+For a redirect use `Redirect::to("/path")` (303); `Redirect::permanent(...)` and
+`Redirect::temporary(...)` give 308 / 307 when you need them.
+
 ## Errors are values
 
 There are no exceptions. Fallible work returns `Result<T>` — the alias for
@@ -57,6 +79,31 @@ async fn show(db: Db, Path(id): Path<i64>) -> Result<Json<Todo>> {
 rest `Database`). Only `BadRequest` and `Validation` expose their detail to clients;
 `Internal`/`Database` details are shown **only when `app.debug` is on**, so production
 never leaks internals.
+
+### Returning an error deliberately
+
+Raise one with a constructor and `?`, or `return Err(...)`:
+
+```rust
+#[post("/transfer")]
+async fn transfer(db: Db, Json(input): Json<Transfer>) -> Result<StatusCode> {
+    if input.amount <= 0 {
+        return Err(Error::bad_request("amount must be positive"));  // 400, detail shown
+    }
+    let account = Account::find_or_404(&db, input.from).await?;      // 404 if missing
+    if account.balance < input.amount {
+        return Err(Error::Forbidden);                               // 403, no detail leaked
+    }
+    // ...
+    Ok(StatusCode::NO_CONTENT)
+}
+```
+
+The split is deliberate: `bad_request` is for **client** mistakes, so its message is meant
+to be read by the caller and is always sent. `Forbidden` / `Unauthorized` carry no detail on
+purpose — telling a caller *why* they were denied is itself a leak. And `internal` / database
+errors hide their detail outside debug, so a stack message or SQL string never reaches a
+production client while still being logged with the request id for you.
 
 ## Content negotiation
 
