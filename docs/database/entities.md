@@ -119,6 +119,13 @@ async fn show(db: Db, Path(id): Path<i64>) -> Result<Json<Todo>> {
 
 Because the struct derives `Serialize`, returning `Json<Todo>` just works.
 
+## Relationships
+
+Links to other tables — a post's comments, a comment's post, a post's tags — are declared
+with container attributes (`#[has_many]`, `#[belongs_to]`, `#[has_one]`,
+`#[many_to_many]`) and loaded with generated, explicit methods. See
+[Relationships](relations/) for the full guide.
+
 ## Dropping to SeaORM
 
 The generated column constants implement SeaORM's traits, and

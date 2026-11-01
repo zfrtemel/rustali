@@ -74,6 +74,17 @@ function sidebar(locale: 'en' | 'tr') {
       items: [
         { text: t('Entities', 'Varlıklar (Entity)'), link: `${p}/database/entities` },
         { text: t('Queries & Pagination', 'Sorgular & Sayfalama'), link: `${p}/database/queries` },
+        {
+          text: t('Relationships', 'İlişkiler'),
+          collapsed: true,
+          items: [
+            { text: t('Overview', 'Genel Bakış'), link: `${p}/database/relations/` },
+            { text: 'has_many', link: `${p}/database/relations/has-many` },
+            { text: 'belongs_to', link: `${p}/database/relations/belongs-to` },
+            { text: 'has_one', link: `${p}/database/relations/has-one` },
+            { text: 'many_to_many', link: `${p}/database/relations/many-to-many` },
+          ],
+        },
         { text: t('Migrations (Code-First)', 'Migration (Code-First)'), link: `${p}/database/migrations` },
       ],
     },
