@@ -62,9 +62,9 @@ type Handler = Arc<
 
 /// Runs jobs: holds the handler registry and drains a queue.
 ///
-/// Register every job type with [`Worker::register`], then [`Worker::run`] in a Tokio
-/// task (the `queue:work` command does this). The worker owns the [`AppContext`] so
-/// handlers can reach services.
+/// Register every job type with [`WorkerBuilder::register`], then drive it from the
+/// `queue:work` command (which calls [`crate::MemoryQueue::spawn`]). The worker owns the
+/// [`AppContext`] so handlers can reach services.
 #[derive(Clone)]
 pub struct Worker {
     handlers: Arc<HashMap<&'static str, Handler>>,

@@ -2,7 +2,7 @@
 //!
 //! A single async [`Cache`] trait with two stores: an in-process [`MemoryCache`]
 //! (default, with TTL expiry) and an optional [`RedisCache`] (feature `redis`). The
-//! star method is [`Cache::remember`] — fetch-or-compute-and-store in one call, the
+//! star method is [`CacheExt::remember`] — fetch-or-compute-and-store in one call, the
 //! pattern most apps actually want:
 //!
 //! ```ignore

@@ -3,7 +3,7 @@
 //! The owned [`Schema`] (a set of [`Table`]s) is the normalised form of both sides of
 //! a diff: the **desired** schema, built from the application's entities
 //! ([`Schema::from_tables`]), and the **current** schema, loaded from the snapshot file
-//! ([`crate::migrate`] territory) or pulled from the database. [`Schema::diff`]
+//! (the `rustali-migrate` crate's territory) or pulled from the database. [`Schema::diff`]
 //! computes the [`SchemaChange`]s between them; the migrate crate renders those as a
 //! migration.
 //!

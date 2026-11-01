@@ -32,4 +32,4 @@ pub use async_trait::async_trait;
 pub use job::{Job, JobError, Retry};
 pub use memory::MemoryQueue;
 pub use provider::{QueueConfig, QueueExt, QueueProvider, SharedQueue};
-pub use worker::{Queue, Worker};
+pub use worker::{Queue, Worker, WorkerBuilder};

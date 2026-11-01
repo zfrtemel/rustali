@@ -1,4 +1,4 @@
-//! Session-backed login state and the handler-facing [`Auth`] actions.
+//! Session-backed login state and the handler-facing [`Login`](crate::Login) actions.
 
 use axum::http::request::Parts;
 use rustali_core::{Error, Result};

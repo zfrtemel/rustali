@@ -39,16 +39,28 @@ fn ci() -> Result<()> {
         "warnings",
     ])?;
     run(&["test", "--workspace", "--all-features"])?;
-    run(&["doc", "--workspace", "--all-features", "--no-deps"])?;
+    // Match GitHub CI: deny rustdoc warnings (broken intra-doc links, filename
+    // collisions) so a `cargo doc` that is clean locally is clean on CI too.
+    run_with_doc_warnings(&["doc", "--workspace", "--all-features", "--no-deps"])?;
     Ok(())
 }
 
 fn run(args: &[&str]) -> Result<()> {
+    run_inner(args, false)
+}
+
+fn run_with_doc_warnings(args: &[&str]) -> Result<()> {
+    run_inner(args, true)
+}
+
+fn run_inner(args: &[&str], deny_doc_warnings: bool) -> Result<()> {
     eprintln!("$ cargo {}", args.join(" "));
-    let status = Command::new("cargo")
-        .args(args)
-        .status()
-        .context("spawning cargo")?;
+    let mut command = Command::new("cargo");
+    command.args(args);
+    if deny_doc_warnings {
+        command.env("RUSTDOCFLAGS", "-D warnings");
+    }
+    let status = command.status().context("spawning cargo")?;
     if !status.success() {
         bail!("`cargo {}` failed with {status}", args.join(" "));
     }
