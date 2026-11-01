@@ -34,8 +34,76 @@ let done = Todo::query()
 
 `filter`, `order_by_asc` / `order_by_desc`, `limit`, `offset` and the other builder
 methods come from SeaORM (`ColumnTrait`, `QueryOrder`, `QuerySelect`); the column
-constants (`Todo::DONE`, `Todo::CREATED_AT`) are generated for each field. Combine
-conditions with `.filter(...)` repeatedly or SeaORM's `Condition`.
+constants (`Todo::DONE`, `Todo::CREATED_AT`) are generated for each field.
+
+## Filtering in depth
+
+Each column constant is a SeaORM `ColumnTrait`, so the full set of comparison helpers is
+available on it:
+
+```rust
+Todo::TITLE.eq("write docs")          // =
+Todo::TITLE.ne("skip")                // <>
+Todo::TITLE.like("%docs%")            // LIKE
+Todo::TITLE.contains("doc")           // LIKE '%doc%'
+Todo::TITLE.starts_with("wr")         // LIKE 'wr%'
+Todo::PRIORITY.gt(3)                  // >
+Todo::PRIORITY.gte(3)                 // >=
+Todo::PRIORITY.lt(10)                 // <
+Todo::PRIORITY.is_in([1, 2, 3])       // IN (...)
+Todo::NOTE.is_null()                  // IS NULL
+Todo::NOTE.is_not_null()              // IS NOT NULL
+Todo::DUE.between(start, end)         // BETWEEN
+```
+
+### Combining conditions
+
+Call `.filter(...)` more than once and the conditions are **AND**ed:
+
+```rust
+let urgent = Todo::query()
+    .filter(Todo::DONE.eq(false))
+    .filter(Todo::PRIORITY.gte(8))   // done = false AND priority >= 8
+    .fetch_all(&db)
+    .await?;
+```
+
+For **OR** (and nested groups), build a SeaORM `Condition` and pass it to a single
+`.filter(...)`:
+
+```rust
+use rustali::orm::sea_orm::Condition;
+
+let matches = Todo::query()
+    .filter(
+        Condition::any()                     // OR
+            .add(Todo::TITLE.contains("doc"))
+            .add(Todo::TITLE.contains("test")),
+    )
+    .filter(Todo::DONE.eq(false))            // ... AND done = false
+    .fetch_all(&db)
+    .await?;
+```
+
+`Condition::all()` is the AND counterpart; nest them freely to build any boolean tree.
+
+## Loading relations
+
+Relations are not loaded by a query — they are loaded by the generated accessor methods on
+the entity (lazy per-row) or the `with_*` batch loaders (eager). The usual pattern is to
+run a query, then eager-load to avoid N+1:
+
+```rust
+let posts = Post::query()
+    .filter(Post::PUBLISHED.eq(true))
+    .order_by_desc(Post::CREATED_AT)
+    .fetch_all(&db)
+    .await?;                                  // 1 query
+
+let with_comments = Post::with_comments(posts, &db).await?; // 1 more query
+```
+
+See [Relationships](relations/) for the full guide.
 
 ## Fetching
 

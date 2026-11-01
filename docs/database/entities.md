@@ -46,6 +46,10 @@ The derive leans on conventions so the common case needs no attributes:
 |---|---|
 | `#[table("name")]` | Table name. |
 | `#[entity(crate = "rustali_orm")]` | Path to the ORM crate, for generated code (rarely needed). |
+| `#[has_many(...)]` | A one-to-many relation. See [Relationships](relations/). |
+| `#[belongs_to(...)]` | The child side of a one-to-many relation. |
+| `#[has_one(...)]` | A one-to-one relation. |
+| `#[many_to_many(...)]` | A many-to-many relation through a junction. |
 
 ### Field
 
@@ -56,6 +60,7 @@ The derive leans on conventions so the common case needs no attributes:
 | `#[column(name = "col")]` | Map to a differently named column. |
 | `#[column(unique)]` | Add a `UNIQUE` constraint. |
 | `#[column(max_len = N)]` | `VARCHAR(N)` for a string. |
+| `#[column(index)]` | Record that the column should be indexed (for schema tooling). |
 | `#[skip]` | Not stored; must implement `Default` (filled on load). |
 
 ```rust
@@ -125,6 +130,40 @@ Links to other tables — a post's comments, a comment's post, a post's tags —
 with container attributes (`#[has_many]`, `#[belongs_to]`, `#[has_one]`,
 `#[many_to_many]`) and loaded with generated, explicit methods. See
 [Relationships](relations/) for the full guide.
+
+## What the derive generates
+
+Nothing here is reflection or runtime magic — `#[derive(Entity)]` expands to ordinary code
+you can read with `cargo expand`. For a `Todo` struct it emits, into a hidden module named
+`todo_entity`:
+
+- The **SeaORM entity**: `Model`, `ActiveModel`, `Column`, `PrimaryKey`, `Relation` — the
+  plumbing SeaORM needs, kept out of sight.
+- **`From` conversions** both ways: `From<todo_entity::Model> for Todo` and
+  `From<Todo> for todo_entity::Model`. Query results come back as your struct because the
+  terminal methods call `.into()` for you.
+- An **`impl Entity for Todo`** carrying the table name, column metadata (`COLUMNS`), the
+  key accessor and the active-model builders — this is what the schema registry and
+  [migrations](migrations) read.
+- The **inherent methods** in the table above, the typed column constants, and any
+  [relation](relations/) accessors.
+
+Because the mapping is plain `From`, you can always convert between your struct and the raw
+SeaORM model when you need to drop down a level.
+
+## Timestamps
+
+When a struct has a `created_at` and/or `updated_at` field of a `DateTime` type, the derive
+generates a save hook (SeaORM's `ActiveModelBehavior::before_save`):
+
+- `created_at` is set once, on **insert**, if it has not been set.
+- `updated_at` is set on **every** save (insert and update).
+
+So you can leave both at any placeholder value when building a row — `insert` returns the
+stored row with the real timestamps filled in. On insert, both fields are left for the hook
+rather than sent from your struct; on update, `updated_at` is always refreshed. Omit the
+fields entirely and you simply have no timestamps; the hook is only generated when they
+exist.
 
 ## Dropping to SeaORM
 
