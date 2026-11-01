@@ -106,7 +106,45 @@ async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
 ```
 
 From an empty snapshot the first diff emits full `create_table` migrations for every
-entity.
+entity — so bootstrapping a new project is: define your entities, run one `migrate:diff
+"initial schema"`, review, and `migrate`.
+
+Every generated migration has a matching `down`, so the change is reversible. For the column
+above, the `down` drops it again:
+
+```rust
+// the generated down for "add published to posts"
+async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+    manager
+        .alter_table(Table::alter().table(Posts::Table)
+            .drop_column(Posts::Published)
+            .to_owned())
+        .await?;
+    Ok(())
+}
+```
+
+`migrate:rollback` runs these, so you can undo the last batch during development. Review the
+generated `down` as carefully as the `up` — it is what a rollback will execute against real
+data.
+
+## A typical loop
+
+The day-to-day rhythm once migrations are wired in:
+
+1. Edit an entity (add a field, change a type).
+2. `cargo run -- migrate:diff "describe the change"` — writes a migration and updates the
+   snapshot.
+3. **Read the generated file.** Adjust it if the diff's guess is not quite what you meant
+   (a default value, an index, a data backfill).
+4. Move it into `src/migrations/` and register it (see the gap below).
+5. `cargo run -- migrate` to apply it locally; commit the migration and the updated
+   snapshot together.
+
+In production you ship the committed migrations and run `cargo run -- migrate` (or your
+binary's `migrate`) on deploy. You do **not** run `migrate:diff` in production — diffing is a
+development-time authoring step; applying is the only thing that touches a production
+database.
 
 ## Destructive changes
 
@@ -141,7 +179,15 @@ indexes, foreign keys). Everything in [`sea-orm-migration`] is available through
 ## What the diff understands today
 
 Tables and columns (add/drop), column type changes, nullability, uniqueness, and string
-length. Renames read as drop + add for now. Unknown Rust types become a `TEXT` column with
-a `FIXME` comment rather than being silently dropped, so a diff is never lossy by surprise.
-Relations on the struct (foreign keys beyond a plain `*_id` column) are a future
-refinement.
+length. Unknown Rust types become a `TEXT` column with a `FIXME` comment rather than being
+silently dropped, so a diff is never lossy by surprise. Relations on the struct (foreign keys
+beyond a plain `*_id` column) are a future refinement.
+
+### Renames need a human
+
+The diff has no way to tell a rename from a delete-and-create: renaming `title` to `heading`
+looks to it like *drop `title`, add `heading`* — which would throw the old data away. So when
+you rename a column, do not trust the generated drop/add. Either edit the generated migration
+to a real `rename_column`, or write that migration by hand. This is exactly why the diff is a
+*draft you review*, not an automatic apply: the one change it cannot infer is the one that
+would lose data silently.
