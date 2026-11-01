@@ -33,13 +33,35 @@ From lowest to highest, each layer overrides the one before:
 So `APP__SERVER__PORT=9000` sets `server.port`, and a value in
 `config/production/app.toml` beats the one in `config/app.toml` when `APP_ENV=production`.
 
+### Per-environment overrides
+
+The profile directory is how you change behaviour between environments without editing the
+base files. For example, keep `debug = true` in `config/app.toml` for development, and turn it
+off (plus any production-only setting) in the profile:
+
+```toml
+# config/production/app.toml  — merged only when APP_ENV=production
+debug = false
+```
+
+`debug` is **not** forced off automatically in production; set it here. With `debug` on, error
+responses include internal detail (stack messages, database errors), which you do not want to
+expose to real users — so turning it off is part of going to production.
+
+### Files vs environment variables
+
+Use `config/` files for non-secret defaults you commit, and environment variables (or `.env`
+locally) for secrets and per-deploy values. A real environment variable always wins over
+`.env`, so a `.env` file is a developer convenience that never silently overrides what your
+deploy platform sets.
+
 ## The built-in sections
 
 ```toml
 # config/app.toml
 name = "My App"       # shown in logs and default page titles
 env = "development"   # development | test | production
-debug = true          # verbose error pages; always false in production
+debug = true          # verbose error detail in responses — turn off for production
 key = "..."           # ≥16-char secret: signs cookies and JWTs
 ```
 
