@@ -42,6 +42,26 @@ App::builder()
 Your global layers sit *inside* the default stack, so they still see the request id and
 their errors are still rendered consistently.
 
+### CORS
+
+`Cors` is `tower_http`'s `CorsLayer`, re-exported. `Cors::permissive()` allows any origin,
+method and header — convenient in development, but for production you usually want to name
+what you allow:
+
+```rust
+use rustali::http::{HeaderValue, Method};
+use rustali::middleware::Cors;
+
+let cors = Cors::new()
+    .allow_origin("https://app.example.com".parse::<HeaderValue>().unwrap())
+    .allow_methods([Method::GET, Method::POST]);
+
+App::builder().layer(cors)
+```
+
+You only need CORS when a browser calls your API from a different origin; a same-origin SSR
+app does not.
+
 ## Controller and route middleware
 
 Attach a layer to a whole controller with `#[middleware(expr)]` on the `impl`, or to one
@@ -99,6 +119,38 @@ App::builder().layer(from_fn(timing))
 
 `rustali make:middleware Timing` scaffolds this shape for you.
 
+### Short-circuiting
+
+A middleware does not have to call `next.run(...)`. Return a response before it and the
+handler never runs — this is how a gate, a maintenance switch or a header check rejects a
+request early:
+
+```rust
+use rustali::http::{
+    extract::Request, middleware::Next, response::{IntoResponse, Response}, StatusCode,
+};
+
+async fn require_api_key(request: Request, next: Next) -> Response {
+    match request.headers().get("x-api-key") {
+        Some(key) if key == "expected" => next.run(request).await,
+        _ => StatusCode::UNAUTHORIZED.into_response(),   // handler never runs
+    }
+}
+```
+
+The two things a middleware can do — act on the request before `next.run`, and act on the
+response after — cover the whole surface: authentication, timing, injecting headers, rewriting
+responses, and refusing a request outright.
+
+### How the levels nest
+
+The three attachment points nest from outside in: **global → controller → route → handler**.
+An outer layer sees the request first and the response last. So a global timing layer
+measures everything inside it, a controller `Throttle` counts before a route's own stricter
+`Throttle`, and a route `#[authorize]` runs closest to the handler. Reach for the narrowest
+level that does the job: global for truly cross-cutting concerns, controller for a shared
+policy, route for a one-off.
+
 ## Authorization as a filter
 
 `#[authorize("ability")]` (or `#[authorize(role = "admin")]`) is a filter that runs
@@ -128,8 +180,9 @@ App::builder().on_error(|error, request| {
 })
 ```
 
-`error` is an `ErrorBody` (status, title, public detail, debug detail); `request` is an
-`ErrorRequest` (path, `wants_json`, `request_id`, `debug`).
+`error` is an `ErrorBody` (`status`, `title`, an optional public `detail`, and a `debug`
+flag); `request` is an `ErrorRequest` (`path`, `wants_json`, `request_id`, `debug`). Use
+`wants_json` to branch on the client — the same signal the default negotiation uses.
 
 ## Layers that need config
 
