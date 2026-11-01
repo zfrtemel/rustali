@@ -71,7 +71,26 @@ async fn show(db: Db, Path(id): Path<i64>) -> Result<Json<Todo>> {
 }
 ```
 
-`Path<(i64, String)>` extracts several segments in order.
+For several segments, extract a tuple in declaration order:
+
+```rust
+#[get("/{year}/{slug}")]
+async fn show(Path((year, slug)): Path<(i64, String)>) -> String {
+    format!("{year}: {slug}")
+}
+```
+
+Or bind them by name to a `Deserialize` struct, which reads better with more than two:
+
+```rust
+#[derive(Deserialize)]
+struct PostPath { year: i64, slug: String }
+
+#[get("/{year}/{slug}")]
+async fn show(Path(p): Path<PostPath>) -> String {
+    format!("{}: {}", p.year, p.slug)
+}
+```
 
 ## Query strings
 
@@ -124,8 +143,27 @@ argument. The ones you will use most:
 | `Auth<U>` / `OptionalAuth<U>` | The authenticated user (`auth` feature) |
 | `Flash`, `Csrf`, `Session` | Session helpers (`sessions` feature) |
 
-Order does not matter, except that a body extractor (`Json`/`Form`/`Validated`) consumes
-the request and must come **last** in the argument list.
+Extractors fall into two kinds, and the distinction is the one rule to remember:
+
+- **From the request head** (`Path`, `Query`, `Ctx`, `Db`, `Inject`, `Auth`, `Session`, …)
+  only read metadata, so you can have as many as you like, in any order.
+- **From the body** (`Json`, `Form`, `Validated`) **consume** the request, so there can be at
+  most one and it must come **last** in the argument list.
+
+```rust
+#[post("/{id}/comments")]
+async fn add_comment(
+    db: Db,                               // head
+    Auth(user): Auth<User>,               // head
+    Path(id): Path<i64>,                  // head
+    Json(input): Json<NewComment>,        // body — must be last
+) -> Result<(StatusCode, Json<Comment>)> {
+    // ...
+}
+```
+
+Put a body extractor anywhere but last and it is a compile error, so the rule is enforced,
+not just advised.
 
 ## Responses
 
@@ -184,6 +222,13 @@ impl PostController {
 
 Errors are rendered to match the client automatically (JSON for API callers, an HTML page
 for browsers) — see [Responses & Errors](responses.md).
+
+## Unmatched routes
+
+A request that matches no route falls through to a built-in handler that returns the
+framework's `NotFound` error, so a 404 is negotiated just like any other error — JSON for an
+API client, an HTML error page for a browser. You do not wire this up; it comes with the
+default stack.
 
 ## Attaching middleware
 
