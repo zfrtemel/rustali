@@ -13,7 +13,7 @@ authors = ["The Rustali Contributors"]
 repository = "https://github.com/rustali/rustali"
 homepage = "https://rustali.dev"
 documentation = "https://docs.rs/rustali"
-keywords = ["web", "framework", "http", "orm", "laravel"]
+keywords = ["web", "framework", "http", "orm", "backend"]
 categories = ["web-programming::http-server", "web-programming"]
 
 # Every third-party version lives here exactly once (ADR-0001).

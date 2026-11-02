@@ -10,16 +10,13 @@ hero:
       text: Get Started
       link: /getting-started/first-app
     - theme: alt
-      text: From Laravel
-      link: /migrating/from-laravel
-    - theme: alt
       text: View on GitHub
       link: https://github.com/zfrtemel/rustali
 
 features:
   - title: Attribute routing
     details: Routes live on the handler; `cargo run -- routes` lists them all. No separate route file.
-  - title: POCO entities
+  - title: Plain-struct entities
     details: One plain struct with #[derive(Entity)]. The SeaORM plumbing is generated and hidden.
   - title: Code-first migrations
     details: Change the struct, run migrate:diff, review the generated migration.

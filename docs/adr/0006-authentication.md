@@ -44,7 +44,7 @@ without the kernel depending on a database or a password library.
 - An app implements two small traits and adds three providers; register/login/logout
   and a protected page work, proven by the `auth-app` example over HTTP (argon2
   hashing, 303 redirects, 401 gating, session id rotation).
-- Password reset and email verification (mail-dependent) and the Sanctum-style API
-  token guard are deferred to Faz 7 (they need the mail and cache packages).
+- Password reset and email verification (mail-dependent) and the personal-access-token
+  API guard are deferred to Faz 7 (they need the mail and cache packages).
 - `app.key` is now load-bearing for JWT and signed cookies; `rustali key:generate`
   (Faz 7 CLI) will produce it, and the starter ships a dev key with a warning.

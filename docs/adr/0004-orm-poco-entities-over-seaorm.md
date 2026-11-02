@@ -1,11 +1,11 @@
-# ADR-0004: POCO entities over SeaORM, typed `Query<E>` instead of a back-link trait
+# ADR-0004: Plain-struct entities over SeaORM, typed `Query<E>` instead of a back-link trait
 
 - **Status:** Accepted
 - **Date:** 2026-11-01
 
 ## Context
 
-VISION §4.5 asks for .NET-style entities: one plain struct per table, no visible
+The goal is plain-struct entities: one struct per table, no visible
 `Model`/`ActiveModel`/`Relation` triplet. SeaORM 2.0 is the engine (mature,
 async, multi-backend, has a migration runner), but its native shape is exactly that
 triplet. We also need a path from "struct" to "schema" for code-first migrations
@@ -53,7 +53,7 @@ triplet. We also need a path from "struct" to "schema" for code-first migrations
 
 ## Consequences
 
-- Handlers read like Laravel: `Todo::query().filter(..).order_by_desc(..).fetch_page(&db, 1, 20)`.
+- Handlers read fluently: `Todo::query().filter(..).order_by_desc(..).fetch_page(&db, 1, 20)`.
 - Column metadata (`Entity::COLUMNS`) is already available for the Faz 6 diff engine.
 - Relations (`has_many`, `belongs_to`) are not yet expressed on the struct; they come
   with Faz 3/6 once the query layer settles.

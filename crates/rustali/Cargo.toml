@@ -1,6 +1,6 @@
 [package]
 name = "rustali"
-description = "Batteries-included full-stack web framework for Rust: Laravel's developer experience with .NET-style engineering"
+description = "Batteries-included full-stack web framework for Rust"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

@@ -7,7 +7,7 @@
 
 VISION §4.10 / the "kur, çalıştır, işine başla" promise: `cargo install rustali-cli` →
 `rustali new blog` → `cd blog && cargo run` gives a working app in minutes. The CLI also
-provides Laravel-style `make:*` generators. App-level commands (serve, migrate,
+provides `make:*` generators. App-level commands (serve, migrate,
 migrate:diff, routes, queue:work) already live *in the app binary* (ADR-0005/0007), not
 the CLI.
 
@@ -17,7 +17,7 @@ the CLI.
    `rustali make:<thing> <Name>` generates a source file. Everything else is the app's
    own command, run with `cargo run -- <command>`. The CLI says so when given an unknown
    command rather than trying to proxy cargo.
-2. **Colon convention, hand-parsed.** `make:controller` matches Laravel. clap's derive
+2. **Colon convention, hand-parsed.** `make:controller` uses a colon namespace. clap's derive
    does not model colons in subcommand names cleanly, so `main` inspects `argv` directly:
    `new`, `help`, `--version`, and `make:*` (split on the colon). This keeps the familiar
    surface without contorting the arg parser.

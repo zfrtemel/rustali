@@ -5,10 +5,10 @@
 
 ## Context
 
-The headline differentiator (VISION §4.5, ADR-0004 groundwork): change an entity,
-run `rustali migrate:diff`, get a reviewed migration — EF Core's code-first flow, which
-no Rust ORM offers out of the box. SeaORM gives a migration *runner* but no diff; the
-diff is ours to build.
+The headline differentiator (ADR-0004 groundwork): change an entity, run `rustali
+migrate:diff`, get a reviewed migration — a code-first migration flow, which no Rust ORM
+offers out of the box. SeaORM gives a migration *runner* but no diff; the diff is ours to
+build.
 
 ## Decision
 
@@ -51,4 +51,4 @@ diff is ours to build.
   `--rename old:new` hint can suppress that (VISION noted this).
 - The snapshot is the source of truth for "what the DB looks like"; editing a
   generated migration by hand without updating the entity will drift from it. This is
-  the same contract EF Core has.
+  the inherent contract of any code-first, snapshot-based migration flow.

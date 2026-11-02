@@ -32,10 +32,9 @@ pub struct Post {
 ## Loading is always explicit
 
 Rust has no implicit lazy loading. A field access cannot be `async` and cannot run hidden
-database I/O, so there is no `$post->comments` that quietly fires a query the way an
-Eloquent or EF Core navigation property does. Every relation load in Rustali is a method
-you call and `.await` — which means you can always see, in the code, exactly where a query
-happens.
+database I/O, so there is no navigation property that quietly fires a query when you touch a
+field. Every relation load in Rustali is a method you call and `.await` — which means you can
+always see, in the code, exactly where a query happens.
 
 You get two shapes, and choosing between them is how you avoid the N+1 problem:
 

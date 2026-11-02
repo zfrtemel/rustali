@@ -4,7 +4,7 @@ import { defineConfig } from 'vitepress'
 // Dev:   npm run docs:dev     Build: npm run docs:build
 export default defineConfig({
   title: 'Rustali',
-  description: "Laravel's developer experience, .NET-grade engineering, in Rust.",
+  description: "A batteries-included web framework for Rust.",
   lastUpdated: true,
   cleanUrls: true,
   ignoreDeadLinks: true,
@@ -16,7 +16,6 @@ export default defineConfig({
     ],
     nav: [
       { text: 'Guide', link: '/getting-started/first-app' },
-      { text: 'Reference', link: '/migrating/from-laravel' },
       {
         text: 'crates.io',
         link: 'https://crates.io/crates/rustali',
@@ -32,10 +31,7 @@ export default defineConfig({
       lang: 'tr',
       link: '/tr/',
       themeConfig: {
-        nav: [
-          { text: 'Rehber', link: '/tr/getting-started/first-app' },
-          { text: 'Referans', link: '/tr/migrating/from-laravel' },
-        ],
+        nav: [{ text: 'Rehber', link: '/tr/getting-started/first-app' }],
         sidebar: sidebar('tr'),
       },
     },
@@ -121,13 +117,6 @@ function sidebar(locale: 'en' | 'tr') {
         { text: t('Chat', 'Sohbet'), link: `${p}/ai/chat` },
         { text: t('Retrieval (RAG)', 'Getirim (RAG)'), link: `${p}/ai/rag` },
         { text: t('Models', 'Modeller'), link: `${p}/ai/models` },
-      ],
-    },
-    {
-      text: t('Reference', 'Referans'),
-      collapsed: false,
-      items: [
-        { text: t('From Laravel', 'Laravel’den Geçiş'), link: `${p}/migrating/from-laravel` },
       ],
     },
   ]

@@ -5,8 +5,8 @@
 
 ## Context
 
-VISION §4.5 names two of the five differentiators: .NET-style attribute routing (the
-route lives on the handler, no separate route file) and a layered filter pipeline
+Two of the five differentiators: attribute routing (the route lives on the handler, no
+separate route file) and a layered filter pipeline
 (global → controller → action middleware, authorization filters, exception filter).
 axum provides an explicit `Router` and tower layers but no declarative front-end.
 
@@ -49,9 +49,10 @@ axum provides an explicit `Router` and tower layers but no declarative front-end
 
 ## Consequences
 
-- A controller reads like .NET/Spring: prefix on the impl, verbs on the methods,
-  filters as attributes — while `cargo expand` shows plain axum code.
-- `routes` gives Laravel's `route:list` back, which attribute routing otherwise loses.
+- A controller reads cleanly: prefix on the impl, verbs on the methods, filters as
+  attributes — while `cargo expand` shows plain axum code.
+- The `routes` command restores the full route listing that attribute routing would
+  otherwise scatter across handlers.
 - Named routes exist in metadata; URL generation (`route("posts.show", id)`) arrives
   with the view layer (Faz 4), where it is needed.
 - Resource controllers (`#[resource]`) and `any` routes are deferred until there is

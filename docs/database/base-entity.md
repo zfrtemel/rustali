@@ -4,7 +4,7 @@ Most tables share the same handful of columns: a primary key, creation and updat
 timestamps, and — if you keep deleted rows around — a `deleted_at` marker. Rustali gives
 these a shared shape through two traits, `BaseEntity` and `SoftDelete`, and the `make:model`
 scaffold writes them for you, so every model starts from the same base — the idea you would
-reach for a base class for in .NET, expressed as traits because Rust has no inheritance.
+reach for a base class for in other languages, expressed as traits because Rust has no inheritance.
 
 ## The scaffolded model
 

@@ -13,8 +13,8 @@ that (a) compile times stay bounded via feature flags, (b) a user can depend on 
 `rustali-core` + `rustali-orm` for a microservice, and (c) third parties can publish
 packages against stable sub-crate APIs.
 
-Laravel solves this with the `laravel/framework` monorepo split into `illuminate/*`
-read-only packages. SeaORM and tokio follow the same pattern in Rust.
+A single development monorepo split into independently publishable sub-crates is the common
+answer; SeaORM and tokio follow the same pattern in Rust.
 
 ## Decision
 

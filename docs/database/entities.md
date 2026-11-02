@@ -172,7 +172,7 @@ exist.
 
 `rustali make:model` gives every new model the conventional `id` / `created_at` /
 `updated_at` / `deleted_at` fields plus the `BaseEntity` and `SoftDelete` trait impls — a
-shared base like a .NET base entity. With soft delete enabled in config, `delete` then stamps
+shared base model. With soft delete enabled in config, `delete` then stamps
 `deleted_at` instead of removing the row and queries hide trashed rows. See
 [Base Entity & Soft Delete](base-entity).
 
