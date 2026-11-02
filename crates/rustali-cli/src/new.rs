@@ -93,8 +93,8 @@ struct ScaffoldPlan {
     preamble: Vec<&'static str>,
     /// Builder method calls, in order, each like `.provider(CacheProvider)`.
     builder: Vec<String>,
-    /// Config files to write: (relative path, contents).
-    configs: Vec<(&'static str, &'static str)>,
+    /// Extra `.env` lines contributed by the chosen packages.
+    env_lines: Vec<&'static str>,
     /// Extra source files to write: (relative path, contents).
     files: Vec<(&'static str, &'static str)>,
     /// Whether to emit `templates/home.html` + the askama dependency.
@@ -136,26 +136,27 @@ fn plan(preset: Preset, pkgs: &[Pkg]) -> ScaffoldPlan {
     if has(Pkg::Cache) {
         p.features.push("cache");
         p.builder.push(".provider(CacheProvider)".to_owned());
-        p.configs.push(("config/cache.toml", CACHE_TOML));
+        p.env_lines.push("CACHE_DRIVER=memory");
     }
     if has(Pkg::Mail) {
         p.features.push("mail");
         p.builder.push(".provider(MailProvider)".to_owned());
-        p.configs.push(("config/mail.toml", MAIL_TOML));
+        p.env_lines.push("MAIL_TRANSPORT=log");
+        p.env_lines.push("MAIL_FROM=no-reply@example.com");
     }
     if has(Pkg::Queue) {
         p.features.push("queue");
         p.preamble.push("let worker = Worker::builder().build();");
         p.builder
             .push(".provider(QueueProvider::new(worker))".to_owned());
-        p.configs.push(("config/queue.toml", QUEUE_TOML));
+        p.env_lines.push("QUEUE_CAPACITY=1024");
     }
 
     // --- migrations call (after providers, before controllers) ---
     if auth {
         p.builder
             .push(".migrations::<migrations::Migrator>()".to_owned());
-        p.configs.push(("config/session.toml", SESSION_TOML));
+        p.env_lines.push("SESSION_CSRF=true");
     }
 
     // --- controllers (always) then the openapi router ---
@@ -163,7 +164,7 @@ fn plan(preset: Preset, pkgs: &[Pkg]) -> ScaffoldPlan {
     if openapi {
         p.features.push("openapi");
         p.builder.push(".routes(openapi_router())".to_owned());
-        p.configs.push(("config/openapi.toml", OPENAPI_TOML));
+        p.env_lines.push("OPENAPI_TITLE=API");
     }
 
     // --- session layers last (needs the context) ---
@@ -216,22 +217,14 @@ pub(crate) fn run(args: &[String]) -> Result<()> {
 
     // Fixed files.
     write_file(&dir.join(".gitignore"), GITIGNORE, force)?;
-    write_file(&dir.join(".env"), ENV, force)?;
-    write_rendered(
-        &dir.join("config/app.toml"),
-        APP_TOML,
-        &context! { name => name },
-        force,
-    )?;
-    write_file(&dir.join("config/database.toml"), DATABASE_TOML, force)?;
+    // The single .env: base settings plus whatever the packages contributed.
+    let env_ctx = context! { name => name, extra => scaffold.env_lines.join("\n") };
+    write_rendered(&dir.join(".env"), ENV, &env_ctx, force)?;
     write_file(&dir.join("db/.gitkeep"), "", force)?;
     write_file(&dir.join("src/controllers.rs"), CONTROLLERS_RS, force)?;
 
     if scaffold.views {
         write_file(&dir.join("templates/home.html"), HOME_HTML, force)?;
-    }
-    for (path, contents) in &scaffold.configs {
-        write_file(&dir.join(path), contents, force)?;
     }
     for (path, contents) in &scaffold.files {
         write_file(&dir.join(path), contents, force)?;
@@ -373,23 +366,20 @@ async fn main() -> Result<()> {
 }
 "#;
 
-const GITIGNORE: &str = "/target\n.env\n*.db\n*.db-shm\n*.db-wal\n";
+const GITIGNORE: &str = "/target\n*.db\n*.db-shm\n*.db-wal\n";
 
-const ENV: &str = "APP_ENV=development\n# APP__APP__KEY=set-a-32+-char-secret-in-production\n";
+/// The single configuration file. Base settings plus any package lines, then a note that
+/// real secrets come from the environment in production.
+const ENV: &str = r#"APP_NAME={{ name }}
+APP_ENV=development
+APP_DEBUG=true
+# Set a real secret (>= 16 chars) from the environment in production.
+APP_KEY=dev-only-insecure-key-change-me-0123456789
 
-const APP_TOML: &str = r#"name = "{{ name }}"
-env = "development"
-debug = true
-key = "dev-only-insecure-key-change-me-0123456789"
-"#;
-
-const DATABASE_TOML: &str = "url = \"sqlite://db/app.db?mode=rwc\"\n";
-
-const CACHE_TOML: &str = "driver = \"memory\"\n";
-const MAIL_TOML: &str = "transport = \"log\"\nfrom = \"no-reply@example.com\"\n";
-const QUEUE_TOML: &str = "capacity = 1024\n";
-const OPENAPI_TOML: &str = "title = \"API\"\nversion = \"0.1.0\"\n";
-const SESSION_TOML: &str = "cookie = \"rustali_session\"\nlifetime_minutes = 120\ncsrf = true\n";
+DATABASE_URL=sqlite://db/app.db?mode=rwc
+{% if extra %}
+{{ extra }}
+{% endif %}"#;
 
 const CONTROLLERS_RS: &str = r#"use rustali::prelude::*;
 use serde::Serialize;
@@ -628,11 +618,8 @@ mod tests {
         assert!(p.features.contains(&"mail"));
         assert!(builder_text(&p).contains(".provider(CacheProvider)"));
         assert!(builder_text(&p).contains(".provider(MailProvider)"));
-        assert!(
-            p.configs
-                .iter()
-                .any(|(path, _)| *path == "config/cache.toml")
-        );
+        assert!(p.env_lines.contains(&"CACHE_DRIVER=memory"));
+        assert!(p.env_lines.contains(&"MAIL_TRANSPORT=log"));
     }
 
     #[test]
