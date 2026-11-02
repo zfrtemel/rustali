@@ -1,13 +1,13 @@
 # Query'ler
 
-`Todo::query()`, tipli bir `Query<Todo>` builder'ı döndürür. SeaORM'ün tanıdık filtre, sıralama ve
-seçim metotlarını iletir, ama terminal metotları bir SeaORM modeli değil, **struct'ını** döndürür
-— böylece düz-Rust-değeri diyarında kalırsın.
+`Todo::query()`, tipli bir `Query<Todo>` builder'ı döndürür. SeaORM'ün tanıdık filtreleme, sıralama
+ve seçim metotlarını olduğu gibi aktarır; ancak terminal metotları bir SeaORM modeli değil, senin
+**struct'ını** döndürür — böylece hep düz Rust değerleriyle çalışmaya devam edersin.
 
 ## `Db` extractor'ı
 
-Handler'lar bir bağlantıyı `Db` isteyerek alır. SeaORM'ün `ConnectionTrait`'ini uygular; böylece
-`&db` doğrudan herhangi bir query metoduna girer:
+Handler'lar bir bağlantıyı argüman olarak `Db` isteyerek alır. `Db`, SeaORM'ün `ConnectionTrait`'ini
+uygular; böylece `&db` doğrudan herhangi bir query metoduna geçirilebilir:
 
 ```rust
 #[get("/")]
@@ -16,12 +16,12 @@ async fn index(db: Db) -> Result<Json<Vec<Todo>>> {
 }
 ```
 
-Bir handler'ın dışında (bir işte, bir komutta), paylaşılan `Database`'i döndüren `ctx.db()?`'yi
-kullan; `&*ctx.db()?` geçir.
+Bir handler'ın dışında (bir işte ya da bir komutta), paylaşılan `Database`'i döndüren `ctx.db()?`'yi
+kullan ve `&*ctx.db()?` olarak geçir.
 
 ## Bir query oluşturmak
 
-Derive'in ürettiği tipli column sabitleriyle filtrele ve sırala:
+Derive'in ürettiği tipli column sabitlerini kullanarak filtrele ve sırala:
 
 ```rust
 let done = Todo::query()
@@ -34,12 +34,12 @@ let done = Todo::query()
 
 `filter`, `order_by_asc` / `order_by_desc`, `limit`, `offset` ve diğer builder metotları SeaORM'den
 gelir (`ColumnTrait`, `QueryOrder`, `QuerySelect`); column sabitleri (`Todo::DONE`,
-`Todo::CREATED_AT`) her alan için üretilir.
+`Todo::CREATED_AT`) ise her alan için ayrı ayrı üretilir.
 
 ## Derinlemesine filtreleme
 
-Her column sabiti bir SeaORM `ColumnTrait`'tir; bu yüzden karşılaştırma yardımcılarının tam kümesi
-onda kullanılabilir:
+Her column sabiti bir SeaORM `ColumnTrait`'idir; bu yüzden karşılaştırma yardımcılarının tamamı onlar
+üzerinde kullanılabilir:
 
 ```rust
 Todo::TITLE.eq("write docs")          // =
@@ -58,7 +58,7 @@ Todo::DUE.between(start, end)         // BETWEEN
 
 ### Koşulları birleştirmek
 
-`.filter(...)`'ı birden fazla kez çağır, koşullar **AND**'lenir:
+`.filter(...)`'ı birden fazla kez çağırırsan koşullar **AND** ile birleştirilir:
 
 ```rust
 let urgent = Todo::query()
@@ -68,7 +68,7 @@ let urgent = Todo::query()
     .await?;
 ```
 
-**OR** (ve iç içe gruplar) için, bir SeaORM `Condition` kur ve onu tek bir `.filter(...)`'a geçir:
+**OR** (ve iç içe gruplar) için bir SeaORM `Condition` kur ve onu tek bir `.filter(...)`'a geçir:
 
 ```rust
 use rustali::orm::sea_orm::Condition;
@@ -84,14 +84,14 @@ let matches = Todo::query()
     .await?;
 ```
 
-`Condition::all()`, AND karşılığıdır; herhangi bir boolean ağacı kurmak için onları serbestçe iç
-içe geçir.
+`Condition::all()` ise AND karşılığıdır; istediğin boolean ağacını kurmak için bunları dilediğin gibi
+iç içe geçirebilirsin.
 
 ## Relation'ları yüklemek
 
-Relation'lar bir query'yle yüklenmez — entity'deki üretilen erişimci metotlarıyla (row başına tembel)
-ya da `with_*` toplu yükleyicileriyle (istekli) yüklenir. Olağan desen, bir query çalıştırmak,
-sonra N+1'i önlemek için istekli yüklemektir:
+Relation'lar bir query ile yüklenmez; bunun yerine entity için üretilen erişimci metotlarıyla (row
+başına, tembel) ya da `with_*` toplu yükleyicileriyle (istekli) yüklenir. Olağan desen önce bir query
+çalıştırmak, ardından N+1'i önlemek için istekli yükleme yapmaktır:
 
 ```rust
 let posts = Post::query()
@@ -110,7 +110,7 @@ Tam rehber için [Relation'lar](relations/)'a bak.
 | Terminal metot | Döndürdüğü |
 |---|---|
 | `fetch_all(&db)` | `Vec<Todo>` |
-| `fetch_one(&db)` | `Option<Todo>` (ilk eşleşme) |
+| `fetch_one(&db)` | `Option<Todo>` (ilk eşleşen) |
 | `fetch_one_or_404(&db)` | `Todo` ya da `Err(Error::NotFound)` |
 | `count(&db)` | `u64` |
 | `exists(&db)` | `bool` |
@@ -130,12 +130,13 @@ let already = User::query()
 
 ## Pagination
 
-Her row'u yüklemek yerine, `paginate(&db, page, per_page)` bir sayfayı artı bir UI'nin ya da API
-istemcisinin ihtiyaç duyduğu toplamları döndürür. Kendi sayfası var: [Pagination](pagination).
+Tüm row'ları yüklemek yerine `paginate(&db, page, per_page)`, tek bir sayfayı ve bir UI'nin ya da API
+istemcisinin ihtiyaç duyduğu toplam sayıları döndürür. Bunun kendi sayfası var:
+[Pagination](pagination).
 
 ## İşlemler (transaction)
 
-Bağlantıda SeaORM'ün işlem API'sini kullan:
+Bağlantı üzerinde SeaORM'ün işlem API'sini kullan:
 
 ```rust
 use rustali::orm::sea_orm::TransactionTrait;
@@ -147,13 +148,14 @@ db.transaction::<_, (), Error>(|tx| Box::pin(async move {
 })).await?;
 ```
 
-Her entity metodu ve `Query` terminali, `&db` aldığı her yerde işlem handle'ını (`tx`) kabul eder.
+Her entity metodu ve her `Query` terminali, `&db` kabul ettiği her yerde işlem handle'ını (`tx`) da
+kabul eder.
 
 ## SeaORM'e kaçmak
 
-Builder bir şeyi kapsamadığında, `Query::into_select()` doğrudan sürmek için altta yatan SeaORM
-`Select<E::Sea>`'ini döndürür ve `rustali::orm::sea_orm` tüm SeaORM API'sini yeniden dışa aktarır.
-Bir `DbErr` döndüren ham SeaORM çağrıları `.or_db()?` (`DbResultExt`) ile eşlenebilir; bu, eksik
-bir row'u `Error::NotFound`'a ve diğer her şeyi `Error::Database`'e çevirir.
+Builder bir şeyi karşılamadığında, `Query::into_select()` doğrudan üzerinde çalışabilmen için alttaki
+SeaORM `Select<E::Sea>`'ini döndürür; `rustali::orm::sea_orm` ise SeaORM API'sinin tamamını yeniden
+dışa aktarır. `DbErr` döndüren ham SeaORM çağrıları `.or_db()?` (`DbResultExt`) ile eşlenebilir; bu,
+bulunamayan bir row'u `Error::NotFound`'a, diğer her şeyi de `Error::Database`'e çevirir.
 
 Sıradaki: [Pagination](pagination).

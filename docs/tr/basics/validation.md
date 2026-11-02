@@ -1,9 +1,9 @@
 # Request'ler & Validation
 
-Bir handler, request gövdesini bir extractor aracılığıyla alır. Güvenmek istediğin girdiler için
-**validation'dan geçmiş** extractor'ları kullan: kurallarını DTO'nda `#[derive(Validate)]` ile bildir,
-sonra `Validated<Json<T>>` ya da `Validated<Form<T>>` iste. Geçersiz girdi asla handler'ına
-ulaşmaz.
+Bir handler, request gövdesini bir extractor üzerinden alır. Güvenmek istediğin girdiler için
+**validation'dan geçen** extractor'ları kullan: kurallarını DTO'nda `#[derive(Validate)]` ile
+tanımla, ardından `Validated<Json<T>>` ya da `Validated<Form<T>>` iste. Geçersiz girdi hiçbir
+zaman handler'ına ulaşmaz.
 
 ## Kuralları bildirmek
 
@@ -39,21 +39,21 @@ struct CreatePost {
 
 | Kural | Kontrol ettiği |
 |---|---|
-| `required` | Boş değil / boşluk değil (dizeler), `Some` (option'lar). |
-| `length(min = N, max = N)` | Karakter sayısı aralıkta (iki sınır da isteğe bağlı). |
-| `range(min = N, max = N)` | Sayısal değer aralıkta. |
+| `required` | Boş ya da yalnızca boşluk değil (dizeler), `Some` (option'lar). |
+| `length(min = N, max = N)` | Karakter sayısı belirtilen aralıkta (iki sınır da isteğe bağlı). |
+| `range(min = N, max = N)` | Sayısal değer belirtilen aralıkta. |
 | `email` | Geçerli bir e-posta biçimi. |
 | `url` | Bir `http`/`https` URL'si. |
-| `alpha_num` | Yalnızca harfler ve rakamlar. |
-| `one_of("a", "b")` | Değer listelenen seçeneklerden biri. |
-| `confirmed` | `<field>_confirmation` alanına eşit. |
-| `custom = "path"` | Bir fonksiyon `fn(&T) -> Result<(), impl Display>`. |
+| `alpha_num` | Yalnızca harf ve rakam. |
+| `one_of("a", "b")` | Değer, listelenen seçeneklerden biri. |
+| `confirmed` | `<field>_confirmation` alanıyla aynı. |
+| `custom = "path"` | `fn(&T) -> Result<(), impl Display>` imzalı bir fonksiyon. |
 | `nested` | Alanın kendisi `Validate`'i uygular. |
 
-Birkaç kural tek bir attribute'ta birleşir: `#[rule(required, length(min = 3, max = 200))]`.
-Bir `Option<T>` alanında, `required` dışındaki her kural **değer `None` olduğunda atlanır** —
-yani `#[rule(email)] author_email: Option<String>` adresi yalnızca bir tane sağlandığında
-doğrular. Tüm alanlardaki tüm başarısızlıklar toplanır, yalnızca ilki değil.
+Birden fazla kuralı tek bir attribute'ta toplayabilirsin: `#[rule(required, length(min = 3, max = 200))]`.
+Bir `Option<T>` alanında, `required` dışındaki her kural **değer `None` ise atlanır** — yani
+`#[rule(email)] author_email: Option<String>`, e-postayı yalnızca bir değer verildiğinde doğrular.
+Tüm alanlardaki bütün hatalar toplanır, yalnızca ilki değil.
 
 ### Özel kurallar
 
@@ -71,8 +71,8 @@ fn no_links(body: &String) -> Result<(), String> {
 
 ### İç içe validation
 
-`#[rule(nested)]`, kendisi bir `Validate` tipi olan bir alanı doğrular; böylece her şeyi tek bir
-struct'a düzleştirmek yerine DTO'ları birleştirebilirsin:
+`#[rule(nested)]`, kendisi de bir `Validate` tipi olan bir alanı doğrular; böylece her şeyi tek bir
+struct'a düzleştirmek yerine DTO'ları iç içe kullanabilirsin:
 
 ```rust
 #[derive(Deserialize, Validate)]
@@ -92,8 +92,8 @@ struct Order {
 }
 ```
 
-Çocuktan gelen hatalar ebeveynin altında anahtarlanır; böylece hatalı bir posta kodu
-`address.postcode` olarak geri gelir — istemci her mesajı doğrudan kendi form alanına
+İç içe struct'tan gelen hatalar üst struct'ın altında anahtarlanır; böylece hatalı bir posta kodu
+`address.postcode` olarak geri döner ve istemci her mesajı doğrudan ilgili form alanına
 eşleyebilir.
 
 ## Bir handler'da kullanmak
@@ -108,8 +108,8 @@ async fn store(db: Db, Validated(Json(input)): Validated<Json<CreatePost>>) -> R
 }
 ```
 
-Başarısızlıkta istemci, alan hatalarını `errors` altında içeren bir RFC 9457 problem belgesi
-olarak `422 Unprocessable Entity` alır:
+Validation başarısız olduğunda istemci, alan hatalarını `errors` altında taşıyan bir RFC 9457
+problem belgesiyle birlikte `422 Unprocessable Entity` alır:
 
 ```json
 {
@@ -125,12 +125,12 @@ olarak `422 Unprocessable Entity` alır:
 
 ### HTML formları
 
-`Validated<Json<T>>` ve `Validated<Form<T>>` iki ayrı tiptir; bu yüzden davranışı handler'ın
-hangisini istediğine göre seçersin. Form varyantı başarısızlıkta farklı davranır: hataları ve
-gönderilen değerleri session'a flash'lar ve **geri yönlendirir** — `Referer`'a ya da yoksa `/`'a —
-böylece form, mesajlarla doldurulmuş olarak yeniden render edilir. (Session paketi kurulu
-değilse, 422 sayfasına geri döner. Bir `/api/*` yoluna yapılan ya da JSON isteyen bir request,
-form varyantı aracılığıyla bile her zaman 422 belgesini alır.)
+`Validated<Json<T>>` ve `Validated<Form<T>>` birbirinden ayrı iki tiptir; bu yüzden davranışı,
+handler'ında hangisini istediğine göre belirlersin. Form varyantı başarısızlıkta farklı davranır:
+hataları ve gönderilen değerleri session'a flash'lar ve request'i **geri yönlendirir** — varsa
+`Referer`'a, yoksa `/`'a — böylece form, hata mesajlarıyla birlikte yeniden render edilir. (Session
+paketi kurulu değilse 422 sayfasına döner. Bir `/api/*` yoluna yapılan ya da JSON isteyen bir
+request ise form varyantı üzerinden bile her zaman 422 belgesini alır.)
 
 ```rust
 #[post("/posts")]
@@ -145,8 +145,8 @@ async fn store(
 }
 ```
 
-Yönlendirilen request'te hataları ve eski girdiyi geri okumak [View'lar](views) ile
-[CSRF & Session'lar](../security/csrf)'da ele alınmıştır. Kısaca:
+Yönlendirme sonrası request'te hataları ve eski girdiyi geri okumak [View'lar](views) ile
+[CSRF & Session'lar](../security/csrf) bölümlerinde ele alınır. Kısaca:
 
 ```rust
 let errors = flash.errors().await;          // ValidationErrors
@@ -156,8 +156,8 @@ errors.first("title");                        // Option<&str>
 
 ## Düz (validation'sız) gövdeler
 
-Kurallara ihtiyacın olmadığında, çıplak `Json<T>` / `Form<T>` extractor'ları gövdeyi doğrudan
-ayrıştırır. Yine de elle bir hata döndürebilirsin:
+Kurallara ihtiyacın yoksa, çıplak `Json<T>` / `Form<T>` extractor'ları gövdeyi doğrudan
+ayrıştırır. Gerektiğinde yine de elle bir hata döndürebilirsin:
 
 ```rust
 #[post("/")]
@@ -172,15 +172,16 @@ async fn store(db: Db, Json(input): Json<CreateTodo>) -> Result<(StatusCode, Jso
 
 ## `ValidationErrors` tipi
 
-Hem extractor hem de elle kontroller bir `ValidationErrors` eşlemesi (alan → mesajlar) üretir:
+Hem extractor hem de elle yaptığın kontroller bir `ValidationErrors` eşlemesi (alan → mesajlar)
+üretir:
 
 | Metot | Döndürdüğü |
 |---|---|
-| `is_empty()` | hiçbir şey başarısız olmadığında `true` |
-| `has(field)` | bir alanın herhangi bir hatası olup olmadığı |
-| `first(field)` | bir alan için ilk mesaj, `Option<&str>` |
-| `get(field)` | bir alan için tüm mesajlar, `&[String]` |
-| `all()` | düzleştirilmiş her mesaj |
+| `is_empty()` | hiçbir hata yoksa `true` |
+| `has(field)` | bir alanın hatası olup olmadığı |
+| `first(field)` | bir alanın ilk mesajı, `Option<&str>` |
+| `get(field)` | bir alanın tüm mesajları, `&[String]` |
+| `all()` | tüm mesajlar, düz bir liste olarak |
 
-Mesajlar düz İngilizcedir ("The title field is required.") ve i18n paketi aracılığıyla
-çevrilebilir hâle gelecektir.
+Mesajlar şu an düz İngilizcedir ("The title field is required.") ve ilerleyen zamanda i18n paketi
+üzerinden çevrilebilir hâle gelecek.

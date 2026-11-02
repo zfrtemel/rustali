@@ -1,23 +1,23 @@
 # Migration'lar (Code-First)
 
-Rustali'nin öne çıkan veritabanı özelliği: bir entity'yi değiştir, `migrate:diff` çalıştır ve gözden
-geçirilmiş bir migration al. Her migration'a yine sen sahipsin ve okursun; diff yalnızca değişenden
-ilk taslağı yazar.
+Rustali'nin en güçlü veritabanı özelliği şu: bir entity'yi değiştirirsin, `migrate:diff` çalıştırırsın
+ve gözden geçirip onaylayacağın bir migration çıkar. Migration'lar yine senindir, onları sen okursun;
+diff sadece değişen şeye bakıp ilk taslağı senin için yazar.
 
 ## Nasıl çalışır
 
-Üç şey yer alır:
+İşin içinde üç şey vardır:
 
 1. **Entity'lerin** — `#[derive(Entity)]`, her birinin şemasını derleme zamanında kaydeder.
-2. **Bir anlık görüntü** — `db/schema.snapshot.json`, şemayı en son uygulandığı hâliyle kaydeder.
-   Sürüm kontrolüne commit'lenir.
-3. **`migrate:diff`** — entity'leri anlık görüntüye karşı karşılaştırır, fark için bir migration
+2. **Bir anlık görüntü** — `db/schema.snapshot.json`, şemayı en son uygulandığı hâliyle saklar ve
+   sürüm kontrolüne commit'lenir.
+3. **`migrate:diff`** — entity'leri anlık görüntüyle karşılaştırır, aradaki fark için bir migration
    yazar ve anlık görüntüyü günceller.
 
 ## Migration'ları etkinleştirmek
 
-Migration'larını bir `Migrator`'da topla ve onu `.migrations::<Migrator>()` ile builder'a kaydet.
-Bu, uygulamana `migrate*` komutlarını ekler.
+Migration'larını bir `Migrator`'da topla ve onu `.migrations::<Migrator>()` ile builder'a kaydet. Bu,
+uygulamana `migrate*` komutlarını kazandırır.
 
 ```rust
 // src/migrations.rs
@@ -46,20 +46,20 @@ App::builder()
 
 ## Komutlar
 
-Onları uygulama binary'n aracılığıyla çalıştır:
+Bu komutları uygulama binary'n üzerinden çalıştırırsın:
 
 | Komut | Yaptığı |
 |---|---|
-| `cargo run -- migrate` | Bekleyen migration'ları uygula. |
-| `cargo run -- migrate:status` | Hangi migration'ların uygulandığını göster. |
-| `cargo run -- migrate:rollback` | Son grubu geri al (`--step N` ile daha fazlası). |
-| `cargo run -- migrate:fresh` | Tüm tabloları bırak ve her şeyi yeniden uygula. |
-| `cargo run -- migrate:refresh` | Hepsini geri al, sonra yeniden uygula. |
-| `cargo run -- migrate:reset` | Her şeyi geri al. |
-| `cargo run -- migrate:diff "name"` | Entity değişikliklerinden bir migration üret. |
+| `cargo run -- migrate` | Bekleyen migration'ları uygular. |
+| `cargo run -- migrate:status` | Hangi migration'ların uygulandığını gösterir. |
+| `cargo run -- migrate:rollback` | Son grubu geri alır (`--step N` ile daha fazlasını). |
+| `cargo run -- migrate:fresh` | Tüm tabloları siler ve her şeyi yeniden uygular. |
+| `cargo run -- migrate:refresh` | Hepsini geri alır, sonra yeniden uygular. |
+| `cargo run -- migrate:reset` | Her şeyi geri alır. |
+| `cargo run -- migrate:diff "name"` | Entity değişikliklerinden bir migration üretir. |
 
-`fresh`, `refresh` ve `reset` yıkıcıdır; `RUSTALI_FORCE=1` ayarlamadıkça `APP_ENV=production`
-altında çalışmayı reddederler.
+`fresh`, `refresh` ve `reset` yıkıcı komutlardır; `RUSTALI_FORCE=1` ayarlamadığın sürece
+`APP_ENV=production` altında çalışmayı reddederler.
 
 ## Code-first döngüsü
 
@@ -76,7 +76,7 @@ pub struct Post {
 }
 ```
 
-Onu anlık görüntüye karşı diff'le:
+Değişikliği anlık görüntüyle diff'le:
 
 ```bash
 cargo run -- migrate:diff "add published to posts"
@@ -89,9 +89,9 @@ Wrote db/migrations/m20261101_120000_add_published_to_posts.rs
 Updated db/schema.snapshot.json
 ```
 
-Üretilen dosya sıradan, okunabilir `sea-orm-migration` kodudur — `add_column`'lı bir
-`Table::alter()`, eşleşen bir `down` ve `DeriveIden` enum'u. Onu serbestçe gözden geçir ve düzenle;
-hiçbir şey üretilen bir dizeyi çalıştırmaz.
+Üretilen dosya, sıradan ve okunması kolay `sea-orm-migration` kodudur — `add_column` içeren bir
+`Table::alter()`, buna karşılık gelen bir `down` ve bir `DeriveIden` enum'u. Dosyayı dilediğin gibi
+gözden geçirip düzenleyebilirsin; hiçbir yerde üretilmiş bir metin olduğu gibi çalıştırılmaz.
 
 ```rust
 // db/migrations/m20261101_120000_add_published_to_posts.rs (üretilmiş)
@@ -105,12 +105,12 @@ async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
 }
 ```
 
-Boş bir anlık görüntüden, ilk diff her entity için tam `create_table` migration'ları yayar — yani
-yeni bir projeyi önyüklemek şudur: entity'lerini tanımla, bir `migrate:diff "initial schema"`
-çalıştır, gözden geçir ve `migrate`.
+Boş bir anlık görüntüden başlandığında ilk diff, her entity için eksiksiz `create_table`
+migration'ları üretir — yani yeni bir projeyi ayağa kaldırmak şu adımlardan ibarettir: entity'lerini
+tanımla, bir `migrate:diff "initial schema"` çalıştır, gözden geçir ve `migrate` ile uygula.
 
-Her üretilen migration'ın eşleşen bir `down`'ı vardır; böylece değişiklik geri alınabilir.
-Yukarıdaki column için, `down` onu yeniden bırakır:
+Üretilen her migration'ın, değişikliğin geri alınabilmesi için buna karşılık gelen bir `down`'ı
+vardır. Yukarıdaki column için `down`, o column'ı geri siler:
 
 ```rust
 // "add published to posts" için üretilen down
@@ -125,76 +125,78 @@ async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
 ```
 
 `migrate:rollback` bunları çalıştırır; böylece geliştirme sırasında son grubu geri alabilirsin.
-Üretilen `down`'ı `up` kadar dikkatli gözden geçir — bir geri alma işleminin gerçek verilere karşı
-çalıştıracağı şey odur.
+Üretilen `down`'ı en az `up` kadar dikkatli gözden geçir — çünkü bir geri alma işlemi, gerçek veriler
+üzerinde tam olarak onu çalıştırır.
 
 ## Tipik bir döngü
 
-Migration'lar bağlandıktan sonraki günlük ritim:
+Migration'lar bağlandıktan sonraki günlük ritim şöyle işler:
 
 1. Bir entity'yi düzenle (bir alan ekle, bir tip değiştir).
 2. `cargo run -- migrate:diff "describe the change"` — bir migration yazar ve anlık görüntüyü
    günceller.
-3. **Üretilen dosyayı oku.** Diff'in tahmini tam kastettiğin şey değilse onu ayarla (bir varsayılan
-   değer, bir indeks, bir veri geri doldurma).
-4. Onu `src/migrations/` içine taşı ve kaydet (aşağıdaki boşluğa bak).
-5. Yerel olarak uygulamak için `cargo run -- migrate`; migration'ı ve güncellenen anlık görüntüyü
+3. **Üretilen dosyayı oku.** Diff'in çıkardığı sonuç tam olarak kastettiğin şey değilse dosyayı elden
+   geçir (bir varsayılan değer, bir indeks, bir veri geri doldurması ekle).
+4. Dosyayı `src/migrations/` içine taşıyıp kaydet (aşağıdaki eksiğe bak).
+5. Yerelde uygulamak için `cargo run -- migrate`; ardından migration'ı ve güncellenen anlık görüntüyü
    birlikte commit'le.
 
-Üretimde, commit'lenen migration'ları gönderirsin ve dağıtımda `cargo run -- migrate`'i (ya da
-binary'nin `migrate`'ini) çalıştırırsın. Üretimde `migrate:diff` **çalıştırmazsın** — diff'leme bir
-geliştirme zamanı yazma adımıdır; uygulama, bir üretim veritabanına dokunan tek şeydir.
+Üretimde ise commit'lenmiş migration'ları yüklersin ve dağıtım sırasında `cargo run -- migrate`'i (ya
+da binary'nin `migrate` komutunu) çalıştırırsın. Üretimde `migrate:diff`'i **asla çalıştırmazsın** —
+diff'leme bir geliştirme zamanı yazma adımıdır; üretim veritabanına dokunan tek şey migration'ların
+uygulanmasıdır.
 
 ## Yıkıcı değişiklikler
 
-Bir column'ı ya da tabloyu bırakmak, bir tip değiştirmek ya da `NULL`→`NOT NULL` sıkılaştırmak veri
-kaybettirebilir; bu yüzden `migrate:diff` onları varsayılan olarak **reddeder**:
+Bir column'ı ya da tabloyu silmek, bir tipi değiştirmek veya `NULL`→`NOT NULL` daraltması yapmak veri
+kaybına yol açabilir; bu yüzden `migrate:diff` bu tür değişiklikleri varsayılan olarak **reddeder**:
 
 ```text
 1 destructive change(s) detected (drop / type change / NOT NULL). Re-run with
 --allow-destructive once you have reviewed them.
 ```
 
-Ne yapacağına baktıktan sonra `--allow-destructive` ile yeniden çalıştır.
+Ne yapacaklarını inceledikten sonra `--allow-destructive` ile yeniden çalıştır.
 
 ## Üretilen bir migration'ı bağlamak
 
 ::: warning Bilinen boşluk
-`migrate:diff`, `db/migrations/`'a yazar, ama uygulaman migration'ları `src/migrations/`'dan
-derler. Şimdilik, üretilen dosyayı `src/migrations/` içine taşı, `mod m...;` satırını ekle ve
-`Migrator`'ında `Box::new(m...::Migration)`'ı listele. Otomatik yerleştirme ve bağlama yol
-haritasında.
+`migrate:diff`, `db/migrations/` dizinine yazar; oysa uygulaman migration'ları `src/migrations/`'dan
+derler. Şimdilik üretilen dosyayı `src/migrations/` içine taşı, `mod m...;` satırını ekle ve
+`Migrator`'ında `Box::new(m...::Migration)`'ı listeye ekle. Dosyanın otomatik yerleştirilmesi ve
+bağlanması yol haritasında yer alıyor.
 :::
 
 ## Elle bir migration yazmak
 
 Diff'i kullanmak zorunda değilsin. `rustali make:migration create_posts`, SeaORM şema builder'ıyla
-(`Table::create()`, `ColumnDef`, indeksler, yabancı anahtarlar) doldurduğun boş bir migration
-oluşturur. [`sea-orm-migration`]'daki her şey `rustali::migrate::prelude::*` aracılığıyla
-kullanılabilir.
+(`Table::create()`, `ColumnDef`, indeksler, yabancı anahtarlar) kendi doldurduğun boş bir migration
+oluşturur. [`sea-orm-migration`]'daki her şeye `rustali::migrate::prelude::*` üzerinden
+erişebilirsin.
 
 [`sea-orm-migration`]: https://docs.rs/sea-orm-migration
 
 ## Diff'in bugün anladığı şey
 
-Tablolar ve column'lar (ekle/bırak), column tipi değişiklikleri, null olabilirlik, benzersizlik ve
-dize uzunluğu. Bilinmeyen Rust tipleri, sessizce bırakılmak yerine bir `FIXME` yorumuyla bir `TEXT`
-column'ı olur; böylece bir diff asla sürpriz bir şekilde kayıplı olmaz. Struct'taki relation'lar (düz
-bir `*_id` column'ının ötesindeki yabancı anahtarlar) gelecekteki bir iyileştirmedir.
+Tablolar ve column'lar (ekleme/silme), column tipi değişiklikleri, null olabilirlik, benzersizlik ve
+metin uzunluğu. Bilinmeyen Rust tipleri sessizce atlanmak yerine, bir `FIXME` yorumuyla birlikte bir
+`TEXT` column'ına dönüşür; böylece bir diff hiçbir zaman beklenmedik şekilde veri kaybına yol açmaz.
+Struct'taki relation'lar (düz bir `*_id` column'ının ötesine geçen yabancı anahtarlar) ise ileride
+eklenecek bir iyileştirmedir.
 
 ### Yeniden adlandırmalar bir insana ihtiyaç duyar
 
-Diff'in bir yeniden adlandırmayı bir sil-ve-oluştur'dan ayırt etme yolu yoktur: `title`'ı
-`heading`'e yeniden adlandırmak ona *`title`'ı bırak, `heading` ekle* gibi görünür — ki bu eski
-veriyi atar. Bu yüzden bir column'ı yeniden adlandırdığında, üretilen bırak/ekle'ye güvenme. Ya
-üretilen migration'ı gerçek bir `rename_column`'a düzenle ya da o migration'ı elle yaz. Diff'in,
-otomatik bir uygulama değil, *gözden geçirdiğin bir taslak* olmasının tam nedeni budur: çıkaramadığı
-tek değişiklik, veriyi sessizce kaybettirecek olandır.
+Diff'in, bir yeniden adlandırmayı bir sil-ve-oluştur'dan ayırt etmesi mümkün değildir: `title`'ı
+`heading` olarak yeniden adlandırmak ona *`title`'ı sil, `heading` ekle* gibi görünür — ki bu da eski
+veriyi silip atar. Bu yüzden bir column'ı yeniden adlandırdığında, üretilen sil/ekle çiftine güvenme.
+Ya üretilen migration'ı gerçek bir `rename_column`'a dönüştür ya da o migration'ı baştan elle yaz.
+Diff'in otomatik uygulanan bir işlem değil de *gözden geçirdiğin bir taslak* olmasının asıl nedeni
+budur: çıkaramadığı tek değişiklik türü, tam da veriyi sessizce kaybettirecek olandır.
 
 ### Soft delete yalnızca bir column'dur
 
-İskeletlenmiş modellerin taşıdığı `deleted_at` column'ı, diff'e göre sıradan, null olabilen bir zaman
-damgasıdır — diğer herhangi bir column gibi migrate edilir. Soft-delete *davranışı* (`delete`'te onu
-damgalamak, çöpe atılmış row'ları gizlemek), migration'ın ya da şemanın bildiği bir şey değil,
-çalışma zamanı bir ayardır, `.env`'deki `SOFT_DELETE`. [Temel Entity & Soft Delete](base-entity)'e
-bak.
+İskeletten gelen modellerin taşıdığı `deleted_at` column'ı, diff açısından sıradan ve null olabilen
+bir zaman damgasından ibarettir — diğer column'lar gibi migrate edilir. Soft-delete *davranışı*
+(`delete` sırasında bu alanı damgalamak, çöpe atılmış row'ları gizlemek) ise migration'ın ya da
+şemanın haberdar olduğu bir şey değil, bir çalışma zamanı ayarıdır: `.env`'deki `SOFT_DELETE`. [Temel
+Entity & Soft Delete](base-entity)'e bak.

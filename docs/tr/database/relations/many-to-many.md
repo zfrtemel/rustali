@@ -1,13 +1,14 @@
 # many_to_many
 
-Bir **çoka-çok** relation: bu tablodaki her row başka bir tablodaki birçok row'a bağlanır ve tersi.
-Bir gönderinin birçok etiketi vardır; bir etiket birçok gönderiye aittir. Her iki tabloda da yabancı
-anahtar yoktur — bunun yerine üçüncü bir **bağlantı tablosu** bağlantı başına bir row tutar.
+Bir **çoka-çok** relation: bu tablodaki her row başka bir tablodaki birçok row'a bağlanır, tersi de
+geçerlidir. Bir gönderinin birçok etiketi olur; bir etiket de birçok gönderiye bağlıdır. İki tablonun
+hiçbiri yabancı anahtar tutmaz — bunun yerine her bağlantı için bir row barındıran üçüncü bir
+**bağlantı tablosu** devreye girer.
 
 ## Bağlantı entity'si
 
-Bağlantı, her iki tarafa da bir yabancı anahtarı olan sıradan bir entity'dir. `Post ↔ Tag` için
-`post_tags`'tir:
+Bağlantı tablosu, her iki tarafa da birer yabancı anahtarı olan sıradan bir entity'dir. `Post ↔ Tag`
+için bu entity `post_tags`'tir:
 
 ```rust
 #[derive(Entity, Clone)]
@@ -21,13 +22,13 @@ pub struct PostTag {
 }
 ```
 
-İki `belongs_to` relation'ını bağlantıda bildirmek, Rustali'nin join'i kurmasını sağlayan şeydir.
-(Bağlantı row'larını doğrudan da yükleyebilir ve ona ekstra column'lar ekleyebilirsin — bir
-`created_at`, bir `sort_order` — diğer herhangi bir entity gibi.)
+Bağlantıda iki `belongs_to` relation'ı bildirmen, Rustali'nin join'i kurabilmesini sağlar. (Bağlantı
+row'larını doğrudan da yükleyebilir, tıpkı başka bir entity gibi ona ek column'lar ekleyebilirsin —
+bir `created_at`, bir `sort_order` gibi.)
 
 ## Relation'ı bildirmek
 
-Her tarafta, `#[many_to_many(...)]` ile bağlantı aracılığıyla diğerine işaret et:
+Her iki tarafta da `#[many_to_many(...)]` ile bağlantı üzerinden diğer tabloya işaret et:
 
 ```rust
 #[derive(Entity, Clone)]
@@ -55,14 +56,14 @@ pub struct Tag {
 | `via = Entity` | Bağlantı entity'si (`PostTag`). | — (zorunlu) |
 | `from = column` | **Bu** entity'ye işaret eden bağlantı column'u. | — (zorunlu) |
 | `to = column` | **Hedefe** işaret eden bağlantı column'u. | — (zorunlu) |
-| `as = name` | Üretilen metot adını geçersiz kıl. | hedefin snake-case'i + `s` (`Tag` → `tags`) |
+| `as = name` | Üretilen metot adını değiştirir. | hedefin snake-case'i + `s` (`Tag` → `tags`) |
 
-`from` / `to`'yu bağlantının bakış açısından oku: `Post`'ta, `from = post_id` gönderiler için
-bağlantı column'udur ve `to = tag_id` etiketler için bağlantı column'udur. `Tag`'te ikisi yer değiştirir,
-çünkü "bu entity" artık etikettir.
+`from` / `to`'yu bağlantının bakış açısından düşün: `Post`'ta `from = post_id` gönderiye karşılık gelen
+bağlantı column'u, `to = tag_id` ise etikete karşılık gelen bağlantı column'udur. `Tag`'te ikisi yer
+değiştirir, çünkü artık "bu entity" etikettir.
 
-`via`, `from` ve `to`'nun üçü de zorunludur — bir bağlantının, tek taraflı relation'ların olduğu gibi
-bir primary-key varsayılanı yoktur.
+`via`, `from` ve `to`'nun üçü de zorunludur — bir bağlantıda, tek taraflı relation'larda olduğu gibi
+primary-key'e dayalı bir varsayılan yoktur.
 
 ## Üretilen metotlar
 
@@ -71,11 +72,11 @@ ekler:
 
 | Metot | Döndürdüğü | Query'ler |
 |---|---|---|
-| `post.tags(&db)` | `Vec<Tag>` | bir (tembel: bağlantı aracılığıyla tek bir join) |
+| `post.tags(&db)` | `Vec<Tag>` | bir (tembel: bağlantı üzerinden tek bir join) |
 | `Post::with_tags(posts, &db)` | `Vec<(Post, Vec<Tag>)>` | grup için iki (istekli) |
 
-`Tag`, ayna relation'ını bildirdiği için, ters yön de aynı şekilde çalışır: `tag.posts(&db)` ve
-`Tag::with_posts(tags, &db)`.
+`Tag` da aynadaki relation'ı bildirdiği için ters yön de birebir aynı şekilde çalışır: `tag.posts(&db)`
+ve `Tag::with_posts(tags, &db)`.
 
 ## Tembel — bir gönderinin etiketleri
 
@@ -100,13 +101,14 @@ for (post, tags) in &paired {
 }
 ```
 
-İstekli yükleyici, bağlantı row'larını ve hedef row'larını toplu olarak getirir, sonra her
-gönderinin etiketlerini gruplar — gönderi başına iki yerine tüm liste için iki query.
+İstekli yükleyici önce bağlantı row'larını ve hedef row'larını topluca getirir, ardından her
+gönderinin etiketlerini gruplar — yani gönderi başına iki query yerine tüm liste için toplam iki
+query.
 
 ## Bağlantıları iliştirmek ve ayırmak
 
-Bir bağlantı yalnızca bağlantı tablosundaki bir row'dur; bu yüzden bağlantı entity'lerini ekleyerek
-ve silerek bağlantıları oluşturur ve kaldırırsın:
+Bir bağlantı, bağlantı tablosundaki bir row'dan ibarettir; dolayısıyla bağlantıları, bağlantı
+entity'lerini ekleyip silerek oluşturur ve kaldırırsın:
 
 ```rust
 // iliştir: gönderi 1'i etiket 2 ile etiketle
@@ -123,4 +125,4 @@ if let Some(link) = PostTag::query()
 }
 ```
 
-Relation'lar rehberinin kapsadığı her şey bu kadar. [Genel bakışa](./) dön.
+Relation'lar rehberinin kapsadığı konular bu kadar. [Genel bakışa](./) dönebilirsin.

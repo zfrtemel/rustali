@@ -1,8 +1,8 @@
 # has_many
 
-**Bire-çok** relation: bu tablodaki bir row, başka bir tablodaki birçok row'a sahiptir. Bir
-gönderinin birçok yorumu vardır; bir yazarın birçok gönderisi vardır. Bu "bir" tarafıdır — yabancı
-anahtarı *tutmayan* taraf.
+**Bire-çok** relation: bu tablodaki bir row, başka bir tablodaki birçok row'a sahiptir. Bir gönderinin
+birçok yorumu olur; bir yazarın birçok gönderisi olur. Burada söz konusu olan "bir" tarafıdır — yani
+yabancı anahtarı *tutmayan* taraf.
 
 ## Bildirmek
 
@@ -24,8 +24,8 @@ pub struct Comment {
 }
 ```
 
-Attribute, `Post`'a (sahibe) gelir. `to = post_id`, **hedef** tablodaki yabancı-anahtar column'unu
-(`comments.post_id`) adlandırır — bu row'a geri işaret eden column.
+Attribute, sahip olan tarafa, yani `Post`'a yazılır. `to = post_id`, **hedef** tablodaki
+yabancı-anahtar column'unu (`comments.post_id`) belirtir — bu row'a geri işaret eden column'u.
 
 ### Argümanlar
 
@@ -33,11 +33,12 @@ Attribute, `Post`'a (sahibe) gelir. `to = post_id`, **hedef** tablodaki yabancı
 |---|---|---|
 | *(ilk, konumsal)* | Hedef entity tipi (`Comment`). | — (zorunlu) |
 | `to = column` | **Hedef** tablodaki yabancı-anahtar column'u. | — (zorunlu) |
-| `from = column` | Geri işaret ettiği yerel column. | bu tablonun primary key'i (`id`) |
-| `as = name` | Üretilen metot adını geçersiz kıl. | hedefin snake-case'i + `s` (`Comment` → `comments`) |
+| `from = column` | Bunun geri işaret ettiği yerel column. | bu tablonun primary key'i (`id`) |
+| `as = name` | Üretilen metot adını değiştirir. | hedefin snake-case'i + `s` (`Comment` → `comments`) |
 
-`to` zorunludur çünkü Rustali yabancı-anahtar column adını tahmin etmez. `from`, olağan durum olan
-primary key'e varsayılan olur; onu yalnızca anahtar farklı bir column olduğunda ayarla.
+`to` zorunludur, çünkü Rustali yabancı-anahtar column'unun adını tahmin etmez. `from` ise olağan
+durum olan primary key'e varsayılır; onu yalnızca anahtar farklı bir column olduğunda belirtmen
+gerekir.
 
 ## Üretilen metotlar
 
@@ -48,9 +49,9 @@ primary key'e varsayılan olur; onu yalnızca anahtar farklı bir column olduğu
 | `post.comments(&db)` | `Vec<Comment>` | bir (tembel) |
 | `Post::with_comments(posts, &db)` | `Vec<(Post, Vec<Comment>)>` | grup için bir (istekli) |
 
-Metot adı hedeften gelir: `Comment` → `comments`. Onu `as` ile yeniden adlandır, örn.
-`#[has_many(Comment, to = post_id, as = replies)]` sana `post.replies(&db)` ve
-`Post::with_replies(...)` verir.
+Metot adı hedeften türetilir: `Comment` → `comments`. `as` ile yeniden adlandırabilirsin; örneğin
+`#[has_many(Comment, to = post_id, as = replies)]`, sana `post.replies(&db)` ve
+`Post::with_replies(...)` metotlarını verir.
 
 ## Tembel — bir gönderinin yorumları
 
@@ -71,14 +72,14 @@ for (post, comments) in &paired {
 }
 ```
 
-İstekli biçim olmadan, döngü içinde `post.comments(&db)`'yi çağırmak gönderi başına bir query
-çalıştırırdı — N+1 problemi. `with_comments`, her gönderinin yorumlarını tek bir ek query'de yükler
-ve onları önceden gruplanmış olarak geri verir.
+İstekli biçimi kullanmadan döngü içinde `post.comments(&db)` çağırsaydın, her gönderi için ayrı bir
+query çalışırdı — işte N+1 problemi budur. `with_comments` ise her gönderinin yorumlarını tek bir ek
+query'de yükler ve onları önceden gruplanmış hâlde geri verir.
 
 ## Diğer taraf
 
-`has_many`, neredeyse her zaman çocukta bir [`belongs_to`](belongs-to) ile eşleştirilir; böylece
-her iki yöne de gidebilirsin:
+`has_many`, neredeyse her zaman çocuk tarafındaki bir [`belongs_to`](belongs-to) ile birlikte
+kullanılır; böylece bağlantıda her iki yöne de gidebilirsin:
 
 ```rust
 #[derive(Entity, Clone)]

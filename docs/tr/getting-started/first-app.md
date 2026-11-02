@@ -8,20 +8,20 @@ cargo run -- migrate          # SQLite şemasını oluştur
 cargo run                     # http://127.0.0.1:8000
 ```
 
-HTML ana sayfası için `http://127.0.0.1:8000` adresini aç; iskelet ayrıca hemen
-kullanabileceğin bir JSON route'u da sunar:
+HTML ana sayfasını görmek için `http://127.0.0.1:8000` adresini aç; iskelette ayrıca hemen
+deneyebileceğin bir JSON route'u da hazır gelir:
 
 ```bash
 curl http://127.0.0.1:8000/api/ping
 # {"ok":true}
 ```
 
-Bu tek proje bile ana fikri gösteriyor — aynı uygulama tek bir controller'dan hem bir HTML
-sayfası hem de bir JSON API sunuyor.
+Bu küçük proje bile temel fikri ortaya koyuyor: aynı uygulama, tek bir controller üzerinden
+hem bir HTML sayfası hem de bir JSON API sunabiliyor.
 
 ## Elde ettiklerin
 
-`rustali new` konvansiyonel bir proje iskeleti oluşturur:
+`rustali new`, konvansiyona uygun bir proje iskeleti oluşturur:
 
 ```text
 blog/
@@ -35,8 +35,8 @@ blog/
     └── home.html
 ```
 
-`src/main.rs` tüm önyükleme sürecidir — bir builder, veritabanı provider'ı ve otomatik
-bağlanan controller'lar:
+Uygulamanın tüm önyükleme süreci `src/main.rs` içindedir — bir builder, veritabanı provider'ı
+ve otomatik bağlanan controller'lar:
 
 ```rust
 use rustali::prelude::*;
@@ -51,8 +51,8 @@ async fn main() -> Result<()> {
 }
 ```
 
-Ve `src/controllers.rs`, bağladığı home controller'ıdır — biri HTML biri JSON olan iki
-route'un yan yana olduğuna dikkat et:
+`src/controllers.rs` ise yukarıda bağlanan home controller'ıdır — biri HTML, biri JSON olan iki
+route'un nasıl yan yana durduğuna dikkat et:
 
 ```rust
 #[controller("/")]
@@ -77,7 +77,7 @@ rustali make:controller Post     # src/controllers/post.rs
 rustali make:migration create_posts
 ```
 
-Tablonu tanımlamak için modelin kolonlarını düzenle:
+Tablonu tanımlamak için modeldeki kolonları düzenle:
 
 ```rust
 // src/models/post.rs
@@ -96,18 +96,19 @@ pub struct Post {
 }
 ```
 
-Ardından değişiklikten migration'ı üret — diff, entity'ni okur ve ilk taslağı yazar:
+Ardından yaptığın bu değişiklikten migration'ı üret — diff, entity'ni okuyup ilk taslağı senin
+için yazar:
 
 ```bash
-cargo run -- migrate:diff "create posts"   # gözden geçirilmiş bir migration + anlık görüntü yazar
+cargo run -- migrate:diff "create posts"   # bir migration dosyası + anlık görüntü yazar (sen gözden geçirirsin)
 cargo run -- migrate
 ```
 
 ::: tip
-`migrate:diff`, üretilen migration'ı `db/migrations/` altına yazar. Derlenmesi için onu
-`src/migrations/` içine taşı ve `Migrator`'ında listele — otomatik yerleştirme yol
-haritasında. Tam workflow için [Migration'lar](../database/migrations) sayfasına bak.
+`migrate:diff`, ürettiği migration'ı `db/migrations/` altına yazar. Derlemeye dahil olması için
+onu `src/migrations/` içine taşı ve `Migrator`'da listele — bu adımın otomatikleşmesi yol
+haritasında var. Sürecin tamamı için [Migration'lar](../database/migrations) sayfasına bak.
 :::
 
 Controller'ı bağla (`App::builder().controllers()` zaten binary'deki her `#[controller]`'ı
-toplar) ve CRUD'un hazır. Sıradaki: [Routing & Controller](../basics/routing).
+otomatik toplar); artık CRUD'un hazır. Sıradaki: [Routing & Controller](../basics/routing).

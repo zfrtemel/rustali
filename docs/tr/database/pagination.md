@@ -1,8 +1,8 @@
 # Pagination
 
-Tüm bir tabloyu belleğe yüklemek ölçeklenmez. `paginate`, sonuçların **bir sayfasını** ve aynı
-çağrıda, bir UI'nin ya da API istemcisinin sayfa kontrollerini render etmek için ihtiyaç duyduğu
-toplamları getirir.
+Bütün bir tabloyu belleğe yüklemek ölçeklenebilir bir çözüm değildir. `paginate`, sonuçların yalnızca
+**bir sayfasını** getirir ve aynı çağrıda, bir UI'nin ya da API istemcisinin sayfa kontrollerini
+render etmek için ihtiyaç duyduğu toplam sayıları da verir.
 
 ## `paginate`
 
@@ -10,10 +10,10 @@ toplamları getirir.
 Todo::query().paginate(&db, page, per_page) -> Result<Page<Todo>>
 ```
 
-[Query builder'ı](queries) üzerinde bir terminal metot: her zamanki gibi bir query kur, sonra onu
-`fetch_all` yerine `paginate` ile bitir. `page` **1 tabanlıdır**. Hem `page` hem `per_page` en az
-`1`'e sıkıştırılır; böylece bir query dizesinden gelen aralık dışı değerler asla panikleyemez ya
-da sıfıra bölemez.
+[Query builder'ı](queries) üzerinde bir terminal metottur: query'yi her zamanki gibi kur, sonra
+`fetch_all` yerine `paginate` ile bitir. `page` değeri **1'den başlar**. Hem `page` hem `per_page` en
+az `1` olacak şekilde kırpılır; böylece bir query string'inden gelen aralık dışı değerler ne panik
+oluşturabilir ne de sıfıra bölmeye yol açabilir.
 
 ```rust
 let page = Todo::query()
@@ -28,15 +28,15 @@ for todo in &page.items {
 ```
 
 ::: tip Sıralama önemlidir
-Sayfalanmış bir query'ye her zaman kararlı bir `order_by` ver. Biri olmadan, veritabanı sayfalar
-arasında row'ları farklı bir sırada döndürebilir; böylece bir row iki kez görünebilir ya da
-atlanabilir. Primary key ya da `created_at` sonra `id` gibi benzersiz ve kararlı bir şeye göre
+Sayfalanan bir query'ye her zaman kararlı bir `order_by` ver. Sıralama olmadan veritabanı, row'ları
+sayfadan sayfaya farklı bir sırayla döndürebilir; bu durumda bir row ya iki kez görünür ya da büsbütün
+atlanır. Primary key gibi, ya da `created_at` ardından `id` gibi benzersiz ve kararlı bir ölçüte göre
 sırala.
 :::
 
 ## `Page<T>`
 
-`paginate`, bir `Page<T>` döndürür — row'lar artı pagination'ı render etmek için gereken her şey.
+`paginate` bir `Page<T>` döndürür — yani row'ları ve pagination'ı render etmek için gereken her şeyi.
 `Serialize`'ı türetir; böylece bir API handler'ı onu doğrudan JSON olarak döndürebilir.
 
 ### Alanlar
@@ -44,9 +44,9 @@ sırala.
 | Alan | Anlamı |
 |---|---|
 | `items` | bu sayfadaki row'lar (`Vec<T>`) |
-| `page` | geçerli sayfa, 1 tabanlı |
+| `page` | geçerli sayfa (1'den başlar) |
 | `per_page` | istenen sayfa boyutu |
-| `total` | tüm sayfalardaki toplam row |
+| `total` | tüm sayfalardaki toplam row sayısı |
 | `last_page` | son sayfanın numarası (her zaman ≥ 1) |
 
 ```json
@@ -57,13 +57,13 @@ sırala.
 
 | Metot | Döndürdüğü |
 |---|---|
-| `has_next()` | bir sonraki sayfa varsa `true` |
-| `has_prev()` | bir önceki sayfa varsa `true` |
+| `has_next()` | sonraki sayfa varsa `true` |
+| `has_prev()` | önceki sayfa varsa `true` |
 | `map(f)` | her öğesi dönüştürülmüş, pagination sayıları korunmuş bir `Page<U>` |
 
 `has_next` / `has_prev`, "sonraki" ve "önceki" kontrollerini etkinleştirmek ya da devre dışı
-bırakmak için kullandığın şeydir. `map`, toplamları yeniden hesaplamadan row'ları bir view
-modeline çevirir:
+bırakmak için kullandığın metotlardır. `map` ise toplamları yeniden hesaplamadan row'ları bir view
+modeline dönüştürür:
 
 ```rust
 // varlıklar -> bir görünüm modeli, toplamlar korunmuş
@@ -73,8 +73,8 @@ let page = Todo::query().paginate(&db, 1, 20).await?
 
 ## Bir API handler'ında
 
-Sayfayı ve boyutu query dizesinden oku, bir istemcinin bir milyon row isteyememesi için boyutu
-sınırla ve `Page`'i JSON olarak döndür:
+Sayfa numarasını ve sayfa boyutunu query string'inden oku, bir istemcinin bir milyon row
+isteyememesi için boyuta bir üst sınır koy ve `Page`'i JSON olarak döndür:
 
 ```rust
 #[derive(Deserialize)]
@@ -90,12 +90,13 @@ async fn index(db: Db, Query(p): Query<Paging>) -> Result<Json<Page<Todo>>> {
 }
 ```
 
-İstemci `{ "items": [...], "page": 1, "per_page": 20, "total": 57, "last_page": 3 }` alır ve
-kontrolleri doğrudan bu sayılardan render edebilir.
+İstemci `{ "items": [...], "page": 1, "per_page": 20, "total": 57, "last_page": 3 }` yanıtını alır ve
+kontrolleri doğrudan bu sayılara bakarak render edebilir.
 
 ## Bir SSR sayfasında
 
-Sunucuda render edilen bir liste için, `Page`'i template'e geçir ve kontrolleri metotlarından yönlendir:
+Sunucuda render edilen bir liste için `Page`'i template'e geçir ve kontrolleri onun metotlarıyla
+yönet:
 
 ```rust
 #[get("/")]
@@ -117,8 +118,8 @@ async fn index(db: Db, Query(p): Query<Paging>) -> Result<View<TodoList>> {
 
 ## `fetch_page`
 
-`fetch_page(&db, page, per_page)`, `paginate`'in aynı davranışa sahip eski bir takma adıdır; diğer
-terminal metotların `fetch_*` adlandırmasıyla eşleşsin diye tutulur. Yeni kod `paginate`'i tercih
-etmelidir.
+`fetch_page(&db, page, per_page)`, `paginate` ile birebir aynı davranan eski bir takma addır; diğer
+terminal metotlardaki `fetch_*` adlandırmasına uysun diye korunur. Yeni kodda `paginate` tercih
+edilmelidir.
 
 Sıradaki: [Migration'lar (Code-First)](migrations).

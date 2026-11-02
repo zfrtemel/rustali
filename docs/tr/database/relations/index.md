@@ -1,8 +1,8 @@
 # Relation'lar
 
 Tablolar nadiren tek başına durur: bir gönderinin yorumları vardır, bir yorum bir gönderiye aittir,
-bir gönderinin birçok etiketi vardır. Rustali, bu bağlantıları entity'de bir konteyner attribute'u
-ile bildirmene izin verir ve ilişkili row'ları yüklemek için tipli metotlar üretir.
+bir gönderinin birçok etiketi olabilir. Rustali, bu bağlantıları entity üzerinde bir konteyner
+attribute'uyla bildirmene olanak tanır ve ilişkili row'ları yüklemen için tipli metotlar üretir.
 
 ## Dört tür
 
@@ -13,8 +13,8 @@ ile bildirmene izin verir ve ilişkili row'ları yüklemek için tipli metotlar 
 | `#[has_one(...)]` | bir → bir | `Option<Related>` | [has_one](has-one) |
 | `#[many_to_many(...)]` | çok ↔ çok | `Vec<Other>` (bir bağlantı tablosu üzerinden) | [many_to_many](many-to-many) |
 
-Her biri bir alana değil, **struct**'a yazılır — bir relation, saklanan bir column değil, tablolar
-arasında bir bağlantıdır:
+Bunların her biri bir alana değil, doğrudan **struct**'a yazılır — çünkü bir relation, saklanan bir
+column değil, tablolar arasındaki bir bağlantıdır:
 
 ```rust
 #[derive(Entity, Clone)]
@@ -31,16 +31,16 @@ pub struct Post {
 
 ## Yükleme her zaman açıktır
 
-Rust'ın örtük tembel yüklemesi yoktur. Bir alan erişimi `async` olamaz ve gizli veritabanı G/Ç'si
-çalıştıramaz; bu yüzden bir alana dokunduğunda sessizce bir query tetikleyen bir gezinme özelliği
-yoktur. Rustali'deki her relation yüklemesi, çağırdığın ve `.await`'ladığın bir metottur — bu da
-kodda, bir query'nin tam olarak nerede gerçekleştiğini her zaman görebileceğin anlamına gelir.
+Rust'ta örtük tembel yükleme yoktur. Bir alan erişimi `async` olamaz ve arka planda veritabanı G/Ç'si
+yapamaz; bu yüzden bir alana dokunduğunda sessizce bir query tetikleyen "gezinme özelliği" diye bir
+şey yoktur. Rustali'de her relation yüklemesi, senin çağırıp `.await`'lediğin bir metottur — bu da bir
+query'nin kodda tam olarak nerede çalıştığını her zaman görebilmen demektir.
 
-İki şekil elde edersin ve bunlar arasında seçim yapmak, N+1 problemini önleme yolundur:
+İki farklı biçimle karşılaşırsın; bunlar arasında seçim yapmak da N+1 problemini önlemenin yoludur:
 
 ### Tembel — bir ebeveyn, talep üzerine
 
-Relation'dan sonra adlandırılmış bir örnek metodu. İlişkili row'ları **o tek row için** yükler:
+Adını relation'dan alan bir örnek metodu. İlişkili row'ları **yalnızca o tek row için** yükler:
 
 ```rust
 let post = Post::find_or_404(&db, id).await?;
@@ -48,12 +48,12 @@ let comments = post.comments(&db).await?;   // Vec<Comment>  (bir sorgu)
 let author   = post.author(&db).await?;     // Option<User>  (bir sorgu)
 ```
 
-Bir kaydın olduğu ve ilişkilerini istediğin bir detay sayfası için mükemmel.
+Elinde tek bir kaydın olduğu ve onun ilişkilerini görmek istediğin bir detay sayfası için birebir.
 
 ### İstekli (eager) — birçok ebeveyn, gruplanmış (N+1'i önler)
 
-`with_<relation>` adlı bir ilişkili fonksiyon. Zaten getirdiğin ebeveynlerden oluşan bir `Vec`
-alır ve **tüm** ilişkili row'larını tek bir ek query'de yükler, her ebeveyni kendininkiyle
+`with_<relation>` adında ilişkili bir fonksiyon. Daha önce getirdiğin ebeveynlerden oluşan bir `Vec`
+alır, hepsinin **tüm** ilişkili row'larını tek bir ek query'de yükler ve her ebeveyni kendi row'larıyla
 eşleştirir:
 
 ```rust
@@ -66,34 +66,34 @@ for (post, comments) in &with_comments {
 }
 ```
 
-Birçok gönderi üzerindeki bir döngü içinde `post.comments(&db)`'ye başvurmak, klasik N+1 hatasıdır:
-liste için bir query, sonra row başına bir tane daha. `with_comments` bunu toplam iki query'ye
-çevirir.
+Çok sayıda gönderi üzerinde dönen bir döngü içinde `post.comments(&db)` çağırmak, klasik N+1 hatasıdır:
+liste için bir query, sonra her row için bir tane daha. `with_comments` bunu toplam iki query'ye
+indirir.
 
 | | Tembel | İstekli |
 |---|---|---|
 | Çağrı stili | `post.comments(&db)` | `Post::with_comments(posts, &db)` |
-| Aldığı | bir row (`&self`) | birçok row (`Vec<Self>`) |
-| Query'ler | çağrı başına bir | tüm grup için bir |
-| Ne zaman kullan | tek bir kaydın olduğunda | bir listen olduğunda ve her birinin relation'larına ihtiyacın olduğunda |
+| Aldığı | tek bir row (`&self`) | birçok row (`Vec<Self>`) |
+| Query sayısı | çağrı başına bir | tüm grup için bir |
+| Ne zaman kullanılır | elinde tek bir kayıt varken | elinde bir liste varken ve her birinin relation'larına ihtiyacın varken |
 
 ## Anahtarlar açıktır
 
-Rustali yabancı-anahtar column adlarını tahmin etmez. Onları attribute'ta adlandırırsın (`from` /
-`to`); böylece bağlantı görünür olur ve bir yazım hatası, sessiz bir uyuşmazlık değil, bir derleme
-hatası olur. Her relation sayfası her argümanın tam olarak hangi column'a atıfta bulunduğunu hecelerse
-de, kısa sürümü:
+Rustali yabancı-anahtar column adlarını tahmin etmeye çalışmaz. Bunları attribute içinde kendin
+belirtirsin (`from` / `to`); böylece bağlantı açıkça görünür olur ve bir yazım hatası sessiz bir
+uyuşmazlığa değil, bir derleme hatasına yol açar. Her relation sayfası, her argümanın tam olarak hangi
+column'a karşılık geldiğini ayrıntısıyla anlatıyor; ama kısaca özetlemek gerekirse:
 
-- **`belongs_to`** — `from`, **bu** tablodaki yabancı-anahtar column'udur (zorunlu); `to`, hedefteki
-  referans verilen column'dur (varsayılan olarak onun `id`'si).
-- **`has_many` / `has_one`** — `to`, **hedef** tablodaki yabancı-anahtar column'udur (zorunlu);
-  `from`, onun geri işaret ettiği yerel column'dur (varsayılan olarak bu tablonun `id`'si).
-- **`many_to_many`** — `via`, bağlantı entity'sidir; `from` ve `to`, bağlantının sırasıyla bu tabloya
-  ve hedefe işaret eden iki yabancı-anahtar column'udur.
+- **`belongs_to`** — `from`, **bu** tablodaki yabancı-anahtar column'udur (zorunlu); `to` ise hedefte
+  referans verilen column'dur (varsayılan olarak hedefin `id`'si).
+- **`has_many` / `has_one`** — `to`, **hedef** tablodaki yabancı-anahtar column'udur (zorunlu); `from`
+  ise onun geri işaret ettiği yerel column'dur (varsayılan olarak bu tablonun `id`'si).
+- **`many_to_many`** — `via`, bağlantı entity'sidir; `from` ve `to` ise bağlantının sırasıyla bu
+  tabloya ve hedefe işaret eden iki yabancı-anahtar column'udur.
 
 ## Sıradaki nereye
 
 - [has_many](has-many) — birçok çocuğu olan bir ebeveyn.
 - [belongs_to](belongs-to) — `has_many`'nin çocuk tarafı.
 - [has_one](has-one) — bire-bir bağlantı.
-- [many_to_many](many-to-many) — bir bağlantı tablosu üzerinden bağlanan iki tablo.
+- [many_to_many](many-to-many) — bir bağlantı tablosu üzerinden birbirine bağlanan iki tablo.

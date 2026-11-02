@@ -1,15 +1,16 @@
 # Model Metotları
 
-`#[derive(Entity)]`, her modele yaygın veritabanı işlemleri için bir dizi metot verir — row'ları
-okumak, oluşturmak, güncellemek ve silmek. Bu sayfa her birini tek tek gezer: ne aldığı, ne
-döndürdüğü ve ne zaman ona başvuracağın.
+`#[derive(Entity)]`, her modele yaygın veritabanı işlemleri için bir dizi metot kazandırır —
+row'ları okumak, oluşturmak, güncellemek ve silmek. Bu sayfa her birini tek tek ele alır: ne aldığı,
+ne döndürdüğü ve ne zaman kullanacağın.
 
-Her metot, ilk argümanı olarak (ya da örnek metotlar için örtük `self` artı bir) bir veritabanı
-bağlantısı alır. Bir handler'da o bağlantı [`Db`](queries#db-extractor-ı) extractor'ıdır; başka
-yerlerde `&*ctx.db()?`'dir. Hepsi `async`'tir ve
-[`Result`](../basics/responses#hatalar-degerdir) döndürür; bu yüzden onları `.await?`'larsın.
+Her metot ilk argümanı olarak bir veritabanı bağlantısı alır (örnek metotlarda ise örtük `self`'in
+ardından gelen ilk argüman olarak). Bir handler'da bu bağlantı [`Db`](queries#db-extractor-ı)
+extractor'ıdır; başka yerlerde `&*ctx.db()?`'dir. Hepsi `async`'tir ve
+[`Result`](../basics/responses#hatalar-degerdir) döndürür; bu yüzden onları `.await?` ile
+çağırırsın.
 
-Aşağıdaki örnekler bu modeli kullanır:
+Aşağıdaki örnekler şu modeli kullanır:
 
 ```rust
 use rustali::{orm::chrono::{DateTime, Utc}, prelude::*};
@@ -35,8 +36,8 @@ pub struct Todo {
 Todo::find(&db, id) -> Result<Option<Todo>>
 ```
 
-Primary key'e göre bir row getir. O anahtara sahip hiçbir row olmadığında `None` döndürür
-— bir hata değil; bu yüzden bir eksikliğin ne anlama geldiğine sen karar verirsin:
+Primary key'e göre bir row getirir. O anahtara sahip bir row yoksa hata değil, `None` döndürür;
+yani kaydın bulunmamasının ne anlama geldiğine sen karar verirsin:
 
 ```rust
 match Todo::find(&db, 1).await? {
@@ -51,8 +52,9 @@ match Todo::find(&db, 1).await? {
 Todo::find_or_404(&db, id) -> Result<Todo>
 ```
 
-`find` gibi, ama bir eksiklik `None` yerine `Err(Error::NotFound)`'dur. Bir handler'da `?` bunu
-doğrudan bir 404 response'una çevirir — ki bu, bir "bu kaydı göster" route'u için tam istediğin şey:
+`find` gibidir, ama kayıt bulunamadığında `None` yerine `Err(Error::NotFound)` döner. Bir handler'da
+`?`, bunu doğrudan bir 404 response'una çevirir — "bu kaydı göster" türünde bir route için tam da
+istediğin davranış:
 
 ```rust
 #[get("/{id}")]
@@ -67,8 +69,8 @@ async fn show(db: Db, Path(id): Path<i64>) -> Result<Json<Todo>> {
 Todo::all(&db) -> Result<Vec<Todo>>
 ```
 
-Primary key'e göre sıralı her row. Küçük tablolar için iyi; büyüyebilen herhangi bir şey
-için, tüm tabloyu belleğe yüklemek yerine [`query`](#query) ile filtrele ya da sayfala.
+Primary key'e göre sıralı tüm row'lar. Küçük tablolar için uygundur; büyüme ihtimali olan her şeyde
+ise tüm tabloyu belleğe yüklemek yerine [`query`](#query) ile filtrele ya da sayfalara böl.
 
 ```rust
 let todos = Todo::all(&db).await?;
@@ -81,7 +83,7 @@ println!("{} todos", todos.len());
 Todo::count(&db) -> Result<u64>
 ```
 
-Tablodaki row sayısı, veritabanı tarafından sayılır — hiçbir row yüklemez.
+Tablodaki row sayısı; sayımı veritabanı yapar, hiçbir row belleğe yüklenmez.
 
 ```rust
 if Todo::count(&db).await? == 0 {
@@ -95,9 +97,9 @@ if Todo::count(&db).await? == 0 {
 Todo::query() -> Query<Todo>
 ```
 
-Filtreleme, sıralama, limit ya da pagination'a ihtiyacın olduğunda — "id'ye göre" ya da "tümü"nün
-ötesindeki her şey — tipli bir [query builder'ı](queries) başlat. Senkrondur (query'yi kurar);
-onu çalıştıran terminal metot `async` olandır:
+Filtreleme, sıralama, limit ya da pagination gerektiğinde — kısacası "id'ye göre" ya da "tümü"nün
+ötesindeki her durumda — tipli bir [query builder'ı](queries) başlatır. Bu metot senkrondur
+(yalnızca query'yi kurar); query'yi asıl çalıştıran, `async` olan terminal metottur:
 
 ```rust
 let open = Todo::query()
@@ -118,9 +120,9 @@ Tam builder için [Query'ler & Pagination](queries)'a bak.
 todo.insert(&db) -> Result<Todo>
 ```
 
-Değeri yeni bir row olarak ekle ve **saklanan** row'u döndür. Döndürülen değerin gerçek
-üretilen anahtarı ve zaman damgaları doldurulmuştur; bu yüzden geçirdiğin değeri değil, `insert`'in
-geri verdiğini kullan:
+Değeri yeni bir row olarak ekler ve **saklanan** row'u döndürür. Dönen değerde gerçek üretilen
+anahtar ve zaman damgaları doldurulmuş olur; bu yüzden gönderdiğin değeri değil, `insert`'in geri
+verdiği değeri kullan:
 
 ```rust
 let todo = Todo {
@@ -133,9 +135,9 @@ let todo = Todo {
 let todo = todo.insert(&db).await?;     // todo.id ve zaman damgaları artık gerçek
 ```
 
-Otomatik artan bir anahtar ve `created_at` / `updated_at` alanları senin için yönetilir
-([Entity'ler → Zaman damgaları](entities#zaman-damgaları)'na bak); yukarıdaki yer tutucu
-değerlerinin önemsiz olmasının nedeni budur.
+Otomatik artan anahtar ile `created_at` / `updated_at` alanları senin yerine yönetilir ([Entity'ler →
+Zaman damgaları](entities#zaman-damgaları)'na bak); yukarıdaki yer tutucu değerlerin önemsiz
+olmasının nedeni de budur.
 
 ## Modelleri güncellemek
 
@@ -145,8 +147,8 @@ değerlerinin önemsiz olmasının nedeni budur.
 todo.update(&db) -> Result<Todo>
 ```
 
-Değerin her column'ını row'una geri yaz (primary key'e göre eşleştirilir) ve saklanan row'u
-döndür. `updated_at` otomatik olarak yenilenir. Olağan şekil yükle, alanları değiştir, kaydet'tir:
+Değerin tüm column'larını ilgili row'a geri yazar (eşleştirme primary key'e göre yapılır) ve saklanan
+row'u döndürür. `updated_at` otomatik tazelenir. Olağan akış şudur: yükle, alanları değiştir, kaydet:
 
 ```rust
 let mut todo = Todo::find_or_404(&db, id).await?;
@@ -154,9 +156,9 @@ todo.done = true;
 let todo = todo.update(&db).await?;     // updated_at artırıldı
 ```
 
-`update`, yalnızca değiştirdiklerini değil, **tüm** column'ları yazar — bu bir tam row
-güncellemesidir; bu yüzden kaydettiğin değer tam, güncel bir row olmalıdır (önce yüklediysen,
-öyledir).
+`update`, yalnızca değiştirdiğin alanları değil **tüm** column'ları yazar — yani bu, satırın tamamını
+güncelleyen bir işlemdir. Bu yüzden kaydettiğin değer eksiksiz ve güncel bir row olmalıdır (önce
+yüklediysen zaten öyledir).
 
 ## Modelleri silmek
 
@@ -166,33 +168,33 @@ güncellemesidir; bu yüzden kaydettiğin değer tam, güncel bir row olmalıdı
 todo.delete(&db) -> Result<()>
 ```
 
-Row'u sil (primary key'e göre eşleştirilir). Artık hiçbir şeye atıfta bulunmadığından değeri
-tüketir:
+Row'u siler (eşleştirme primary key'e göre yapılır). Silinen row artık bir şeye karşılık gelmediği
+için metot değeri tüketir:
 
 ```rust
 let todo = Todo::find_or_404(&db, id).await?;
 todo.delete(&db).await?;
 ```
 
-Önce yüklemeden silmek için, bir silmeyi [query builder'ı](queries) aracılığıyla çalıştır ya da
-SeaORM'e in — buradaki `delete`, "row zaten bende" yoludur.
+Row'u önce yüklemeden silmek istiyorsan, silmeyi [query builder'ı](queries) üzerinden çalıştır ya da
+SeaORM'e in — buradaki `delete`, "row zaten elimde" durumunun yoludur.
 
 ## Relation'lar
 
-İlişkili row'lar, kendi üretilen metotlarıyla yüklenir — `todo.comments(&db)` ve istekli (eager)
-`Todo::with_comments(todos, &db)` — bildirdiğin her relation için bir tane. Bunlar
-[Relation'lar](relations/) altında tam olarak ele alınmıştır.
+İlişkili row'lar, kendileri için üretilen metotlarla yüklenir — `todo.comments(&db)` ve istekli
+(eager) biçimi `Todo::with_comments(todos, &db)` — bildirdiğin her relation için birer tane. Bunlar
+[Relation'lar](relations/) bölümünde ayrıntılı olarak ele alınır.
 
 ## Tipli column handle'ları
 
-Metotların yanı sıra, derive column başına bir sabit üretir — `Todo::ID`, `Todo::TITLE`,
-`Todo::DONE`, … — query'lerde kullanmak için (`Todo::DONE.eq(false)`). Bir query'nin bir column'a bir
-dize yerine denetlenmiş bir adla atıfta bulunma yolu bunlardır.
+Metotların yanı sıra derive, query'lerde kullanman için her column'a bir sabit üretir — `Todo::ID`,
+`Todo::TITLE`, `Todo::DONE`, … (`Todo::DONE.eq(false)` gibi). Bir query'de bir column'a metin yerine
+tip denetiminden geçmiş bir adla başvurmanın yolu bunlardır.
 [Query'ler](queries#bir-query-olusturmak)'e bak.
 
 ## SeaORM'e inmek
 
-Bu metotlar gündelik durumları kapsar. Kapsamadıkları her şey için — toplu güncellemeler,
+Bu metotlar gündelik durumları karşılar. Karşılamadıkları her şey için — toplu güncellemeler,
 upsert'ler, özel join'ler — [`Query::into_select()`](queries#seaorm-e-kacmak) sana ham SeaORM
-`Select`'ini verir ve `rustali::orm::sea_orm` tüm SeaORM API'sini yeniden dışa aktarır.
-Öğrenilecek ikinci bir query dili yoktur.
+`Select`'ini verir; ayrıca `rustali::orm::sea_orm`, SeaORM API'sinin tamamını yeniden dışa aktarır.
+Öğrenmen gereken ikinci bir query dili yoktur.

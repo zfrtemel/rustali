@@ -1,18 +1,18 @@
 # Kimlik Doğrulama
 
-Kimlik doğrulama kullanıma hazır gelir: argon2id parola özetleme, uyguladığın bir kullanıcı
-sözleşmesi ve isteğe bağlanmış bir guard zinciri (SSR için çerez session'ları, API'ler için bearer
-JWT); böylece `Auth<User>` sorunsuz çalışır.
+Kimlik doğrulama kutudan çıktığı gibi hazırdır: argon2id ile parola özetleme, senin uyguladığın bir
+kullanıcı sözleşmesi ve request'e bağlanan bir guard zinciri (SSR için çerez session'ları, API'ler
+için bearer JWT). Böylece `Auth<User>` hiç uğraşmadan çalışır.
 
 ## Parçalar
 
-1. **`Authenticatable`** — kullanıcı tipin onu uygular.
-2. **`UserStore`** — kullanıcıları yüklemek için onu uygularsın.
+1. **`Authenticatable`** — kullanıcı tipin bunu uygular.
+2. **`UserStore`** — kullanıcıları yüklemek için bunu sen uygularsın.
 3. **`AuthProvider`** — depoyu ve guard zincirini kaydeder.
 
 ## 1. Kullanıcın
 
-Herhangi bir tip bir kullanıcı olabilir; genellikle bir `#[derive(Entity)]` modelidir.
+Herhangi bir tip kullanıcı olabilir; çoğunlukla bir `#[derive(Entity)]` modelidir.
 `Authenticatable`'ı uygula:
 
 ```rust
@@ -37,13 +37,13 @@ impl Authenticatable for User {
 }
 ```
 
-`auth_id`, session'larda ve token'larda saklanan tanımlayıcıdır; `password_hash`, saklanan argon2 PHC
-dizesidir; `roles`, yerleşik `role:<name>` yeteneğini besler ([Yetkilendirme](authorization)).
+`auth_id`, session'larda ve token'larda saklanan tanımlayıcıdır; `password_hash`, kayıtlı argon2 PHC
+dizesidir; `roles` ise yerleşik `role:<name>` yeteneğini besler ([Yetkilendirme](authorization)).
 
 ## 2. Kullanıcı deposu
 
-Kullanıcıları yüklemek için `UserStore`'u uygula — id'ye göre (bir session'ı/token'ı geri yüklemek
-için) ve giriş alanına göre (kimlik bilgilerini kontrol etmek için):
+Kullanıcıları yüklemek için `UserStore`'u uygula — hem id'ye göre (bir session'ı veya token'ı geri
+yüklemek için) hem de giriş alanına göre (kimlik bilgilerini doğrulamak için):
 
 ```rust
 pub struct Users;
@@ -68,7 +68,7 @@ impl UserStore for Users {
 
 ## 3. Bağla
 
-Auth'un session'lara ihtiyacı var; bu yüzden `SessionProvider`'ı ve session katmanlarını da ekle:
+Auth, session'lara ihtiyaç duyar; bu yüzden `SessionProvider`'ı ve session katmanlarını da ekle:
 
 ```rust
 App::builder()
@@ -81,34 +81,34 @@ App::builder()
     .await
 ```
 
-Varsayılan olarak guard zinciri `[Session, Bearer]`'dir — session çerezi ya da bir
-`Authorization: Bearer <jwt>` bir kullanıcıya çözülürse bir request kimliği doğrulanmış olur. Guard'lar
-sırayla denenir ve çözülen ilki kazanır; böylece tek bir uygulama hem bir SSR sitesini (çerezler)
-hem de bir API'yi (token'lar) aynı handler'lardan sunar. Zinciri
-`AuthProvider::new(Users).guards([Guard::Session])` ile değiştir — örneğin, yalnızca çerezli bir
-uygulama ya da session guard'ını bırakan yalnızca API'li bir servis. `Bearer` guard'ı `jwt`
-özelliğine ihtiyaç duyar (varsayılan olarak açık).
+Guard zinciri varsayılan olarak `[Session, Bearer]`'dir — session çerezi ya da bir
+`Authorization: Bearer <jwt>` başlığı bir kullanıcıya çözülürse request kimliği doğrulanmış sayılır.
+Guard'lar sırayla denenir ve ilk çözülen kazanır; böylece tek bir uygulama hem bir SSR sitesini
+(çerezler) hem de bir API'yi (token'lar) aynı handler'lar üzerinden sunabilir. Zinciri
+`AuthProvider::new(Users).guards([Guard::Session])` ile değiştir — örneğin yalnızca çerez kullanan bir
+uygulama ya da session guard'ını büsbütün çıkaran, yalnızca API sunan bir servis için. `Bearer`
+guard'ı `jwt` özelliğine ihtiyaç duyar (varsayılan olarak açık).
 
 ## Parolalar
 
-Kayıtta özetle, asla düz metin saklama:
+Parolayı kayıt sırasında özetle, hiçbir zaman düz metin saklama:
 
 ```rust
 let hash = password::hash(&input.password)?;        // argon2id PHC dizesi
 let user = User::new(&name, &email, hash).insert(&db).await?;
 ```
 
-`password::hash`, bir argon2id **PHC dizesi** üretir — algoritmayı, parametreleri ve parola başına
-rastgele bir tuzu gömer; böylece yalnızca o tek `password_hash` kolonunu saklarsın ve ayrı bir tuza
-ihtiyacın olmaz. Doğrulama sabit zamanlıdır ve senin için `Login::attempt` (aşağıda) içinde ya da
-`password::verify(plain, &hash)?` ile elle gerçekleşir. İkisi de `Result` döndürür: hatalı biçimli
-bir saklanan özet sessiz bir `false` değil, bir hatadır; böylece bozulma, herkesi sessizce
-kilitlemek yerine su yüzüne çıkar.
+`password::hash`, bir argon2id **PHC dizesi** üretir — algoritmayı, parametreleri ve her parola için
+rastgele bir tuzu kendi içine gömer; böylece yalnızca o tek `password_hash` kolonunu saklaman yeterli
+olur, ayrı bir tuz tutman gerekmez. Doğrulama sabit zamanlıdır; ya `Login::attempt` (aşağıda) senin
+yerine yapar ya da `password::verify(plain, &hash)?` ile elle yaparsın. İkisi de `Result` döndürür:
+bozuk biçimli bir özet sessizce `false` dönmez, hata fırlatır; böylece bir bozulma herkesi sessizce
+kilitlemek yerine açığa çıkar.
 
 ## Kayıt olma ve giriş yapma
 
-`Login<User>` extractor'ı session girişini gerçekleştirir (fiksasyonu önlemek için session id'sini
-döndürür):
+`Login<User>` extractor'ı session'a girişi halleder (session fixation saldırısını önlemek için
+session id'sini yeniler):
 
 ```rust
 #[post("/register")]
@@ -140,16 +140,16 @@ async fn logout(login: Login<User>) -> Result<Redirect> {
 }
 ```
 
-`Login` metotları: `attempt(user, password)` → `bool`, `login(user)` (parola kontrolü yok),
+`Login` metotları: `attempt(user, password)` → `bool`, `login(user)` (parola doğrulaması yapmaz),
 `logout()`.
 
 ## Mevcut kullanıcıyı okumak
 
 | Extractor | Davranış |
 |---|---|
-| `Auth<User>` | Kullanıcı ya da yoksa `401` (API) / işlenmiş hata (SSR). |
-| `OptionalAuth<User>` | `Option<User>`; asla başarısız olmaz. |
-| `Guest<User>` | Biri giriş yapmış *ise* `403` ile reddeder (örn. giriş sayfası). |
+| `Auth<User>` | Kullanıcıyı verir; yoksa `401` (API) / işlenmiş hata sayfası (SSR). |
+| `OptionalAuth<User>` | `Option<User>`; hiçbir zaman başarısız olmaz. |
+| `Guest<User>` | Biri giriş yapmış *ise* `403` ile reddeder (örneğin giriş sayfası için). |
 
 ```rust
 #[get("/dashboard")]
@@ -165,8 +165,8 @@ async fn home(auth: OptionalAuth<User>) -> Redirect {
 
 ## API token'ları (JWT)
 
-API istemcileri için, `Bearer` guard'ı `app.key` ile imzalanmış bir HS256 JWT'yi doğrular. Kimlik
-bilgilerini kontrol ettikten sonra bir tane ver ve onu döndür:
+API istemcileri için `Bearer` guard'ı, `app.key` ile imzalanmış bir HS256 JWT'yi doğrular. Kimlik
+bilgilerini doğruladıktan sonra bir token ver ve onu döndür:
 
 ```rust
 use rustali::auth_kit::jwt;
@@ -174,9 +174,9 @@ use rustali::auth_kit::jwt;
 let token = jwt::issue(&ctx, &user.auth_id(), 3600)?;   // 1 saat geçerli
 ```
 
-İstemciler ardından `Authorization: Bearer <token>` gönderir; `Auth<User>`, onu tam olarak bir
-session gibi depo aracılığıyla çözer. `app.key` en az 16 karakter olmalıdır
+İstemciler bundan sonra `Authorization: Bearer <token>` gönderir; `Auth<User>` bu token'ı, aynen bir
+session gibi, depo üzerinden çözer. `app.key` en az 16 karakter olmalıdır
 ([Yapılandırma](../getting-started/configuration)'ya bak).
 
-> Tüm akış — kayıt, giriş, çıkış, korunan bir sayfa ve yanlış-parola yolu — `auth-app` örneğinde
-> uçtan uca denenir.
+> Akışın tamamı — kayıt, giriş, çıkış, korunan bir sayfa ve yanlış parola durumu — `auth-app`
+> örneğinde uçtan uca test edilir.

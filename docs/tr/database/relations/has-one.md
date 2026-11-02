@@ -1,12 +1,12 @@
 # has_one
 
-Sahip olan taraftan bir **bire-bir** relation: bu row'un başka bir tabloda tam olarak bir ilişkili
-row'u vardır ve o diğer tablo yabancı anahtarı tutar. Bir yazarın bir profili vardır; bir
-kullanıcının bir ayar kümesi vardır.
+Sahip olan taraftan tanımlanan bir **bire-bir** relation: bu row'un başka bir tabloda tam olarak bir
+ilişkili row'u vardır ve yabancı anahtarı o diğer tablo tutar. Bir yazarın bir profili olur; bir
+kullanıcının bir ayar kümesi olur.
 
-`has_one`, [`has_many`](has-many)'nin tek-row ikizidir: aynı sahip olan taraf, aynı yabancı-anahtar
-yerleşimi, ama ilişkili tablonun en fazla bir eşleşen row'u vardır; bu yüzden bir `Vec` yerine bir
-`Option` elde edersin.
+`has_one`, [`has_many`](has-many)'nin tek-row'luk ikizidir: sahip olan taraf aynı, yabancı anahtarın
+yerleşimi aynı; tek fark, ilişkili tabloda en fazla bir eşleşen row bulunmasıdır. Bu yüzden bir `Vec`
+yerine bir `Option` elde edersin.
 
 ## Bildirmek
 
@@ -29,8 +29,8 @@ pub struct Profile {
 }
 ```
 
-Attribute, `Author`'a (sahibe) gelir. `to = author_id`, **hedef** tablodaki yabancı-anahtar
-column'unu (`profiles.author_id`) adlandırır.
+Attribute, sahip olan tarafa, yani `Author`'a yazılır. `to = author_id`, **hedef** tablodaki
+yabancı-anahtar column'unu (`profiles.author_id`) belirtir.
 
 ### Argümanlar
 
@@ -38,10 +38,10 @@ column'unu (`profiles.author_id`) adlandırır.
 |---|---|---|
 | *(ilk, konumsal)* | Hedef entity tipi (`Profile`). | — (zorunlu) |
 | `to = column` | **Hedef** tablodaki yabancı-anahtar column'u. | — (zorunlu) |
-| `from = column` | Geri işaret ettiği yerel column. | bu tablonun primary key'i (`id`) |
-| `as = name` | Üretilen metot adını geçersiz kıl. | hedefin snake-case'i (`profile`) |
+| `from = column` | Bunun geri işaret ettiği yerel column. | bu tablonun primary key'i (`id`) |
+| `as = name` | Üretilen metot adını değiştirir. | hedefin snake-case'i (`profile`) |
 
-`has_many` ile aynı argümanlar — yalnızca kardinalite farklı.
+Argümanlar `has_many` ile birebir aynıdır — tek fark kardinalitedir.
 
 ## Üretilen metotlar
 
@@ -71,12 +71,13 @@ for (author, profile) in &paired {
 
 ## has_one ile belongs_to karşılaştırması
 
-İkisi de `Option<T>` döndürür; peki hangisini kullanırsın? Bu, **hangi tablonun yabancı anahtarı
-tuttuğuna** iner:
+İkisi de `Option<T>` döndürür; peki hangisini kullanmalı? Bu, tamamen **yabancı anahtarı hangi
+tablonun tuttuğuna** bağlıdır:
 
-- Anahtarı *olmayan* tablo `has_one` kullanır (burada `Author`).
-- Anahtarı *olan* tablo [`belongs_to`](belongs-to) kullanır (burada, `author_id`'si olan `Profile`).
+- Anahtarı *tutmayan* tablo `has_one` kullanır (burada `Author`).
+- Anahtarı *tutan* tablo [`belongs_to`](belongs-to) kullanır (burada, `author_id`'yi taşıyan `Profile`).
 
-Tam olarak `has_many` / `belongs_to`'daki gibi, her iki yönde de gezinmek için ikisini de bildir.
+Tıpkı `has_many` / `belongs_to`'da olduğu gibi, her iki yöne de gidebilmek için ikisini birden
+bildir.
 
 Sıradaki: [many_to_many](many-to-many).

@@ -19,7 +19,7 @@ features:
   - title: Düz struct entity'ler
     details: #[derive(Entity)] ile tek bir düz struct. SeaORM boilerplate'i üretilir ve gizlenir.
   - title: Code-first migration
-    details: Struct'ı değiştir, migrate:diff çalıştır, üretilen migration'ı gözden geçir.
+    details: Struct'ı değiştir, migrate:diff çalıştır, üretilen migration'ı gözden geçir. Kontrol hep sende.
   - title: Katmanlı filter pipeline
     details: Global → controller → action middleware, #[authorize], exception filter'ları — hepsi tower layer'ı.
   - title: Tip güvenli view'lar

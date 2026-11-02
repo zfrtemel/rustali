@@ -1,11 +1,11 @@
 # Servis Konteyneri & Provider'lar
 
-Rustali'nin açık, tip-indeksli bir servis konteyneri vardır. Servisler başlangıçta **tipe** göre
-kaydedilir ve request anında tipe göre aranır. Dize bağlama ve otomatik-bağlama sihri yoktur.
+Rustali'nin açık, tiple indekslenen bir servis konteyneri var. Servisleri başlangıçta **tipe** göre
+kaydeder, request anında yine tipe göre bulursun. Dizeyle bağlama ya da otomatik bağlama sihri yok.
 
 ## Bir servis kaydetmek
 
-En basit yol `provide`'dır — builder'a hazır bir değer ver:
+En basit yol `provide`: builder'a hazır bir değer verirsin.
 
 ```rust
 #[derive(Clone)]
@@ -18,7 +18,7 @@ App::builder()
 
 ## Bir servis enjekte etmek
 
-Onu bir handler'da `Inject<T>` ile iste; o da `T`'ye deref olur:
+Bir handler içinde `Inject<T>` ile iste; `Inject<T>` de `T`'ye deref olur:
 
 ```rust
 #[get("/now")]
@@ -27,35 +27,35 @@ async fn now(clock: Inject<Clock>) -> String {
 }
 ```
 
-Ya da bir tanesine sahip olduğun her yerde bağlam aracılığıyla ona eriş:
+Ya da elinde bir bağlam olan her yerde servise bağlam üzerinden eriş:
 
 ```rust
 let clock = ctx.service::<Clock>()?;     // Arc<Clock> ya da kayıtlı değilse Err
 ```
 
-Kimsenin kaydetmediği bir servis, tipi adlandıran net bir hata verir; böylece unutulmuş bir
-provider sessizce değil, yüksek sesle başarısız olur.
+Kimsenin kaydetmediği bir servisi istersen, tipin adını veren net bir hata alırsın; böylece
+unutulmuş bir provider sessizce değil, açıkça patlar.
 
 ### Servisler paylaşılır
 
-Kaydedilen her değer bir `Arc`'a sarılır ve paylaşılan referansla verilir: `Inject<T>` bir
-`Arc<T>` tutar ve `T`'ye deref olur; `ctx.service::<T>()`, `Arc<T>`'yi doğrudan döndürür. Yani bir
-servis **bir kez kaydedilir ve** her request tarafından **paylaşılır** — request başına bir kopya değil,
-bir `Clock`, bir veritabanı havuzu, bir HTTP istemcisi vardır. İki sonuç:
+Kaydettiğin her değer bir `Arc`'a sarılır ve paylaşılan referans olarak verilir: `Inject<T>`
+bir `Arc<T>` tutar ve `T`'ye deref olur; `ctx.service::<T>()` ise doğrudan `Arc<T>` döndürür. Yani bir
+servis **bir kez kaydedilir ve** tüm request'ler arasında **paylaşılır** — request başına ayrı bir kopya
+değil, tek bir `Clock`, tek bir veritabanı havuzu, tek bir HTTP istemcisi olur. Bunun iki sonucu var:
 
-- Bir servis `Send + Sync + 'static` olmalıdır (aynı anda birçok task'tan dokunulur).
-- Paylaşması ucuz olmalı, yerinde değiştirilmemeli. İç değişebilirlik için olağan araçları kullan
-  (`Mutex`, `RwLock`, atomik'ler ya da kendi kilitlemesini yöneten bir bağlantı havuzu).
+- Bir servis `Send + Sync + 'static` olmalı (aynı anda birçok task ona dokunur).
+- Paylaşımı ucuz olmalı ve yerinde değiştirilmemeli. İç değişebilirlik için olağan araçları kullan
+  (`Mutex`, `RwLock`, atomikler ya da kendi kilitlemesini yöneten bir bağlantı havuzu).
 
-Kayıt **tipe göredir**: tip başına bir değer. Aynı tipin ikinci bir değerini kaydetmek ilkinin
-yerine geçer. Aynı altta yatan tipin ikisine ihtiyacın varsa, her birini ayrı bir newtype'a sar.
+Kayıt **tipe göre** yapılır: tip başına tek bir değer. Aynı tipten ikinci bir değer kaydedersen
+ilkinin yerini alır. Aynı temel tipten iki ayrı değere ihtiyacın varsa, her birini ayrı bir newtype'a sar.
 
 ## Provider'lar
 
-Bir **provider**, bir paketin başlangıç kancasıdır. Kendi yapılandırma bölümünü okur ve sahip
-olduğu şeyi kaydeder. Framework'ün kendi alt sistemleri provider'dır (`DatabaseProvider`,
-`SessionProvider`, `CacheProvider`, `MailProvider`, `AuthProvider`, `QueueProvider`) ve kendi
-provider'ını yazabilirsin.
+Bir **provider**, bir paketin başlangıç kancasıdır. Kendi yapılandırma bölümünü okur ve sağladığı
+şeyi kaydeder. Framework'ün kendi alt sistemleri de birer provider'dır (`DatabaseProvider`,
+`SessionProvider`, `CacheProvider`, `MailProvider`, `AuthProvider`, `QueueProvider`); kendi
+provider'ını da yazabilirsin.
 
 ```rust
 use rustali::prelude::*;
@@ -80,9 +80,9 @@ App::builder().provider(PaymentsProvider).controllers().run().await
 
 ### Yaşam döngüsü ve sıralama
 
-Provider'lar, yapılandırma yüklendikten sonra ve route'lar kurulmadan önce, **eklendikleri sırayla**
-çalışır. Bu sıralama, güvenebileceğin bir sözleşmedir: sonraki bir provider, erken bir provider'ın
-servislerine `registry.require::<T>()` ile kayıt defterinden çekerek bağımlı olabilir:
+Provider'lar, yapılandırma yüklendikten sonra ama route'lar kurulmadan önce, **eklendikleri sırayla**
+çalışır. Bu sıra, güvenebileceğin bir sözleşmedir: sonraki bir provider, daha önce çalışan bir
+provider'ın servislerine `registry.require::<T>()` ile kayıt defterinden çekerek bağımlı olabilir:
 
 ```rust
 fn register<'a>(&'a self, registry: &'a mut Registry<'_>) -> RegisterFuture<'a> {
@@ -94,37 +94,37 @@ fn register<'a>(&'a self, registry: &'a mut Registry<'_>) -> RegisterFuture<'a> 
 }
 ```
 
-`require`, bağımlılık eksikse hata verir; böylece sırasız bir kayıt, daha sonra kafa karıştırıcı
-bir `None` değil, net bir başlangıç başarısızlığıdır. `register` async'tir çünkü kurulum genellikle
-bağlanmak anlamına gelir — bir veritabanı havuzu, bir cache, bir e-posta taşıyıcısı.
+Bağımlılık yoksa `require` hata verir; böylece sırası yanlış bir kayıt, ileride kafa karıştıran
+bir `None` olarak değil, net bir başlangıç hatası olarak ortaya çıkar. `register` async'tir, çünkü
+kurulum çoğu zaman bir yere bağlanmak demektir — bir veritabanı havuzu, bir cache, bir e-posta taşıyıcısı.
 
 ### Yapılandırma bölümü
 
-Konvansiyon, provider başına bir yapılandırma bölümüdür, `section_or_default` ile okunur:
+Alışılmış yaklaşım, provider başına bir yapılandırma bölümüdür ve bu `section_or_default` ile okunur:
 
 ```rust
 let config: PaymentsConfig = registry.config().section_or_default("payments")?;
 ```
 
-`section_or_default`, `payments` bölümü yoksa `PaymentsConfig::default()`'a fallback yapar; böylece bir
-provider kutudan çıktığı gibi çalışır ve yalnızca gerektiğinde yapılandırılır. Yapılandırma tipi
-sıradan bir `#[derive(Deserialize, Default)]` struct'tır. Bunun gibi özel bir bölüm, `.env`'den
-`APP__PAYMENTS__*` anahtarlarıyla doldurulur
+`payments` bölümü yoksa `section_or_default`, `PaymentsConfig::default()`'a düşer; böylece bir
+provider hiç ayar yapmadan çalışır ve yalnızca gerektiğinde yapılandırılır. Yapılandırma tipi
+sıradan bir `#[derive(Deserialize, Default)]` struct'tır. Böyle özel bir bölümü, `.env`'deki
+`APP__PAYMENTS__*` anahtarlarıyla doldurursun
 ([Yapılandırma](../getting-started/configuration#ozel-ayarlar)'ya bak).
 
 ### Komut kaydetmek
 
-Bir provider ayrıca `registry.command(...)` ile konsol komutları da kaydedebilir — `migrate` ve
-`queue:work`'ün provider'ları tarafından eklenme şekli budur. [Konsol Komutları](console)'na bak.
+Bir provider, `registry.command(...)` ile konsol komutları da kaydedebilir — `migrate` ve
+`queue:work` komutları da provider'ları tarafından tam olarak böyle eklenir. [Konsol Komutları](console)'na bak.
 
 ## Request kapsamlı veri
 
-Konteyner, paylaşılan, uzun ömürlü servisleri tutar. Request başına değerler için, middleware
-aracılığıyla request uzantılarını kullan ya da veriyi handler'dan aşağıya geçir — konteyner, request
-başına durum için değil, havuzlar ve istemciler gibi şeyler içindir.
+Konteyner, paylaşılan ve uzun ömürlü servisleri tutar. Request başına değerler için ya middleware
+üzerinden request uzantılarını kullan ya da veriyi handler'dan aşağıya doğru geçir — konteyner,
+request başına durum için değil, havuzlar ve istemciler gibi şeyler içindir.
 
 ## Neden açık
 
-Takas bilinçlidir: kaydetmek için bir satır ve enjekte etmek için bir tip yazarsın ve karşılığında
-çalışma zamanı yansıması, sihirli çözüm sırası olmaz ve derleyici her servis tipini denetler. Eksik
-bir bağımlılık, çalışma zamanında bir gizem değil, adı olan bir hatadır.
+Bu tercih bilinçli: kaydetmek için bir satır, enjekte etmek için bir tip yazarsın; karşılığında
+çalışma zamanı yansıması ve sihirli çözümleme sırası olmaz, derleyici de her servis tipini denetler.
+Eksik bir bağımlılık, çalışma zamanında çıkan bir muamma değil, adı belli olan bir hatadır.

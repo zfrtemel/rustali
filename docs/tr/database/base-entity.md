@@ -1,14 +1,14 @@
 # Temel Entity & Soft Delete
 
-Çoğu tablo aynı birkaç column'ı paylaşır: bir primary key, oluşturma ve güncelleme zaman
-damgaları ve — silinen row'ları etrafta tutuyorsan — bir `deleted_at` işareti. Rustali bunlara
-iki trait aracılığıyla paylaşılan bir şekil verir, `BaseEntity` ve `SoftDelete`, ve `make:model`
-iskeleti bunları senin için yazar; böylece her model aynı temelden başlar — diğer dillerde bir
-temel sınıfa başvuracağın fikir, Rust'ın kalıtımı olmadığı için trait olarak ifade edilir.
+Çoğu tablo aynı birkaç column'ı paylaşır: bir primary key, oluşturma ve güncelleme zaman damgaları
+ve — silinen row'ları saklıyorsan — bir `deleted_at` işareti. Rustali bu column'lara `BaseEntity` ve
+`SoftDelete` adlı iki trait ile ortak bir biçim kazandırır; `make:model` iskeleti de bunları senin
+yerine yazar. Böylece her model aynı temelden başlar — başka dillerde bir temel sınıftan
+türeteceğin bu yapı, Rust'ta kalıtım olmadığı için trait olarak ifade edilir.
 
 ## İskeletlenmiş model
 
-`rustali make:model Post`, zaten ortak alanları taşıyan ve her iki trait'i de uygulayan bir model
+`rustali make:model Post`, ortak alanları hazır taşıyan ve her iki trait'i de uygulayan bir model
 üretir:
 
 ```rust
@@ -37,41 +37,42 @@ impl SoftDelete for Post {
 }
 ```
 
-Kendi column'larını anahtar ile zaman damgaları arasına eklersin. Zaman damgaları
+Kendi column'larını anahtarla zaman damgalarının arasına eklersin. Zaman damgaları
 `#[derive(Entity)]`'nin konvansiyonlarıyla yönetilir (`created_at` eklemede, `updated_at` her
-kaydetmede — [Entity'ler → Zaman damgaları](entities#zaman-damgaları)'na bak); bu yüzden onları
-asla elle ayarlamazsın.
+kaydetmede — [Entity'ler → Zaman damgaları](entities#zaman-damgaları)'na bak); bu yüzden onları hiç
+elle ayarlamazsın.
 
 ## `BaseEntity`
 
-`BaseEntity`, o alanlara sahip her model tarafından paylaşılan küçük bir erişimci trait'idir —
-`id()`, `created_at()`, `updated_at()`. Rust'ın temel sınıfı yoktur; bu yüzden "bir temel model",
-bir struct'ın genişlettiği bir ebeveyn değil, uyguladığı bir trait'tir; alanlar struct'ta kalır,
-trait onlara paylaşılan, tip denetimli erişim verir.
+`BaseEntity`, bu alanlara sahip tüm modellerin paylaştığı küçük bir erişimci trait'idir —
+`id()`, `created_at()`, `updated_at()`. Rust'ta temel sınıf kavramı yoktur; bu yüzden burada "temel
+model", bir struct'ın türediği bir ebeveyn değil, uyguladığı bir trait'tir. Alanlar struct'ta kalır,
+trait ise onlara paylaşılan ve tip denetimli bir erişim sağlar.
 
-Değeri **genel koddur**: bir fonksiyon, somut tipi adlandırmadan "herhangi bir temel modeli"
-alabilir.
+Asıl değeri **jenerik kodda** ortaya çıkar: bir fonksiyon, somut tipi adıyla belirtmeden "herhangi
+bir temel model" alabilir.
 
 ```rust
 fn audit_line<T: BaseEntity<Id = i64>>(row: &T) -> String {
     format!("#{} created {}", row.id(), row.created_at())
 }
 
-audit_line(&post);     // BaseEntity uygulayan her model için çalışır
+audit_line(&post);     // BaseEntity uygulayan tüm modeller için çalışır
 ```
 
-Onu elle uygula (yukarıdaki gibi) ya da iskeletin yazmasına izin ver. Ona yalnızca paylaşılan
-işlemenin işe yaradığı modellerde ihtiyacın var — bir entity'nin çalışması için gerekli değildir.
+Trait'i (yukarıdaki gibi) elle uygulayabilir ya da iskeletin senin yerine yazmasına bırakabilirsin.
+Ona yalnızca paylaşılan işlemelerden fayda sağlayan modellerde ihtiyaç duyarsın — bir entity'nin
+çalışması için şart değildir.
 
 ## `SoftDelete`
 
-`SoftDelete`, null olabilen bir `deleted_at` taşıyan modeller için `BaseEntity`'yi genişletir. Bir
-erişimci ve bir kolaylık metodu ekler:
+`SoftDelete`, null olabilen bir `deleted_at` alanı taşıyan modeller için `BaseEntity`'yi genişletir.
+Bir erişimci ile bir kolaylık metodu ekler:
 
 | Metot | Döndürdüğü |
 |---|---|
-| `deleted_at()` | `Option<DateTime<Utc>>` — row'un ne zaman çöpe atıldığı ya da canlıyken `None` |
-| `is_trashed()` | `deleted_at` ayarlandığında `true` |
+| `deleted_at()` | `Option<DateTime<Utc>>` — row'un ne zaman çöpe atıldığı, canlıysa `None` |
+| `is_trashed()` | `deleted_at` ayarlıysa `true` |
 
 ```rust
 if post.is_trashed() {
@@ -79,25 +80,26 @@ if post.is_trashed() {
 }
 ```
 
-Trait yalnızca erişimci tarafıdır. **Davranış** — bir `delete`'i bir damgaya çevirmek ve çöpe
-atılmış row'ları query'lerden gizlemek — yapılandırmayla yönlendirilir ve sırada anlatılır.
+Trait yalnızca erişim tarafını sağlar. **Asıl davranış** — bir `delete`'i damgalamaya çevirmek ve
+çöpe atılmış row'ları query'lerden gizlemek — yapılandırmayla belirlenir; onu da hemen aşağıda
+anlatıyoruz.
 
 ## Soft delete davranışı
 
-Soft delete, varsayılan olarak kapalı, proje genelinde bir politikadır. Onu `.env`'de aç:
+Soft delete, varsayılan olarak kapalı olan, proje genelinde bir politikadır. Onu `.env`'de açarsın:
 
 ```bash
 # .env
 SOFT_DELETE=true
 ```
 
-Açıkken, bir `deleted_at` column'ı olan herhangi bir model için:
+Açıkken, `deleted_at` column'ı olan her model için şunlar geçerli olur:
 
-- **`delete`, kaldırmak yerine damgalar.** `post.delete(&db)`, `deleted_at = now()` ayarlar ve bir
+- **`delete`, silmek yerine damgalar.** `post.delete(&db)`, `deleted_at = now()` yapar ve bir
   `DELETE` göndermek yerine row'u tabloda bırakır.
-- **Query'ler çöpe atılmış row'ları gizler.** `Post::query()` ve dolayısıyla `find`, `all` ve
-  `count`, `deleted_at IS NULL`'a filtrelenmiş başlar; böylece çöpe atılmış row'lar sıradan
-  okumalarda görünmez.
+- **Query'ler çöpe atılmış row'ları gizler.** `Post::query()` — ve dolayısıyla `find`, `all` ve
+  `count` — `deleted_at IS NULL` filtresiyle başlar; böylece çöpe atılmış row'lar sıradan okumalarda
+  görünmez.
 
 ```rust
 // soft_delete = true ile
@@ -107,18 +109,19 @@ post.delete(&db).await?;                       // deleted_at damgalandı, satır
 assert!(Post::find(&db, id).await?.is_none());  // normal sorgulardan gizlendi
 ```
 
-`soft_delete = false` ile (varsayılan), `delete` row'u kaldırır ve query'ler filtrelenmez —
-`deleted_at` column'ı o zaman yalnızca kendin kullanabileceğin bir veridir.
+`soft_delete = false` iken (varsayılan), `delete` row'u gerçekten siler ve query'lere filtre
+uygulanmaz — bu durumda `deleted_at` column'ı yalnızca senin dilediğin gibi kullanabileceğin sıradan
+bir veridir.
 
-Anahtar, yapılandırmadan başlangıçta bir kez okunur; bu yüzden tüm uygulama için çağrı başına bir
-karar değil, tek, tutarlı bir politikadır. `deleted_at` column'ı olmayan bir model her iki durumda
-da etkilenmez — `delete`'i her zaman gerçek bir silmedir.
+Bu ayar başlangıçta yapılandırmadan bir kez okunur; yani çağrı başına verilen bir karar değil, tüm
+uygulama için tek ve tutarlı bir politikadır. `deleted_at` column'ı olmayan bir model iki durumdan da
+etkilenmez — onun `delete`'i her zaman gerçek bir silmedir.
 
 ## Çöpe atılmış row'ları görmek
 
-Soft delete açıkken ve çöpe atılmış row'lara da ihtiyacın olduğunda — bir "yakında silindi"
-view'ı, bir admin ekranı — o tek query için SeaORM'e in, çünkü entity'nin `query()`'si onları
-filtreler:
+Soft delete açıkken çöpe atılmış row'lara da ihtiyacın olduğunda — bir "yakında silinenler" view'ı,
+bir admin ekranı gibi — o tek query için SeaORM'e inmen gerekir, çünkü entity'nin `query()`'si onları
+zaten filtreler:
 
 ```rust
 use rustali::orm::sea_orm::EntityTrait;
@@ -127,7 +130,7 @@ use rustali::orm::sea_orm::EntityTrait;
 let all = post_entity::Entity::find().all(&db).await?;
 ```
 
-Bu bilinçli olarak açıktır: varsayılan yol güvenlidir (çöpe atılmış row'lar gizli kalır) ve
-onları görmek bilinçli bir adımdır.
+Bu, bilerek böyle tasarlanmıştır: varsayılan yol güvenlidir (çöpe atılmış row'lar gizli kalır) ve
+onları görmek ayrı, bilinçli bir adım gerektirir.
 
 Sıradaki: [Migration'lar (Code-First)](migrations).

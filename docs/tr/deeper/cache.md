@@ -1,21 +1,21 @@
 # Cache
 
-Cache, iki depolu tek bir async trait'tir — bir süreç içi bellek deposu (varsayılan) ve isteğe
-bağlı bir Redis deposu. En çok başvuracağın metot `remember`'dır: tek bir çağrıda
-getir-ya-hesapla-ve-sakla.
+Cache, iki deposu olan tek bir async trait'tir — süreç içi bir bellek deposu (varsayılan) ve isteğe
+bağlı bir Redis deposu. En sık başvuracağın metot `remember`: tek çağrıda getir, yoksa hesapla ve
+sakla.
 
 ## İki trait, bir cache
 
-Cache iki trait'e ayrılır ve hangisinin hangisi olduğunu bilmek tüm API'yi açıklar:
+Cache iki trait'e ayrılır; hangisinin ne işe yaradığını bilmek tüm API'yi açıklamaya yeter:
 
-- **`Cache`**, düşük seviyeli depo sözleşmesidir: **opak baytlar** taşır (`get_bytes`, `put_bytes`,
-  `forget`, `flush`). Her backend — bellek, Redis — bunu uygular.
-- **`CacheExt`**, her `Cache` üzerinde **blanket olarak uygulanan** tipli, ergonomik katmandır.
-  `get::<T>`, `put`, `forever`, `remember` ve `has`'i ekler, JSON serileştirmeyi işler; böylece
-  baytlarla değil, kendi tiplerinle çalışırsın.
+- **`Cache`**, düşük seviyeli depo sözleşmesidir: **opak baytları** taşır (`get_bytes`, `put_bytes`,
+  `forget`, `flush`). Her backend — bellek olsun, Redis olsun — bunu uygular.
+- **`CacheExt`**, her `Cache` için **blanket olarak uygulanan** tipli ve ergonomik katmandır.
+  `get::<T>`, `put`, `forever`, `remember` ve `has` metotlarını ekler, JSON serileştirmeyi kendi
+  halleder; böylece baytlarla değil, kendi tiplerinle çalışırsın.
 
-Neredeyse her zaman `CacheExt` metotlarını çağırırsın. Bölünme, yeni bir backend'in yalnızca
-baytları doğru taşıması gerektiği anlamına gelir; her tipli yardımcı bedava gelir.
+Neredeyse her zaman `CacheExt` metotlarını çağırırsın. Bu ayrım sayesinde yeni bir backend'in
+yalnızca baytları doğru taşıması yeter; tipli yardımcıların hepsi hazır gelir.
 
 ## Kurulum
 
@@ -31,15 +31,15 @@ CACHE_DRIVER=memory                 # memory | redis
 CACHE_URL=redis://127.0.0.1:6379    # CACHE_DRIVER=redis olduğunda kullanılır
 ```
 
-`redis` driver'ı `redis` Cargo özelliğine ihtiyaç duyar. Onsuz, `driver = "redis"` istemek sessiz
-bir fallback değil, net bir başlangıç hatasıdır; böylece yanlış yapılandırılmış bir üretim
-deployment'ı, sessizce süreç içinde cache'lemek yerine hızlı başarısız olur.
+`redis` driver'ı için `redis` Cargo özelliği gerekir. Bu özellik olmadan `driver = "redis"` istemek
+sessizce başka bir depoya düşmez, net bir başlangıç hatası verir; böylece yanlış yapılandırılmış bir
+üretim deployment'ı, sessizce süreç içinde cache'lemek yerine erkenden ve açıkça patlar.
 
 ## Kullanmak
 
 Cache'e `ctx.cache()` ile eriş; bu, klonlayıp task'lara taşıyabileceğin bir `SharedCache`
-(`Arc<dyn Cache>`) döndürür. Değerler JSON ile serileştirilir; böylece herhangi bir
-`Serialize + DeserializeOwned` tipi çalışır.
+(`Arc<dyn Cache>`) döndürür. Değerler JSON olarak serileştirilir; dolayısıyla `Serialize +
+DeserializeOwned` olan her tip çalışır.
 
 ```rust
 use std::time::Duration;
@@ -60,13 +60,13 @@ async fn stats(ctx: Ctx, db: Db) -> Result<Json<Stats>> {
 
 | Metot | Yaptığı |
 |---|---|
-| `remember(key, ttl, f)` | Cache'e alınmış değeri döndür ya da `f` ile hesapla, `ttl` boyunca sakla, onu döndür. |
+| `remember(key, ttl, f)` | Cache'teki değeri döndürür; yoksa `f` ile hesaplar, `ttl` boyunca saklar ve döndürür. |
 | `get::<T>(key)` | `Option<T>`. |
-| `put(key, &value, ttl)` | Bir sona erme ile sakla. |
-| `forever(key, &value)` | Sona erme olmadan sakla. |
+| `put(key, &value, ttl)` | Bir sona erme süresiyle saklar. |
+| `forever(key, &value)` | Sona erme süresi olmadan saklar. |
 | `has(key)` | `bool`. |
-| `forget(key)` | Bir anahtarı kaldır. |
-| `flush()` | Her şeyi kaldır. |
+| `forget(key)` | Bir anahtarı siler. |
+| `flush()` | Her şeyi siler. |
 
 ```rust
 let cache = ctx.cache()?;
@@ -77,9 +77,9 @@ cache.forget("user:42").await?;
 
 ## Derinlemesine remember
 
-`remember` iş gücüdür. Closure'ı **yalnızca bir kaçırmada** çalışır ve bir `Result<T>` döndürmelidir
-— handler'larının kullandığı aynı `Result` — böylece içindeki `?`, `remember`'dan doğrudan hataları
-yayar:
+İşin yükünü `remember` çeker. Verdiğin closure **yalnızca cache'te değer bulunamayınca** çalışır ve
+bir `Result<T>` döndürmelidir — handler'larında kullandığın `Result`'ın aynısı — böylece içindeki
+`?`, hataları doğrudan `remember` üzerinden dışarı taşır:
 
 ```rust
 let user = cache
@@ -90,18 +90,18 @@ let user = cache
     .await?;
 ```
 
-Bilmeye değer birkaç şey:
+Bilmeye değer birkaç nokta:
 
-- Closure `FnOnce`'tır ve bir future döndürür; bu yüzden `|| async { ... }` şekli istediğin şeydir —
+- Closure bir `FnOnce`'tır ve bir future döndürür; bu yüzden ihtiyacın olan kalıp `|| async { ... }`,
   `async || ...` değil.
-- Hesaplama adımı başarısız olursa, hiçbir şey önbelleğe alınmaz ve hata döndürülür; sonraki çağrı
-  tekrar dener.
-- Saklanan tip `Serialize + DeserializeOwned` olmalıdır (JSON üzerinden gidip gelir).
+- Hesaplama adımı başarısız olursa hiçbir şey cache'e yazılmaz ve hata döndürülür; bir sonraki çağrı
+  yeniden dener.
+- Saklanan tip `Serialize + DeserializeOwned` olmalı (değer JSON'a dönüp geri çözülür).
 
 ## Geçersiz kılma (invalidation)
 
-Otomatik geçersiz kılma yoktur — bir cache'e alınmış değerin ne zaman bayatladığına sen karar
-verirsin. Yaygın desen, onu bayatlatan yazmadan hemen sonra bir anahtarı `forget` etmektir:
+Otomatik geçersiz kılma yok — cache'teki bir değerin ne zaman bayatladığına sen karar verirsin.
+Yaygın kalıp, değeri bayatlatan yazma işleminden hemen sonra o anahtarı `forget` etmektir:
 
 ```rust
 // kullanıcıyı güncelledikten sonra önbelleğe alınmış kopyayı düşür
@@ -109,28 +109,27 @@ user.update(&db).await?;
 cache.forget(&format!("user:{id}")).await?;
 ```
 
-Sabit bir kadansta yenilenmesi gereken değerler için, elle geçersiz kılma yerine `remember`'da kısa
-bir TTL tercih et — daha basit ve kendi kendini iyileştiren.
+Belirli aralıklarla tazelenmesi gereken değerler için elle geçersiz kılma yerine `remember`'da kısa
+bir TTL kullan — hem daha basit, hem kendi kendini toparlayan bir yaklaşım.
 
 ## Depolar
 
-- **Bellek** (varsayılan) — süreç yerel bir map. Girişler **lazy** şekilde expire olur (erişimde
-  kontrol edilir) ve ara sıra bir süpürme sırasında; bu yüzden yönetilecek bir arka plan thread'i
-  yoktur. Altyapı yok, geliştirme ve tek düğümlü uygulamalar için harika. Örnekler arasında
-  **paylaşılmaz** ve süreç yeniden başladığında temizlenir.
-- **Redis** (`redis` özelliği, `driver = "redis"`) — her örnek arasında paylaşılır ve yeniden
-  başlatmalarda hayatta kalır. Birden fazla süreç çalıştırdığında ya da önbelleğin bir dağıtımdan
-  daha uzun yaşamasını istediğinde onu kullan.
+- **Bellek** (varsayılan) — sürece özel bir map. Girişler **lazy** biçimde (erişim anında kontrol
+  edilerek) ve arada bir yapılan temizlik sırasında expire olur; dolayısıyla yönetmen gereken bir
+  arka plan thread'i yoktur. Altyapı gerektirmez, geliştirme ve tek düğümlü uygulamalar için biçilmiş
+  kaftandır. Örnekler arasında **paylaşılmaz** ve süreç yeniden başladığında sıfırlanır.
+- **Redis** (`redis` özelliği, `driver = "redis"`) — tüm örnekler arasında paylaşılır ve yeniden
+  başlatmaları atlatır. Birden fazla süreç çalıştırdığında ya da cache'in bir deployment'tan daha
+  uzun yaşamasını istediğinde bunu kullan.
 
-İkisi de aynı `Cache` trait'inin arkasında oturur; böylece depo değiştirmek bir yapılandırma
-değişikliğidir; kodun taşınmaz. Bellek deposu süreç başına olduğu için, bir düğümde cache'e
-alınan bir değer başka bir düğümde bir kaçırmadır — `remember` arkasındaki türetilmiş veriler için
-uygun, ama örnekler arasında tutarlı olması gereken hiçbir şey için ona güvenme (bunun için Redis
-kullan).
+İkisi de aynı `Cache` trait'inin arkasında durur; bu yüzden depo değiştirmek sadece bir yapılandırma
+değişikliğidir, kodun hiç değişmez. Bellek deposu sürece özel olduğundan, bir düğümde cache'lenmiş
+bir değer başka bir düğümde yoktur — bu, `remember` arkasındaki türetilmiş veriler için sorun değil,
+ama örnekler arasında tutarlı olması gereken hiçbir şeyde buna güvenme (onun için Redis kullan).
 
 ## Ne zaman cache'e alınır
 
-Cache, **türetilmiş, yeniden hesaplanabilir** veri içindir: pahalı toplamlar, render edilmiş
-parçalar, yavaş bir yukarı akış çağrısının sonuçları. Bir veritabanı değildir — yeniden
-hesaplayamayacağın hiçbir şey gerçek bir depoda yaşamalıdır. `remember` için zihinsel model, "bir
-gerçek kaynağın önünde hızlı bir yol"dur, asla gerçek kaynağın kendisi değil.
+Cache, **türetilmiş, yeniden hesaplanabilir** veriler içindir: pahalı toplamlar, render edilmiş
+parçalar, yavaş bir yukarı akış çağrısının sonuçları. Cache bir veritabanı değildir — yeniden
+hesaplayamayacağın her şey gerçek bir depoda durmalıdır. `remember`'ı şöyle düşün: bir gerçek
+kaynağın önündeki hızlı yol, asla gerçek kaynağın kendisi değil.

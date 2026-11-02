@@ -1,8 +1,8 @@
 # Yapılandırma
 
-Tüm yapılandırma, düz ve okunabilir anahtarlar olarak tek bir **`.env`** dosyasında (ya da
-gerçek süreç ortamında) yaşar. Bölüm başına yapılandırma dosyası yoktur — her şey için tek bir
-yer.
+Tüm yapılandırma, sade ve okunaklı anahtarlar hâlinde tek bir **`.env`** dosyasında (ya da
+gerçek süreç ortamında) durur. Her bölüm için ayrı bir yapılandırma dosyası yoktur — her şey tek
+bir yerde toplanır.
 
 ```bash
 # .env
@@ -22,13 +22,13 @@ En düşükten en yükseğe, her katman bir öncekini geçersiz kılar:
 2. `.env` dosyası.
 3. Gerçek süreç ortam değişkenleri.
 
-Yani dağıtım platformunun ortamında `PORT`'u ayarlamak, `.env`'deki `PORT`'u geçersiz kılar; o
-da yerleşik varsayılanı geçersiz kılar. Bir `.env` dosyası bir geliştirici kolaylığıdır;
-üretim değerleri gerçek ortamdan gelir ve kazanır.
+Yani `PORT`'u dağıtım platformunun ortamında ayarlarsan bu, `.env`'deki `PORT`'u geçersiz kılar;
+`.env`'deki değer de yerleşik varsayılanı geçersiz kılar. `.env` dosyası yalnızca geliştirme
+kolaylığıdır; üretim değerleri gerçek ortamdan gelir ve her zaman öncelik kazanır.
 
 ## Anahtarlar
 
-Her ayar temiz, düz bir anahtardır. Yaygın olanlar:
+Her ayar, sade ve tek düzeyli bir anahtardır. En sık kullanılanlar şunlar:
 
 | Anahtar | Ayarladığı |
 |---|---|
@@ -47,25 +47,25 @@ Her ayar temiz, düz bir anahtardır. Yaygın olanlar:
 | `SESSION_COOKIE` / `SESSION_LIFETIME_MINUTES` / `SESSION_CSRF` | session'lar ([ayrıntılar](../security/csrf)) |
 | `OPENAPI_TITLE` / `OPENAPI_VERSION` | OpenAPI belge bilgisi |
 
-Değerler en belirgin tipe ayrıştırılır — `PORT=8000` bir tamsayıdır, `APP_DEBUG=false` bir
-bool'dur — bu yüzden yanlış bir tip (örn. `PORT=abc`) başlangıçta net bir hatadır, sessiz bir
-varsayılan değil.
+Değerler, en uygun tipe otomatik ayrıştırılır — `PORT=8000` bir tamsayı, `APP_DEBUG=false` bir
+bool olur — bu yüzden tipi yanlış bir değer (örneğin `PORT=abc`) başlangıçta açık bir hataya yol
+açar; sessizce bir varsayılana düşmez.
 
 ## Ortam başına ayarlar
 
-Profil dosyaları yoktur; ortam başına değerleri her ortamın kendisinde ayarla. Geliştiriciye
-uygun bir `.env` commit'le ve üretimde gerçek değerleri (sırlar, `APP_ENV=production`,
-`APP_DEBUG=false`) dağıtım platformunun ortamı aracılığıyla ayarla; orada `.env`'i geçersiz
-kılarlar.
+Profil dosyaları yoktur; her ortama özel değerleri doğrudan o ortamın kendisinde ayarla.
+Geliştirme için uygun bir `.env` commit'le; üretimdeki gerçek değerleri (sırlar,
+`APP_ENV=production`, `APP_DEBUG=false`) ise dağıtım platformunun ortamı üzerinden ver — bu
+değerler orada `.env`'i geçersiz kılar.
 
-`APP_DEBUG` üretimde otomatik olarak kapatılmaz — orada `APP_DEBUG=false` ayarla. Debug
-açıkken, hata response'ları gerçek kullanıcılara göstermek istemeyeceğin iç detayları (yığın
-mesajları, veritabanı hataları) içerir.
+`APP_DEBUG` üretimde kendiliğinden kapanmaz — orada `APP_DEBUG=false` olarak ayarlaman gerekir.
+Debug açıkken hata response'ları, gerçek kullanıcılara göstermek istemeyeceğin iç ayrıntıları
+(yığın izleri, veritabanı hataları) içerir.
 
 ## Anahtar
 
-`APP_KEY`, session çerezlerini ve JWT'leri imzalar ve en az 16 karakter olmalıdır. Geliştirmede
-iskelet tek kullanımlık bir anahtar getirir; üretimde ortamdan gerçek bir sır ayarla ve asla
+`APP_KEY`, session çerezlerini ve JWT'leri imzalar; en az 16 karakter olmalıdır. Geliştirmede
+iskelet, atılabilir bir anahtar üretir; üretimde ise ortamdan gerçek bir sır ver ve bunu asla
 commit'leme:
 
 ```bash
@@ -75,7 +75,7 @@ APP_KEY=a-long-random-secret-at-least-32-characters
 
 ## Yapılandırmayı okumak
 
-Bir handler içinde, yapılandırmaya bağlam üzerinden eriş:
+Bir handler içinde yapılandırmaya bağlam üzerinden erişebilirsin:
 
 ```rust
 async fn home(ctx: Ctx) -> String {
@@ -83,13 +83,13 @@ async fn home(ctx: Ctx) -> String {
 }
 ```
 
-`ctx.config().is_production()`, `APP_ENV == "production"` için bir kolaylıktır.
+`ctx.config().is_production()`, `APP_ENV == "production"` kontrolü için pratik bir kısayoldur.
 
 ## Özel ayarlar
 
-Yerleşik anahtarların ötesindeki paket ve uygulama ayarları, `Config::section` ile tipli
-bölümler olarak okunur. Özel bir bölüm için değerlerini `APP__SECTION__FIELD` kaçış yoluyla
-ayarla (çift alt çizgi iç içe geçmeyi ayırır):
+Yerleşik anahtarların dışındaki paket ve uygulama ayarları, `Config::section` ile tipli bölümler
+hâlinde okunur. Özel bir bölümün değerlerini `APP__SECTION__FIELD` biçiminde ayarla (çift alt
+çizgi, iç içe geçmiş alanları birbirinden ayırır):
 
 ```rust
 use serde::Deserialize;
@@ -104,9 +104,9 @@ struct Payments {
 let payments: Option<Payments> = ctx.config().section("payments")?;
 ```
 
-Tip `Default`'u uyguladığında ve değerler yok olabileceğinde `section_or_default::<T>("name")`
-kullan.
+Tip `Default`'u implemente ediyorsa ve değerler hiç tanımlanmamış olabilecekse
+`section_or_default::<T>("name")` kullan.
 
-> Yapılandırmaya ihtiyaç duyan bir paket (veritabanı, cache, e-posta, …), bölümünü
-> [provider](../deeper/providers)'ı içinde bu şekilde okur; böylece framework ve uygulama
-> yapılandırması için tek, tutarlı bir mekanizma olur.
+> Yapılandırmaya ihtiyaç duyan bir paket (veritabanı, cache, e-posta, …), kendi bölümünü
+> [provider](../deeper/providers)'ı içinde işte bu şekilde okur; böylece framework ve uygulama
+> yapılandırması tek ve tutarlı bir mekanizma üzerinden yürür.

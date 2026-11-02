@@ -1,7 +1,7 @@
 # Konsol Komutları
 
-Uygulama binary'n aynı zamanda konsoludur. Argümansız sunar; bir komutla bunun yerine onu
-çalıştırır. `run()`'ın yaptığı budur:
+Uygulama binary'n aynı zamanda konsoldur. Argümansız çalıştırınca sunucuyu açar; bir komut verince
+onun yerine o komutu çalıştırır. `run()`'ın yaptığı tam olarak budur:
 
 ```rust
 #[tokio::main]
@@ -17,25 +17,25 @@ cargo run -- migrate           # `migrate` komutunu çalıştır
 cargo run -- help              # kullanılabilir komutları listele
 ```
 
-Binary ilk argümana göre dağıtım yapar: argüman yok (ya da `serve`) sunucuyu çalıştırır, `help`
-komutları listeler ve diğer herhangi bir sözcük kayıtlı komutlar arasında aranır — bilinmeyen bir
-ad net bir hatadır. Yani binary'nin anladığı komut kümesi, tam olarak provider'larının ve
-`.command(...)` çağrılarının kaydettiği şeydir — fazlası değil, gizli bir şey yok.
+Binary, ilk argümana göre yönlendirme yapar: argüman yoksa (ya da `serve` ise) sunucuyu çalıştırır,
+`help` komutları listeler, başka herhangi bir sözcüğü de kayıtlı komutlar arasında arar — bilinmeyen
+bir ad net bir hata verir. Yani binary'nin anladığı komut kümesi, tam olarak provider'larının ve
+`.command(...)` çağrılarının kaydettiği komutlardan ibarettir — ne fazlası, ne de gizlisi var.
 
 ## Yerleşik komutlar
 
-Hangi komutların var olduğu, hangi provider'ları eklediğine bağlıdır:
+Hangi komutların bulunacağı, hangi provider'ları eklediğine bağlıdır:
 
 | Komut | Nereden | Yaptığı |
 |---|---|---|
-| `serve` | her zaman | HTTP sunucusunu başlat (varsayılan). |
-| `routes` | her zaman | Controller route'larını middleware'leriyle listele. |
-| `help` | her zaman | Komutları listele. |
+| `serve` | her zaman | HTTP sunucusunu başlatır (varsayılan). |
+| `routes` | her zaman | Controller route'larını middleware'leriyle birlikte listeler. |
+| `help` | her zaman | Komutları listeler. |
 | `migrate`, `migrate:diff`, `migrate:status`, `migrate:rollback`, `migrate:fresh`, `migrate:refresh`, `migrate:reset` | `.migrations::<M>()` | Veritabanı migration'ları. |
-| `queue:work` | `QueueProvider` | Queue'ya alınmış job'ları işle. |
+| `queue:work` | `QueueProvider` | Queue'ya alınmış job'ları işler. |
 
-`help`, her kayıtlı komutu tek satırlık `about`'uyla listeler; böylece belirli bir derlemenin neyi
-desteklediğini görmenin en hızlı yolu onu çalıştırmaktır:
+`help`, kayıtlı her komutu tek satırlık `about` açıklamasıyla listeler; dolayısıyla belirli bir
+derlemenin neleri desteklediğini görmenin en hızlı yolu bu komutu çalıştırmaktır:
 
 ```bash
 cargo run -- help
@@ -43,7 +43,7 @@ cargo run -- help
 
 ## Bir komut yazmak
 
-`Command`'ı uygula: bir ad, bir satırlık bir açıklama ve `AppContext`'i ve kalan argümanları alan
+`Command`'ı uygula: bir ad, tek satırlık bir açıklama ve `AppContext` ile kalan argümanları alan
 async bir `run`.
 
 ```rust
@@ -67,7 +67,7 @@ impl Command for SendReport {
 }
 ```
 
-Onu builder'da (ya da bir provider'dan `registry.command(...)` ile) kaydet:
+Komutu builder'da (ya da bir provider içinden `registry.command(...)` ile) kaydet:
 
 ```rust
 App::builder()
@@ -83,16 +83,17 @@ cargo run -- report:send alice@example.com bob@example.com
 
 ### Argümanlar
 
-`run`, komut adından sonraki her şeyi bir `Vec<String>` olarak alır — binary adı ve komut sözcüğü
-zaten çıkarılmıştır. `cargo run -- report:send a@x b@x` için, `args` `["a@x", "b@x"]`'tir. Onu kendin
-ayrıştır (ya da `clap` gibi bir crate'e ver); framework komutlarına bir bayrak söz dizimi dayatmaz.
+`run`, komut adından sonraki her şeyi `Vec<String>` olarak alır — binary adı ve komut sözcüğü
+önceden ayıklanmıştır. `cargo run -- report:send a@x b@x` için `args` değeri `["a@x", "b@x"]` olur.
+Argümanları kendin ayrıştır (ya da `clap` gibi bir crate'e bırak); framework komutlara belirli bir
+bayrak söz dizimi dayatmaz.
 
 ### Hatalar ve çıkış kodları
 
-`run`, `Result<()>` döndürür ve o sonuç `main`'e kadar akar. `main`, `-> Result<()>` olduğu için,
-bir `Err` döndürmek onu yazdırır ve sıfır olmayan bir durumla çıkar — yani başarısız bir komut,
-herhangi bir elle `std::process::exit` olmadan shell'i de (ve CI'nı da) başarısız kılar. `?`'yi
-serbestçe kullan:
+`run`, `Result<()>` döndürür ve bu sonuç `main`'e kadar yukarı taşınır. `main`, `-> Result<()>`
+olduğu için bir `Err` döndürmek hatayı yazdırır ve sıfırdan farklı bir çıkış koduyla kapanır — yani
+başarısız bir komut, sen elle `std::process::exit` çağırmadan hem shell'i hem CI'ı başarısız kılar.
+`?`'yi gönül rahatlığıyla kullan:
 
 ```rust
 fn run<'a>(&'a self, ctx: &'a AppContext, args: Vec<String>) -> CommandFuture<'a> {
@@ -107,13 +108,13 @@ fn run<'a>(&'a self, ctx: &'a AppContext, args: Vec<String>) -> CommandFuture<'a
 
 ### Tam bağlam
 
-Bir komut aynı `App::builder()` aracılığıyla çalıştığı için, tam bağlama sahiptir — veritabanı,
-cache, mailer, servislerin — tam olarak bir request handler'ının sahip olduğu gibi. Provider'lar
-komuttan önce çalışır; böylece kaydettikleri her şey `ctx` aracılığıyla kullanılabilir. Bir
-handler'dan tek farkı giriş noktasıdır: HTTP request'i yoktur, yalnızca `ctx` ve `args`.
+Bir komut aynı `App::builder()` üzerinden çalıştığı için bağlamın tamamına sahiptir — veritabanı,
+cache, mailer, servislerin — tıpkı bir request handler'ı gibi. Provider'lar komuttan önce çalışır;
+böylece kaydettikleri her şeye `ctx` üzerinden erişilebilir. Bir handler'dan tek farkı giriş
+noktasıdır: ortada HTTP request'i yoktur, yalnızca `ctx` ve `args` vardır.
 
 ## İskeletleme
 
 `rustali make:controller`, `make:model`, `make:migration`, `make:job`, `make:mail`,
-`make:middleware`, `make:policy` ve `make:test`, bağımsız `rustali` CLI'sinin (uygulama binary'sinin
-değil) komutlarıdır — kaynak dosyalar üretirler. [Proje Yapısı](../getting-started/structure)'na bak.
+`make:middleware`, `make:policy` ve `make:test` komutları, uygulama binary'sine değil, bağımsız
+`rustali` CLI'sine aittir — kaynak dosyalar üretirler. [Proje Yapısı](../getting-started/structure)'na bak.

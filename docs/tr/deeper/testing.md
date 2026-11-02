@@ -1,8 +1,8 @@
 # Test
 
-Rustali, süreç içi bir test istemcisi getirir. Gerçek uygulamanı sürer — `main` ile aynı
-provider'lar, route'lar ve middleware — bir soket bağlamadan; böylece testler hızlı ve
-deterministiktir. Hata pazarlığı, session'lar ve CSRF'in hepsi tam olarak üretimdeki gibi davranır.
+Rustali, süreç içi bir test istemcisiyle gelir. Gerçek uygulamanı çalıştırır — `main` ile aynı
+provider'lar, route'lar ve middleware — ama hiçbir sokete bağlanmaz; böylece testler hızlı ve
+belirleyici olur. Hata işleme, session'lar ve CSRF'in hepsi tam olarak üretimdeki gibi davranır.
 
 ## Kurulum
 
@@ -14,12 +14,12 @@ rustali = { version = "0.1", features = ["test"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 
-Testlerin `main`'in kurduğu aynı uygulamayı kurması için, bir kütüphane hedefinden bir `app()`
-builder'ı göster ([Proje Yapısı](../getting-started/structure)'na bak).
+Testlerin `main`'in kurduğu uygulamanın aynısını kurabilmesi için, bir kütüphane hedefinden bir
+`app()` builder'ı dışa aç ([Proje Yapısı](../getting-started/structure)'na bak).
 
 ## Bir test yazmak
 
-Uygulamayı kur, router'ını bir `TestClient`'a sar ve response'lar üzerinde iddiada bulun:
+Uygulamayı kur, router'ını bir `TestClient` ile sar ve response'lar üzerinde doğrulamalar yap:
 
 ```rust
 use rustali::test::{TestClient, test_config};
@@ -41,14 +41,14 @@ async fn home_works() {
 }
 ```
 
-`test_config()`, test dostu bir yapılandırma verir: `test` ortamı, debug açık ve sabit bir uygulama
-anahtarı. Bir veritabanı ayarla**maz** — testin DB'ye dokunuyorsa bir tane ekle.
+`test_config()`, teste uygun bir yapılandırma verir: `test` ortamı, debug açık ve sabit bir uygulama
+anahtarı. Veritabanı ayarla**maz** — testin DB'ye dokunuyorsa birini kendin ekle.
 
 ## Veritabanını izole etmek
 
-Veritabanına ulaşan bir test için, her teste kendi tek kullanımlık veritabanını ver; böylece testler
-asla birbirinin satırlarını görmez. Bir yapılandırma bölümü `Config::extra`'da saklanır; bu yüzden
-uygulamayı kurmadan önce `database` bölümünü bir bellek içi SQLite'a yönlendirebilirsin:
+Veritabanına dokunan bir test için her teste kendi tek kullanımlık veritabanını ver; böylece testler
+birbirinin satırlarını asla görmez. Yapılandırma bölümleri `Config::extra`'da tutulur; dolayısıyla
+uygulamayı kurmadan önce `database` bölümünü bellek içi bir SQLite'a yönlendirebilirsin:
 
 ```rust
 fn test_app_config() -> Config {
@@ -61,51 +61,51 @@ fn test_app_config() -> Config {
 }
 ```
 
-Bir bellek içi SQLite veritabanı bağlantı başına taze oluşturulur; böylece her test boş başlar.
-Migration'larını çalıştır (ya da şemayı oluştur) testin başında, tam olarak `main`'in yapacağı gibi.
-Bir test içinde verinin bağlantılar arasında kalıcı olması gerekiyorsa bunun yerine tek kullanımlık
-bir dosyaya yönlendir.
+Bellek içi bir SQLite veritabanı her bağlantı için sıfırdan oluşturulur; böylece her test boş başlar.
+Tıpkı `main`'in yaptığı gibi, testin başında migration'larını çalıştır (ya da şemayı oluştur). Bir
+test içinde verinin bağlantılar arasında kalıcı olması gerekiyorsa bunun yerine tek kullanımlık bir
+dosyaya yönlendir.
 
 ## İstemci
 
-Bir `TestClient`, kurulan bir `Router`'ı sarar ve çağrılar arasında bir **çerez kavanozu** tutar:
-her request şimdiye kadar saklanan çerezleri gönderir ve response'taki herhangi bir `Set-Cookie`'yi
-yakalar. Yani bir request'teki bir giriş, sonraki tarafından görülür — session'lar, flash mesajları ve
-CSRF'in hepsi, tam olarak bir tarayıcının süreceği gibi bir çağrı dizisi boyunca çalışır. (İstemci
-bilinçli olarak `Clone` değildir: kavanoz, bir istemciye kapsamlanmış paylaşılan durumdur.)
+Bir `TestClient`, kurulmuş bir `Router`'ı sarar ve çağrılar arasında bir **çerez kavanozu** tutar:
+her request o ana kadar saklanmış çerezleri gönderir ve response'taki her `Set-Cookie`'yi yakalar.
+Yani bir request'teki giriş, sonraki request tarafından görülür — session'lar, flash mesajları ve
+CSRF'in hepsi, tıpkı bir tarayıcının yapacağı gibi bir çağrı dizisi boyunca çalışır. (İstemci bilerek
+`Clone` değildir: kavanoz, tek bir istemciye bağlı paylaşılan durumdur.)
 
 | Metot | Gönderdiği |
 |---|---|
 | `get(path)` / `delete(path)` | bir GET / DELETE |
-| `post_json(path, &body)` / `patch_json(path, &body)` | bir JSON gövdesi |
-| `post_form(path, &[(k, v)])` | bir URL kodlu form |
-| `send(method, path, body, headers)` | rastgele bir request |
+| `post_json(path, &body)` / `patch_json(path, &body)` | JSON gövdeli bir request |
+| `post_form(path, &[(k, v)])` | URL kodlu bir form |
+| `send(method, path, body, headers)` | istediğin gibi bir request |
 
 Her request metodu bir `TestResponse` döndürür.
 
 ## İddialar
 
-Her `assert_*` response'u döndürür; böylece zincirlenirler:
+Her `assert_*` response'u geri döndürür; böylece zincirlenebilirler:
 
 | İddia | Kontrol ettiği |
 |---|---|
 | `assert_ok()` | durum 200 |
 | `assert_status(code)` | tam bir durum |
 | `assert_redirect(Some("/to"))` | bir 3xx (isteğe bağlı olarak bir konuma) |
-| `assert_see(text)` / `assert_dont_see(text)` | gövde bir alt dize içerir / atlar |
+| `assert_see(text)` / `assert_dont_see(text)` | gövde verilen alt dizeyi içerir / içermez |
 | `assert_json_has(pointer)` | bir RFC 6901 işaretçisinde bir JSON değeri var |
-| `assert_json_at(pointer, &value)` | JSON değeri eşit |
-| `assert_header(name, Some(value))` | bir başlık mevcut / eşit |
+| `assert_json_at(pointer, &value)` | o konumdaki JSON değeri eşit |
+| `assert_header(name, Some(value))` | bir başlık mevcut / verilen değere eşit |
 
-Bir iddia yerine ham değerlere ihtiyacın olduğunda, `TestResponse` onları doğrudan gösterir:
-`text()` (gövde bir `String` olarak), `json()` (gövde bir `serde_json::Value`'ya ayrıştırılmış) ve
+Bir doğrulama yerine ham değerlere ihtiyacın olduğunda `TestResponse` bunları doğrudan sunar:
+`text()` (gövdeyi `String` olarak), `json()` (gövdeyi `serde_json::Value`'ya ayrıştırılmış) ve
 `header(name)` (`Option<String>`). Aşağıdaki CSRF örneği, token'ı render edilen formdan çekmek için
-`text()` kullanır.
+`text()` kullanıyor.
 
 ## Örnek: bir form akışı
 
-Bu, blog'un entegrasyon testini yansıtır — tüm SSR yolunu, CSRF ve validation dahil, süreç içinde
-sürer:
+Bu örnek, blog'un entegrasyon testini birebir yansıtır — CSRF ve validation dahil tüm SSR yolunu,
+süreç içinde çalıştırır:
 
 ```rust
 let client = TestClient::new(router);
@@ -115,26 +115,26 @@ let home = client.get("/").await;
 home.assert_ok().assert_see("No posts yet.");
 let token = extract_token(&home.text());
 
-// geçersiz bir gönderim hatalar + eski girdiyle geri yönlendirir
+// geçersiz bir gönderim doğrulamada takılır + eski girdiyle geri yönlendirir
 client.post_form("/posts", &[("_token", &token), ("title", "Hi"), ("body", "")])
     .await
     .assert_redirect(Some("/"));
 client.get("/").await.assert_see("between 3 and 200").assert_see("value=\"Hi\"");
 
-// eksik bir CSRF token'ı reddedilir
+// CSRF token'ı eksik gönderim reddedilir
 client.post_form("/posts", &[("title", "x"), ("body", "y")])
     .await
     .assert_status(rustali::http::StatusCode::FORBIDDEN);
 ```
 
-Tüm stack'i çalıştırdığı için, böyle bir test routing'i, ORM'i, validation'ı, session'ları ve
-CSRF'i birlikte test eder.
+Tüm stack'i çalıştırdığı için böyle bir test; routing'i, ORM'i, validation'ı, session'ları ve
+CSRF'i bir arada sınar.
 
 ## Kimliği doğrulanmış route'ları test etmek
 
-Bir `acting_as` kısayolu yok — ve nadiren birine ihtiyacın var, çünkü çerez kavanozu bir kullanıcının
-yaptığı gibi giriş yapmana izin verir. Giriş route'una post yap, sonra session çerezi korunan bir
-route'a sonraki request'te binsin:
+Bir `acting_as` kısayolu yok — zaten pek ihtiyacın da olmaz, çünkü çerez kavanozu sayesinde tıpkı
+bir kullanıcı gibi giriş yapabilirsin. Giriş route'una post yap; sonraki request'te session çerezi
+korunan route'a kendiliğinden taşınsın:
 
 ```rust
 let client = TestClient::new(router);
@@ -149,7 +149,7 @@ client
 client.get("/dashboard").await.assert_ok().assert_see("Welcome back");
 ```
 
-Bu, kimliği doğrulanmış bir durumu taklit etmek yerine gerçek giriş yolunu test eder — parola
-kontrolü, session oluşturma, korunan route'taki guard.
+Böylece kimliği doğrulanmış bir durumu taklit etmek yerine gerçek giriş yolunu test etmiş olursun —
+parola kontrolü, session oluşturma ve korunan route'taki guard dahil.
 
 > `rustali make:test <name>`, bir test oluşturur.

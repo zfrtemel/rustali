@@ -1,16 +1,16 @@
 # Yetkilendirme
 
-Yetkilendirme, "bu kullanıcının bunu yapmasına izin var mı?" sorusunu yanıtlar. Rustali bunu bir
-**Gate** tarafından kontrol edilen adlandırılmış **yetenekler** olarak modeller; bir route üzerinde
-`#[authorize("...")]` ile bildirimsel olarak zorlanır.
+Yetkilendirme, "bu kullanıcının bunu yapmasına izin var mı?" sorusunu yanıtlar. Rustali bunu, bir
+**Gate** üzerinden denetlenen, adlandırılmış **yetenekler** olarak modeller; bir route üzerinde
+`#[authorize("...")]` ile bildirimsel biçimde uygulanır.
 
 ## Yerleşik yetenekler
 
-İkisi kimliği doğrulanmış kullanıcıya karşı kutudan çıktığı gibi çalışır
+Şu ikisi, kimliği doğrulanmış kullanıcı üzerinde kutudan çıktığı gibi çalışır
 ([Kimlik Doğrulama](authentication)'ya bak):
 
-- `authenticated` — herhangi bir giriş yapmış kullanıcı için geçer.
-- `role:<name>` — kullanıcının `roles()`'u `<name>` içerdiğinde geçer.
+- `authenticated` — giriş yapmış herhangi bir kullanıcı için geçer.
+- `role:<name>` — kullanıcının `roles()` listesi `<name>` içerdiğinde geçer.
 
 ```rust
 #[post("/posts")]
@@ -22,21 +22,22 @@ async fn store(/* ... */) -> Result<Redirect> { /* ... */ }
 async fn destroy(/* ... */) -> Result<StatusCode> { /* ... */ }
 ```
 
-İki söz dizimi, tek mekanizma:
+İki yazım, tek mekanizma:
 
-- `#[authorize("ability")]`, bir yeteneği doğrudan adlandırır — `authenticated`, `role:editor` ya da
-  `post.update` gibi herhangi bir özel politikanın yeteneği.
-- `#[authorize(role = "editor")]`, `role:editor` yeteneğine genişleyen bir şekerdir.
+- `#[authorize("ability")]`, bir yeteneği doğrudan adıyla belirtir — `authenticated`, `role:editor`
+  ya da `post.update` gibi herhangi bir özel politikanın yeteneği.
+- `#[authorize(role = "editor")]`, `role:editor` yeteneğine açılan bir kısayoldur.
 
-Request anında filtre, mevcut kullanıcıyı çözer, yeteneği değerlendirir ve kimse giriş yapmamışsa
-**401** ya da kullanıcı mevcut ama reddedilmişse **403** response'unu verir — handler çalışmadan önce.
-Ayrım istemciler için önemlidir: 401 "giriş yap" demektir, 403 "giriş yaptın ama izin verilmedi"
-demektir.
+Filtre, request anında mevcut kullanıcıyı çözer, yeteneği değerlendirir ve kimse giriş yapmamışsa
+**401**, kullanıcı var ama reddedilmişse **403** response'u döndürür — hem de handler hiç
+çalışmadan. Bu ayrım istemciler açısından önemlidir: 401 "giriş yap" demek, 403 ise "giriş yaptın
+ama iznin yok" demektir.
 
 ## Özel politikalar
 
-Rollerin ötesindeki her şey için `Policy`'yi uygula: ona bir yetenek adı ve bir async karar ver.
-Bağlamı, (isteğe bağlı) aktörü ve request parçalarını içeren bir `Check` alır.
+Rollerin ötesine geçen her şey için `Policy`'yi uygula: ona bir yetenek adı ve async bir karar
+fonksiyonu ver. Bu fonksiyon, bağlamı, (isteğe bağlı) aktörü ve request parçalarını içeren bir
+`Check` alır.
 
 ```rust
 use rustali::prelude::*;
@@ -58,13 +59,13 @@ impl Policy for UpdatePost {
 
 `Check` sana şunları verir:
 
-| Alan | Olduğu |
+| Alan | Nedir |
 |---|---|
 | `check.ctx` | `AppContext` (veritabanı, servisler, yapılandırma) |
 | `check.actor` | `Option<&dyn Actor>` — mevcut kullanıcı (`id()`, `roles()`) |
-| `check.parts` | request başlığı (yol, başlıklar, uzantılar) |
+| `check.parts` | request'in başlık bölümü (yol, başlıklar, uzantılar) |
 
-Politikaları builder'da kaydet, sonra bir route'tan yeteneğe atıfta bulun:
+Politikaları builder'da kaydet, sonra bir route üzerinden yeteneğe atıfta bulun:
 
 ```rust
 App::builder()
@@ -79,7 +80,7 @@ App::builder()
 async fn update(/* ... */) -> Result<Json<Post>> { /* ... */ }
 ```
 
-Bir politika içinde somut kullanıcı tipine mi ihtiyacın var? Aktörü aşağı dönüştür:
+Bir politika içinde somut kullanıcı tipine mi ihtiyacın var? Aktörü aşağıya cast et:
 
 ```rust
 let user = check.actor.and_then(|a| a.as_any().downcast_ref::<User>());
@@ -87,9 +88,9 @@ let user = check.actor.and_then(|a| a.as_any().downcast_ref::<User>());
 
 ### Gerçekçi bir sahiplik politikası
 
-Çoğu özel politika, konuyu yükler ve onu aktörle karşılaştırır. Burada, bir gönderiyi yalnızca
-yazarı düzenleyebilir — politika id'yi yoldan okur, gönderiyi yükler ve sahipliği veritabanına karşı
-kontrol eder:
+Çoğu özel politika, ilgili kaydı yükler ve onu aktörle karşılaştırır. Burada bir gönderiyi yalnızca
+yazarı düzenleyebilir — politika id'yi yoldan okur, gönderiyi yükler ve sahipliği veritabanı
+üzerinden doğrular:
 
 ```rust
 pub struct UpdatePost;
@@ -117,15 +118,15 @@ impl Policy for UpdatePost {
 }
 ```
 
-Bir politika, reddetmek için `Ok(false)` ve yalnızca gerçek bir başarısızlık (örneğin bir veritabanı
-hatası) için `Err(..)` döndürür. `false` döndürerek reddetmek temiz bir 403 üretir; bir `Err`, bir
-500 olarak yayılır çünkü kullanıcının izni olmadığını değil, bir şeyin bozulduğunu ifade eder.
+Bir politika, reddetmek için `Ok(false)`, yalnızca gerçek bir arıza (örneğin bir veritabanı hatası)
+için ise `Err(..)` döndürür. `false` ile reddetmek temiz bir 403 üretir; bir `Err` ise 500 olarak
+yayılır, çünkü kullanıcının izninin olmadığını değil, bir şeylerin bozulduğunu anlatır.
 
 ## Bir handler içinde kontrol etmek
 
-`#[authorize]`, bütün bir route'u korumanın en temiz yoludur, ama bazen karar yalnızca handler'ın
-ortasında sahip olduğun verilere bağlıdır ya da reddetmek yerine dallanmak istersin. O zaman
-kullanıcıyı bir extractor olarak al ve düz Rust'ta karar ver:
+`#[authorize]`, bütün bir route'u korumanın en temiz yoludur; ama bazen karar, ancak handler'ın
+ortasında elinde olan verilere bağlıdır ya da reddetmek yerine akışı dallandırmak istersin. Böyle
+durumlarda kullanıcıyı bir extractor olarak al ve kararı düz Rust ile ver:
 
 ```rust
 #[get("/posts/{id}/edit")]
@@ -138,16 +139,16 @@ async fn edit(Auth(user): Auth<User>, db: Db, Path(id): Path<i64>) -> Result<Vie
 }
 ```
 
-`Error::Forbidden` / `Error::Unauthorized` döndürmek, filtrenin vereceği aynı 403 / 401'i verir;
-böylece elle yazılmış kontroller ve `#[authorize]` tutarlı kalır. Kural "bu kullanıcı bu route'a
-hiç ulaşabilir mi" olduğunda attribute'a başvur; kural yüklenen kayda bağlı olduğunda ya da
-reddetmek yerine farklı bir sonuç göstermek istediğinde handler içi bir kontrole başvur.
+`Error::Forbidden` / `Error::Unauthorized` döndürmek, filtrenin vereceğiyle aynı 403 / 401'i üretir;
+böylece elle yazdığın kontroller ile `#[authorize]` birbiriyle tutarlı kalır. Kural "bu kullanıcı bu
+route'a hiç erişebilir mi" ise attribute'u kullan; kural yüklenen kayda bağlıysa ya da reddetmek
+yerine farklı bir sonuç göstermek istiyorsan handler içinde bir kontrol kullan.
 
 ## Attribute olmadan bir politika uygulamak
 
-`#[authorize("ability")]`, bir tower katmanına genişler ve o aynı katmanı bir router'a elle
-`AuthorizeLayer::new("ability")` ile ekleyebilirsin — bütün bir route grubunu bir kerede korumak
-için kullanışlı:
+`#[authorize("ability")]`, bir tower katmanına açılır; aynı katmanı bir router'a elle
+`AuthorizeLayer::new("ability")` ile de ekleyebilirsin — bütün bir route grubunu tek seferde korumak
+için elverişlidir:
 
 ```rust
 use rustali::auth::AuthorizeLayer;
@@ -155,14 +156,15 @@ use rustali::auth::AuthorizeLayer;
 let admin = admin_routes().layer(AuthorizeLayer::new("role:admin"));
 ```
 
-Varsayılan middleware yığınına ihtiyaç duyar (bağlamı enjekte eden ve kullanıcıyı çözen); bu yüzden
-`App::builder()` aracılığıyla kurulan router'larda çalışır.
+Bu, varsayılan middleware yığınına ihtiyaç duyar (bağlamı enjekte eden ve kullanıcıyı çözen yığın);
+bu yüzden yalnızca `App::builder()` üzerinden kurulan router'larda çalışır.
 
 ## Yetkilendirme nerede oturur
 
-`#[authorize]`, varsayılan middleware yığını içinde çalışan bir tower katmanı yayar; böylece enjekte
-edilen `AppContext`'i ve çözülen kullanıcıyı görür. Bir katman olduğu için, karar handler
-gövdenden önce gerçekleşir — reddedilen bir request asla koduna dokunmaz. Bilinmeyen bir yetenek
-reddedilir ve loglanır; böylece bir yazım hatası açık değil, kapalı başarısız olur.
+`#[authorize]`, varsayılan middleware yığını içinde çalışan bir tower katmanı üretir; böylece enjekte
+edilen `AppContext`'i ve çözülmüş kullanıcıyı görebilir. Bir katman olduğu için karar, handler
+gövden çalışmadan önce verilir — reddedilen bir request senin koduna hiç ulaşmaz. Bilinmeyen bir
+yetenek reddedilir ve loglanır; yani bir yazım hatası açık değil, kapalı tarafta hata verir
+(fail-closed).
 
-> `rustali make:policy <Name>`, senin için bir `Policy` oluşturur.
+> `rustali make:policy <Name>`, senin yerine bir `Policy` iskeleti oluşturur.

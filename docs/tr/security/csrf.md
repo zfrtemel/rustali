@@ -1,14 +1,14 @@
 # CSRF & Session'lar
 
-Session'lar, ziyaretçi başına veriyi imzalanmış bir çerezde saklar. Onların üzerine Rustali, flash
-mesajları, formlar için eski girdi ve CSRF koruması sağlar — sunucuda render edilen bir uygulamanın
-ihtiyaç duyduğu parçalar. Bunlar `sessions` özelliğinden (varsayılan olarak açık) ve
+Session'lar, her ziyaretçiye ait veriyi imzalanmış bir çerezde saklar. Rustali bunun üzerine flash
+mesajlarını, formlar için eski girdiyi ve CSRF korumasını ekler — sunucuda render edilen bir
+uygulamanın ihtiyaç duyduğu parçalar. Bunlar `sessions` özelliğinden (varsayılan olarak açık) ve
 `SessionProvider`'dan gelir.
 
 ## Session'ları etkinleştirmek
 
-Session'ların, yapılandırma mevcutken çalışan bir katmana ihtiyacı var; bu yüzden hem provider'ı hem
-de katmanları ekle:
+Session'lar, yapılandırmanın hazır olduğu sırada çalışan bir katmana ihtiyaç duyar; bu yüzden hem
+provider'ı hem de katmanları ekle:
 
 ```rust
 App::builder()
@@ -19,7 +19,7 @@ App::builder()
     .await
 ```
 
-Onları `.env`'de yapılandır:
+Bunları `.env`'de yapılandır:
 
 ```bash
 # .env
@@ -29,27 +29,28 @@ SESSION_SAME_SITE=lax            # lax | strict | none
 SESSION_CSRF=true                # CSRF koruması açık/kapalı
 ```
 
-Çerezler `HttpOnly`'dir, yapılandırıldığı gibi `SameSite`'tır, `app.key` ile imzalanır ve üretimde
-`Secure`'dür. Depo şimdilik bellek içidir (tek bir düğüm için uygun); paylaşılan bir depo gelecekteki
-bir iştir.
+Çerezler `HttpOnly`'dir, yapılandırdığın `SameSite` değerini taşır, `app.key` ile imzalanır ve
+üretimde `Secure` olur. Depo şimdilik bellek içidir (tek bir düğüm için uygundur); paylaşılan bir
+depo ileride ele alınacak bir konu.
 
-### Çerez, alan alan
+### Çerez ayarları tek tek
 
 | Ayar | Değer | Neden |
 |---|---|---|
-| `HttpOnly` | her zaman | JavaScript çerezi okuyamaz; böylece bir XSS hatası session'ı çalamaz. |
-| `SameSite` | `same_site` yapılandırması | `lax` (varsayılan) çerezi çoğu siteler arası request'te engeller; `strict` daha katıdır; `none` siteler arasına izin verir (ve `Secure`'u zorlar). |
-| imzalı | `app.key` ile | istemci çerezi algılanmadan kurcalayamaz. |
-| `Secure` | üretimde | çerez yalnızca geliştirme dışında HTTPS üzerinden gönderilir. |
+| `HttpOnly` | her zaman | JavaScript çerezi okuyamaz; böylece bir XSS açığı session'ı çalamaz. |
+| `SameSite` | `same_site` ayarı | `lax` (varsayılan) çerezi siteler arası request'lerin çoğunda engeller; `strict` daha katıdır; `none` siteler arası gönderime izin verir (ve `Secure`'u zorunlu kılar). |
+| imzalı | `app.key` ile | istemci çerezi, fark edilmeden kurcalayamaz. |
+| `Secure` | üretimde | çerez, geliştirme dışında yalnızca HTTPS üzerinden gönderilir. |
 
-Depo süreç başına ve bellek içi olduğu için, session'lar bir yeniden başlatmada hayatta kalmaz ve
-henüz örnekler arasında paylaşılmaz — bellek [cache'iyle](../deeper/cache) aynı uyarı.
+Depo, her sürece özel ve bellek içi olduğu için session'lar yeniden başlatmayı atlatamaz ve henüz
+örnekler arasında paylaşılmaz — bellek [cache'inde](../deeper/cache) olduğu gibi aynı uyarı
+geçerli.
 
 ## Session'ı kullanmak
 
-Ham `Session` extractor'ı rastgele anahtarlanmış değerleri okur ve yazar. Değerler JSON üzerinden
-gidip gelir; böylece herhangi bir `Serialize + DeserializeOwned` tipi çalışır — `get`, eksik bir
-anahtar için `None` döndürür:
+Ham `Session` extractor'ı, istediğin anahtarla değer okur ve yazar. Değerler JSON'a çevrilip geri
+alınır; böylece `Serialize + DeserializeOwned` olan her tip çalışır — `get`, olmayan bir anahtar
+için `None` döndürür:
 
 ```rust
 #[get("/visit")]
@@ -60,12 +61,12 @@ async fn visit(session: Session) -> Result<String> {
 }
 ```
 
-Aşağıdaki flash, eski-girdi ve CSRF yardımcılarının hepsi bu aynı session'ın üzerine kuruludur — aksi
-hâlde `get`/`insert` ile elle yazacağın desenler için kolaylıklardır.
+Aşağıdaki flash, eski girdi ve CSRF yardımcılarının hepsi bu aynı session'ın üzerine kuruludur —
+yani aslında `get`/`insert` ile elle yazacağın kalıpları senin için kolaylaştıran araçlardır.
 
 ## Flash mesajları
 
-`Flash`, tam olarak bir yönlendirmede hayatta kalan tek request'lik mesajları queue'ya alır —
+`Flash`, yalnızca bir yönlendirme boyunca yaşayan tek request'lik mesajları queue'ya alır —
 post-redirect-get deseni.
 
 ```rust
@@ -78,11 +79,11 @@ async fn store(db: Db, flash: Flash, /* ... */) -> Result<Redirect> {
 ```
 
 Düzeyler: `success`, `info`, `warning`, `error` (`flash.success(..)`, `flash.error(..)` vb.). Her
-biri bir `level` ve `text` taşıyan bir `Message` queue'ya alır.
+biri, bir `level` ve bir `text` taşıyan bir `Message`'ı queue'ya ekler.
 
-Tam post-redirect-get döngüsü: eylem bir mesaj queue'ya alır ve yönlendirir; sonraki sayfa queue'ya
-alınmış mesajları `take()`'ler (bu onları da temizler, böylece bir yenileme onları tekrar
-göstermez) ve template onları render eder.
+Tam post-redirect-get döngüsü şöyle işler: eylem bir mesajı queue'ya alıp yönlendirir; sonraki sayfa
+queue'daki mesajları `take()` ile alır (bu işlem onları aynı zamanda temizler, böylece sayfa
+yenilendiğinde tekrar görünmezler) ve template onları render eder.
 
 ```rust
 // 1. eylem bir mesaj kuyruğa alır, sonra yönlendirir
@@ -118,12 +119,12 @@ struct Home {
 ```
 
 <code v-pre>{{ message.level }}</code>, `success` / `info` / `warning` / `error` olarak render
-edilir (`Level` enum'u `Display`'i uygular); böylece bir CSS sınıfı olarak da iş görür.
+edilir (`Level` enum'u `Display`'i uygular); böylece doğrudan bir CSS sınıfı olarak da kullanılabilir.
 
 ## Eski girdi ve hatalar
 
-Bir [validate edilmiş](../basics/validation) form başarısız olduğunda, extractor hataları ve gönderilen
-değerleri flash'lar ve geri yönlendirir. Formu tekrar render ederken onları oku:
+Bir [validate edilmiş](../basics/validation) form başarısız olduğunda, extractor hataları ve
+gönderilen değerleri flash'a yazıp geri yönlendirir. Formu yeniden render ederken bunları oku:
 
 ```rust
 let errors = flash.errors().await;             // ValidationErrors
@@ -134,12 +135,12 @@ flash.clear_old().await;                        // bir kez render ettikten sonra
 
 ## CSRF koruması
 
-`csrf = true` ile, her **güvensiz** request (`POST`, `PUT`, `PATCH`, `DELETE`) geçerli bir token
-taşımalıdır. Güvenli metotlar (`GET`, `HEAD`, `OPTIONS`, `TRACE`) ve `/api/*` yolları — bunlar
-çerezlerle değil, bearer token'larıyla kimlik doğrular — muaftır. Eksik ya da yanlış bir token
-`403` ile reddedilir.
+`csrf = true` iken her **güvensiz** request (`POST`, `PUT`, `PATCH`, `DELETE`) geçerli bir token
+taşımak zorundadır. Güvenli metotlar (`GET`, `HEAD`, `OPTIONS`, `TRACE`) ile `/api/*` yolları bundan
+muaftır — çünkü bu yollar çerezlerle değil, bearer token'larıyla kimlik doğrular. Eksik ya da yanlış
+bir token `403` ile reddedilir.
 
-Token'ı `Csrf` ile bir forma göm:
+Token'ı `Csrf` ile forma göm:
 
 ```rust
 #[get("/posts/new")]
@@ -155,21 +156,21 @@ async fn new_form(csrf: Csrf) -> Result<View<NewPost>> {
 </form>
 ```
 
-`csrf.field()`, gizli bir `<input name="_token" ...>` render eder. JavaScript request'leri için, bunun
-yerine ham `csrf.token().await` değerini `X-CSRF-Token` başlığında gönder.
+`csrf.field()`, gizli bir `<input name="_token" ...>` render eder. JavaScript request'lerinde ise
+bunun yerine ham `csrf.token().await` değerini `X-CSRF-Token` başlığıyla gönder.
 
 ### Kontrol nasıl çalışır
 
-Token, ilk ihtiyaç duyulduğunda ziyaretçinin session'ında saklanan rastgele bir değerdir. Güvensiz bir
-request'te katman, gönderilen token'ı (`_token` alanından ya da `X-CSRF-Token` başlığından)
-session'dakiyle karşılaştırır; bir eşleşme geçer, başka her şey bir 403'tür. Token session'da yaşadığı
-için — imzalanmış çereze bağlı — başka bir sitedeki bir saldırgan bir request'i sahte olarak oluşturmak
-için onu okuyamaz, ki CSRF korumasının tüm amacı budur.
+Token, ilk ihtiyaç duyulduğu anda ziyaretçinin session'ında saklanan rastgele bir değerdir. Güvensiz
+bir request geldiğinde katman, gönderilen token'ı (`_token` alanından ya da `X-CSRF-Token`
+başlığından) session'daki değerle karşılaştırır; eşleşirse geçer, aksi her durumda 403 döner. Token
+session'da — yani imzalanmış çereze bağlı olarak — durduğu için, başka bir sitedeki saldırgan sahte
+bir request üretmek için onu okuyamaz; CSRF korumasının asıl amacı da budur.
 
 ### Bir tek sayfalı uygulamadan ya da fetch()'ten
 
-Sayfa sunucuda render edilen bir `<form>` yerine JavaScript tarafından yönlendirildiğinde, token'ı
-bir kez oku ve onu her değiştiren request'te bir başlık olarak gönder:
+Sayfa, sunucuda render edilen bir `<form>` yerine JavaScript tarafından sürüldüğünde, token'ı bir
+kez oku ve değişiklik yapan her request'te onu bir başlık olarak gönder:
 
 ```rust
 // token'ı sayfaya göster (örn. bir <meta> etiketinde ya da bir JSON bootstrap'ta)
@@ -188,11 +189,12 @@ fetch("/posts", {
 });
 ```
 
-Bearer token'larıyla kimlik doğrulayan saf bir API bunların hiçbirine ihtiyaç duymaz: `/api/*`
-yolları muaftır, çünkü bir bearer token tarayıcı tarafından bir çerez gibi otomatik gönderilmez;
-yani sahte olarak oluşturulacak bir şey yoktur.
+Bearer token'larıyla kimlik doğrulayan salt API'lerin bunların hiçbirine ihtiyacı yoktur: `/api/*`
+yolları muaftır, çünkü bir bearer token'ı tarayıcı bir çerez gibi otomatik göndermez; dolayısıyla
+sahtesi üretilebilecek bir şey de yoktur.
 
-Form DTO'n tüm gövdeyi ayrıştırdığı için, token alanını kabul et; böylece ayrıştırmayı bozmaz:
+Form DTO'n gövdenin tamamını ayrıştırdığı için, token alanını da kabul etmelisin; yoksa bu alan
+ayrıştırmayı bozar:
 
 ```rust
 #[derive(Deserialize, Validate)]
@@ -204,5 +206,5 @@ struct CreatePost {
 }
 ```
 
-> blog ve auth-app örnekleri bunların hepsini birlikte kullanır — flash, eski girdi, CSRF — ve bir
-> entegrasyon testi, eksik bir token için 403 dahil tüm akışı sürer.
+> blog ve auth-app örnekleri bunların hepsini bir arada kullanır — flash, eski girdi, CSRF — ve bir
+> entegrasyon testi, eksik token için dönen 403 dahil akışın tamamını çalıştırır.

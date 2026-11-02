@@ -1,9 +1,9 @@
 # Routing & Controller
 
-Rustali'de bir route, **ona hizmet veren handler'ın üzerinde** yaşar. Ayrı bir route dosyası
-tutmazsın; bir metodu HTTP fiili ve yoluyla işaretlersin ve `#[controller]` makrosu onu
-router'a bağlar — route ve ona response veren kod bir arada durur ve `cargo run -- routes` tüm
-tabloyu yazdırır.
+Rustali'de bir route, **ona hizmet veren handler'ın hemen üstünde** durur. Ayrı bir route dosyası
+tutmazsın; bir metodu HTTP metoduyla ve yoluyla işaretlersin, `#[controller]` makrosu da onu
+router'a bağlar. Böylece route ile ona response veren kod yan yana durur ve `cargo run -- routes`
+tüm tabloyu ekrana basar.
 
 ## İlk controller
 
@@ -23,15 +23,15 @@ impl HomeController {
 
 Dikkat edilecek üç şey:
 
-- `#[controller("/")]` bir **inherent `impl`** üzerine gelir ve içindeki her route için bir
-  yol öneki bildirir.
-- `#[get("/")]` bir route bildirir. Yolu, controller önekiyle **birleştirilir**; bu yüzden bu
+- `#[controller("/")]` bir **inherent `impl`** üzerine konur ve içindeki her route için ortak
+  bir yol öneki tanımlar.
+- `#[get("/")]` bir route tanımlar. Verdiğin yol, controller önekiyle **birleştirilir**; yani bu
   handler `GET /`'e response verir.
-- Handler'lar **`self` olmayan** düz `async fn`'lerdir. Bir controller durumsuz bir ad
-  uzayıdır; bir handler'ın ihtiyacı olan her şey extractor'lar aracılığıyla gelir (aşağıya
-  bak). Bu derleme zamanında zorunlu kılınır — bir `self` alıcısı net bir hatadır.
+- Handler'lar `self` almayan düz `async fn`'lerdir. Bir controller, durum tutmayan bir ad
+  alanıdır; bir handler'ın ihtiyaç duyduğu her şey ona extractor'lar üzerinden gelir (aşağıya
+  bak). Bu kural derleme zamanında denetlenir — `self` alan bir handler doğrudan hata verir.
 
-Uygulamayı kurarken bağla:
+Uygulamayı kurarken şöyle bağlarsın:
 
 ```rust
 #[tokio::main]
@@ -40,14 +40,14 @@ async fn main() -> Result<()> {
 }
 ```
 
-`controllers()`, binary'ye bağlanmış **her** `#[controller]`'ı bağlar — senkronize tutulacak
-bir liste yoktur. Bunun yerine birini açıkça bağlamak için
+`controllers()`, binary'ye dahil edilmiş **bütün** `#[controller]`'ları bağlar; elle güncel
+tutman gereken bir liste yoktur. Bunun yerine tek bir controller'ı açıkça bağlamak istersen
 `App::builder().controller::<HomeController>()` kullan.
 
 ## HTTP fiilleri
 
-Her metot attribute'u bir fiile eşlenir: `#[get]`, `#[post]`, `#[put]`, `#[patch]`,
-`#[delete]`, `#[head]`, `#[options]`. Birkaç metot bir yolu paylaşabilir:
+Her metot attribute'u bir HTTP metoduna karşılık gelir: `#[get]`, `#[post]`, `#[put]`, `#[patch]`,
+`#[delete]`, `#[head]`, `#[options]`. Birden fazla metot aynı yolu paylaşabilir:
 
 ```rust
 #[controller("/api/todos")]
@@ -62,7 +62,7 @@ impl TodoController {
 
 ## Yol parametreleri
 
-Dinamik segmentler `{name}` (axum söz dizimi) kullanır ve `Path` extractor'ıyla çıkarılır:
+Dinamik segmentler `{name}` biçimini (axum söz dizimi) kullanır ve `Path` extractor'ı ile alınır:
 
 ```rust
 #[get("/{id}")]
@@ -71,7 +71,7 @@ async fn show(db: Db, Path(id): Path<i64>) -> Result<Json<Todo>> {
 }
 ```
 
-Birkaç segment için, bildirim sırasına göre bir tuple çıkar:
+Birden fazla segment için, segmentleri bildirim sırasına göre bir tuple'a alırsın:
 
 ```rust
 #[get("/{year}/{slug}")]
@@ -80,7 +80,8 @@ async fn show(Path((year, slug)): Path<(i64, String)>) -> String {
 }
 ```
 
-Ya da ikiden fazlasında daha okunaklı olan, onları ada göre bir `Deserialize` struct'a bağla:
+İkiden fazla segment varsa daha okunaklı olan yöntem, segmentleri ada göre bir `Deserialize`
+struct'a bağlamaktır:
 
 ```rust
 #[derive(Deserialize)]
@@ -94,7 +95,7 @@ async fn show(Path(p): Path<PostPath>) -> String {
 
 ## Query dizeleri
 
-Query dizesini `Query` ile bir `Deserialize` struct'a bağla:
+Query dizesini `Query` ile bir `Deserialize` struct'a bağlarsın:
 
 ```rust
 #[derive(Deserialize)]
@@ -115,9 +116,9 @@ async fn index(db: Db, Query(paging): Query<Paging>) -> Result<Json<Page<Todo>>>
 
 ## Request gövdeleri
 
-`Json<T>` bir JSON gövdesini ayrıştırır; `Form<T>` bir URL kodlu form gövdesini ayrıştırır.
-Validation yapmak istediğin girdiler için bunun yerine `Validated<Json<T>>` / `Validated<Form<T>>`'e
-başvur — [Request'ler & Validation](validation.md)'a bak.
+`Json<T>` bir JSON gövdesini, `Form<T>` ise URL kodlu bir form gövdesini ayrıştırır.
+Validation'dan geçirmek istediğin girdiler için bunların yerine `Validated<Json<T>>` /
+`Validated<Form<T>>` kullan — [Request'ler & Validation](validation.md)'a bak.
 
 ```rust
 #[post("/")]
@@ -129,26 +130,27 @@ async fn store(db: Db, Json(input): Json<CreateTodo>) -> Result<(StatusCode, Jso
 
 ## Yaygın extractor'lar
 
-axum'un `FromRequestParts`/`FromRequest`'ini uygulayan her şey bir handler argümanı olabilir.
-En çok kullanacakların:
+axum'un `FromRequestParts`/`FromRequest`'ini uygulayan her tip bir handler argümanı olabilir.
+En sık kullanacakların şunlar:
 
 | Extractor | Sana verdiği |
 |---|---|
 | `Path<T>` | Yol parametreleri |
 | `Query<T>` | Ayrıştırılmış query dizesi |
 | `Json<T>` / `Form<T>` | Request gövdesi |
-| `Db` | Bir veritabanı bağlantısı (`orm` özelliği) |
+| `Db` | Veritabanı bağlantısı (`orm` özelliği) |
 | `Ctx` | Paylaşılan `AppContext` (yapılandırma, servisler) |
-| `Inject<T>` | Tipe göre tek bir kayıtlı servis |
+| `Inject<T>` | Tipe göre kayıtlı tek bir servis |
 | `Auth<U>` / `OptionalAuth<U>` | Kimliği doğrulanmış kullanıcı (`auth` özelliği) |
 | `Flash`, `Csrf`, `Session` | Session yardımcıları (`sessions` özelliği) |
 
-Extractor'lar iki türe ayrılır ve bu ayrım akılda tutulacak tek kuraldır:
+Extractor'lar iki gruba ayrılır ve aklında tutman gereken tek kural bu ayrımdır:
 
-- **Request başlığından** (`Path`, `Query`, `Ctx`, `Db`, `Inject`, `Auth`, `Session`, …) yalnızca
-  üst veri okur; bu yüzden istediğin kadarına, herhangi bir sırada sahip olabilirsin.
-- **Gövdeden** (`Json`, `Form`, `Validated`) request'i **tüketir**; bu yüzden en fazla bir tane
-  olabilir ve argüman listesinde **en sona** gelmelidir.
+- **Request başlığından okuyanlar** (`Path`, `Query`, `Ctx`, `Db`, `Inject`, `Auth`, `Session`, …)
+  yalnızca üst veriyi okur; bu yüzden bunlardan kaç tane istersen, hangi sırada istersen
+  kullanabilirsin.
+- **Gövdeden okuyanlar** (`Json`, `Form`, `Validated`) request'i **tüketir**; bu yüzden en fazla
+  bir tane olabilir ve argüman listesinde **en sonda** gelmelidir.
 
 ```rust
 #[post("/{id}/comments")]
@@ -162,19 +164,19 @@ async fn add_comment(
 }
 ```
 
-Bir gövde extractor'ını en son dışında bir yere koymak derleme hatasıdır; yani kural yalnızca
-tavsiye edilmez, zorunlu kılınır.
+Bir gövde extractor'ını son sıra dışında bir yere koymak derleme hatasına yol açar; yani bu kural
+sadece bir tavsiye değil, zorunluluktur.
 
 ## Response'lar
 
-Bir handler, `IntoResponse`'ı uygulayan her şeyi döndürür:
+Bir handler, `IntoResponse`'ı uygulayan herhangi bir tipi döndürebilir:
 
 - `&'static str` / `String` → `text/plain`
 - `Json<T>` → `application/json`
 - `Html<String>` ya da `View<T>` → `text/html` ([View'lar](views.md)'a bak)
 - `Redirect::to("/path")` → 303 yönlendirme
-- `StatusCode` ya da `(StatusCode::CREATED, Json(todo))` gibi bir tuple ile durumu ayarla
-- Hatanın framework [`Error`](responses.md)'ı olduğu `Result<T>` — `?` sorunsuz çalışır
+- `StatusCode` ya da `(StatusCode::CREATED, Json(todo))` gibi bir tuple ile durum kodunu ayarlarsın
+- Hata tipinin framework'ün [`Error`](responses.md)'ı olduğu `Result<T>` — `?` sorunsuz çalışır
 
 ```rust
 #[delete("/{id}")]
@@ -186,15 +188,15 @@ async fn destroy(db: Db, Path(id): Path<i64>) -> Result<StatusCode> {
 
 ## Adlandırılmış route'lar
 
-Bir route'a `name` ver; route tablosunda ve (view katmanının URL yardımcısı geldiğinde)
-üretilen bağlantılarda görünür:
+Bir route'a `name` verirsin; bu ad hem route tablosunda hem de (view katmanının URL yardımcısı
+geldiğinde) üretilen bağlantılarda görünür:
 
 ```rust
 #[get("/{id}", name = "todos.show")]
 async fn show(/* ... */) { /* ... */ }
 ```
 
-Her controller route'unu, adını, handler'ını ve middleware'ini listele:
+Her controller route'unu adıyla, handler'ıyla ve middleware'iyle birlikte listelemek için:
 
 ```bash
 cargo run -- routes
@@ -209,8 +211,8 @@ GET     /api/todos/{id}  todos.show    TodoController::show     Throttle::per_mi
 
 ## Tek controller'dan SSR ve API
 
-Bir handler yalnızca bir `IntoResponse` döndürdüğü için, aynı controller HTML sayfalarını ve
-bir JSON API'yi yan yana sunabilir — her route için dönüş tipini seç:
+Bir handler sadece bir `IntoResponse` döndürdüğü için, aynı controller hem HTML sayfalarını hem de
+bir JSON API'yi bir arada sunabilir — her route için dönüş tipini kendin seçersin:
 
 ```rust
 #[controller("/posts")]
@@ -220,20 +222,20 @@ impl PostController {
 }
 ```
 
-Hatalar istemciye uyacak şekilde otomatik olarak render edilir (API çağıranlar için JSON,
-tarayıcılar için bir HTML sayfası) — [Response'lar & Hatalar](responses.md)'a bak.
+Hatalar istemciye göre otomatik olarak render edilir (API'yi çağıranlar için JSON, tarayıcılar
+için bir HTML sayfası) — [Response'lar & Hatalar](responses.md)'a bak.
 
 ## Eşleşmeyen route'lar
 
 Hiçbir route'la eşleşmeyen bir request, framework'ün `NotFound` hatasını döndüren yerleşik bir
-handler'a düşer; böylece bir 404, diğer herhangi bir hata gibi pazarlık edilir — bir API
-istemcisi için JSON, bir tarayıcı için bir HTML hata sayfası. Bunu sen bağlamazsın; varsayılan
-yığınla gelir.
+handler'ına düşer; böylece 404 de diğer hatalar gibi içerik pazarlığından geçer — bir API
+istemcisine JSON, bir tarayıcıya HTML hata sayfası döner. Bunu sen bağlamazsın; varsayılan
+yığınla birlikte gelir.
 
 ## Middleware iliştirmek
 
-Bir metottaki `#[middleware(expr)]` o tek handler'ı sarar; `impl` üzerindeki tüm controller'ı
-sarar. [Middleware & Filtreler](middleware.md)'e bak.
+Bir metodun üzerindeki `#[middleware(expr)]` yalnızca o handler'ı sarar; `impl` üzerindeki ise tüm
+controller'ı sarar. [Middleware & Filtreler](middleware.md)'e bak.
 
 ```rust
 #[controller("/admin")]
@@ -246,5 +248,5 @@ impl AdminController {
 ```
 
 > **Kaputun altında:** `#[controller]` sıradan axum router kodu üretir — görmek için
-> `cargo expand` çalıştır. Çalışma zamanı yansıması (reflection) yoktur; makro yalnızca route
+> `cargo expand` çalıştırabilirsin. Çalışma zamanında reflection kullanılmaz; makro yalnızca route
 > bildirimini handler'ın yanına taşır.
