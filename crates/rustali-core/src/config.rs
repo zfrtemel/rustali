@@ -1,28 +1,24 @@
-//! Layered application configuration.
+//! Application configuration from a single `.env` file.
 //!
-//! Layout follows Laravel: one file per section.
+//! All settings live in one `.env` file (or the real process environment) as flat,
+//! readable keys — there are no per-section config files:
 //!
 //! ```text
-//! config/
-//! ├── app.toml            → [app]      (keys: name, env, debug)
-//! ├── server.toml         → [server]   (host, port)
-//! ├── log.toml            → [log]
-//! ├── database.toml       → [database] (read by rustali-orm)
-//! └── production/         → same files, merged on top when APP_ENV=production
-//!     └── app.toml
+//! APP_NAME=Shop
+//! APP_ENV=production
+//! APP_KEY=a-long-secret
+//! PORT=8080
+//! DATABASE_URL=sqlite://db/app.db?mode=rwc
+//! CACHE_DRIVER=redis
 //! ```
 //!
-//! Precedence, lowest to highest: compiled defaults → `config/<section>.toml` →
-//! `config/<APP_ENV>/<section>.toml` → `.env` file → process environment variables
-//! prefixed with `APP__` (double underscore separates nesting, e.g.
-//! `APP__SERVER__PORT=9000`). Sections the kernel does not know are kept in
-//! [`Config::extra`] and read by packages with [`Config::section`].
+//! Precedence, lowest to highest: compiled defaults → `.env` file → the real process
+//! environment. Each known key maps to a config field (see [`ENV_KEYS`]); keys for optional
+//! packages populate [`Config::extra`], which packages read with [`Config::section`]. For
+//! settings without a clean key, an `APP__SECTION__FIELD` escape hatch is still honoured
+//! (double underscore separates nesting).
 
-use std::{
-    collections::BTreeMap,
-    net::IpAddr,
-    path::{Path, PathBuf},
-};
+use std::{collections::BTreeMap, net::IpAddr};
 
 use figment::{
     Figment,
@@ -115,19 +111,12 @@ impl Default for LogConfig {
 }
 
 impl Config {
-    /// Environment variable that selects the profile directory (`config/<env>/`).
-    pub const ENV_VAR: &'static str = "APP_ENV";
-    /// Prefix for environment-variable overrides.
+    /// Prefix for the `APP__SECTION__FIELD` escape-hatch overrides.
     pub const ENV_PREFIX: &'static str = "APP__";
 
-    /// Load configuration from `./config` relative to the current directory.
+    /// Load configuration from `.env` (if present) and the process environment.
     pub fn load() -> Result<Self> {
-        Self::load_from("config")
-    }
-
-    /// Load configuration using `dir` as the directory holding the section files.
-    pub fn load_from(dir: impl AsRef<Path>) -> Result<Self> {
-        Self::figment(dir.as_ref())?.extract().map_err(Into::into)
+        Self::figment().extract().map_err(Into::into)
     }
 
     /// Deserialise a package- or application-defined section, e.g.
@@ -156,43 +145,69 @@ impl Config {
         self.app.env == "production"
     }
 
-    fn figment(dir: &Path) -> Result<Figment> {
+    fn figment() -> Figment {
         // `.env` is optional and must never override real environment variables.
         let _ = dotenvy::dotenv();
-        let profile = std::env::var(Self::ENV_VAR).unwrap_or_else(|_| "development".into());
 
         let mut figment = Figment::from(Serialized::defaults(Self::default()));
-        figment = Self::merge_dir(figment, dir)?;
-        figment = Self::merge_dir(figment, &dir.join(&profile))?;
-        Ok(figment.merge(Env::prefixed(Self::ENV_PREFIX).split("__")))
-    }
-
-    /// Merge every `<section>.toml` in `dir` under the key `<section>`.
-    fn merge_dir(mut figment: Figment, dir: &Path) -> Result<Figment> {
-        for path in Self::section_files(dir) {
-            let Some(section) = path.file_stem().and_then(|s| s.to_str()) else {
-                continue;
-            };
-            let text = std::fs::read_to_string(&path)?;
-            let value: toml::Value = toml::from_str(&text)
-                .map_err(|err| Error::bad_config(format!("{}: {err}", path.display())))?;
-            figment = figment.merge(Serialized::default(section, value));
+        // Map each known clean key (e.g. DATABASE_URL) to its dotted config path.
+        for (key, path) in ENV_KEYS {
+            if let Ok(value) = std::env::var(key) {
+                figment = figment.merge(Serialized::default(path, parse_scalar(&value)));
+            }
         }
-        Ok(figment)
+        // Escape hatch: APP__SECTION__FIELD for settings without a clean key.
+        figment.merge(Env::prefixed(Self::ENV_PREFIX).split("__"))
     }
+}
 
-    fn section_files(dir: &Path) -> Vec<PathBuf> {
-        let Ok(entries) = std::fs::read_dir(dir) else {
-            return Vec::new(); // a missing directory simply contributes nothing
-        };
-        let mut files: Vec<PathBuf> = entries
-            .filter_map(std::result::Result::ok)
-            .map(|entry| entry.path())
-            .filter(|path| path.is_file() && path.extension().is_some_and(|ext| ext == "toml"))
-            .collect();
-        files.sort(); // deterministic merge order
-        files
-    }
+/// Map from a clean `.env` key to the dotted config path it sets.
+///
+/// Keys for `app` / `server` / `log` fill the typed top-level sections; the rest populate
+/// [`Config::extra`] under their package's section name, where providers read them.
+pub const ENV_KEYS: &[(&str, &str)] = &[
+    // app
+    ("APP_NAME", "app.name"),
+    ("APP_ENV", "app.env"),
+    ("APP_DEBUG", "app.debug"),
+    ("APP_KEY", "app.key"),
+    // server
+    ("HOST", "server.host"),
+    ("PORT", "server.port"),
+    // log
+    ("LOG_LEVEL", "log.level"),
+    ("LOG_JSON", "log.json"),
+    // database (rustali-orm)
+    ("DATABASE_URL", "database.url"),
+    ("DATABASE_MAX_CONNECTIONS", "database.max_connections"),
+    ("SOFT_DELETE", "database.soft_delete"),
+    // cache
+    ("CACHE_DRIVER", "cache.driver"),
+    ("CACHE_URL", "cache.url"),
+    // mail
+    ("MAIL_TRANSPORT", "mail.transport"),
+    ("MAIL_FROM", "mail.from"),
+    ("MAIL_URL", "mail.url"),
+    // queue
+    ("QUEUE_CAPACITY", "queue.capacity"),
+    // session
+    ("SESSION_COOKIE", "session.cookie"),
+    ("SESSION_LIFETIME_MINUTES", "session.lifetime_minutes"),
+    ("SESSION_SAME_SITE", "session.same_site"),
+    ("SESSION_CSRF", "session.csrf"),
+    // openapi
+    ("OPENAPI_TITLE", "openapi.title"),
+    ("OPENAPI_VERSION", "openapi.version"),
+];
+
+/// Parse a `.env` string value into the most specific TOML scalar (bool, integer, else
+/// string), so typed fields like `PORT` / `APP_DEBUG` deserialise correctly.
+fn parse_scalar(value: &str) -> toml::Value {
+    value
+        .parse::<bool>()
+        .map(toml::Value::Boolean)
+        .or_else(|_| value.parse::<i64>().map(toml::Value::Integer))
+        .unwrap_or_else(|_| toml::Value::String(value.to_owned()))
 }
 
 impl Error {
@@ -218,43 +233,37 @@ mod tests {
     }
 
     #[test]
-    fn section_files_map_to_sections() {
+    fn clean_keys_map_to_fields() {
         figment::Jail::expect_with(|jail| {
-            jail.create_dir("config")?;
-            jail.create_file("config/server.toml", "port = 9000")?;
-            jail.create_file("config/app.toml", "name = \"Shop\"")?;
-            let cfg = Config::load_from("config").expect("config loads");
-            assert_eq!(cfg.server.port, 9000);
+            jail.set_env("APP_NAME", "Shop");
+            jail.set_env("PORT", "9000");
+            jail.set_env("APP_DEBUG", "false");
+            let cfg = Config::load().expect("config loads");
             assert_eq!(cfg.app.name, "Shop");
+            assert_eq!(cfg.server.port, 9000); // parsed as an integer
+            assert!(!cfg.app.debug); // parsed as a bool
             Ok(())
         });
     }
 
     #[test]
-    fn profile_directory_overrides_base_files() {
+    fn env_selects_production() {
         figment::Jail::expect_with(|jail| {
-            jail.create_dir("config/production")?;
-            jail.create_file("config/app.toml", "debug = true")?;
-            jail.create_file(
-                "config/production/app.toml",
-                "debug = false\nenv = \"production\"",
-            )?;
             jail.set_env("APP_ENV", "production");
-            let cfg = Config::load_from("config").expect("config loads");
-            assert!(!cfg.app.debug);
+            let cfg = Config::load().expect("config loads");
             assert!(cfg.is_production());
             Ok(())
         });
     }
 
     #[test]
-    fn env_overrides_win() {
+    fn package_keys_populate_sections() {
         figment::Jail::expect_with(|jail| {
-            jail.create_dir("config")?;
-            jail.create_file("config/server.toml", "port = 9000")?;
-            jail.set_env("APP__SERVER__PORT", "9100");
-            let cfg = Config::load_from("config").expect("config loads");
-            assert_eq!(cfg.server.port, 9100);
+            jail.set_env("DATABASE_URL", "sqlite://x.db");
+            jail.set_env("CACHE_DRIVER", "redis");
+            let cfg = Config::load().expect("config loads");
+            assert_eq!(cfg.extra["database"]["url"].as_str(), Some("sqlite://x.db"));
+            assert_eq!(cfg.extra["cache"]["driver"].as_str(), Some("redis"));
             Ok(())
         });
     }
@@ -267,12 +276,11 @@ mod tests {
     }
 
     #[test]
-    fn unknown_sections_are_kept_and_typed_on_demand() {
+    fn escape_hatch_fills_custom_sections() {
         figment::Jail::expect_with(|jail| {
-            jail.create_dir("config")?;
-            jail.create_file("config/payments.toml", "provider = \"stripe\"\nretries = 3")?;
+            jail.set_env("APP__PAYMENTS__PROVIDER", "stripe");
             jail.set_env("APP__PAYMENTS__RETRIES", "5");
-            let cfg = Config::load_from("config").expect("config loads");
+            let cfg = Config::load().expect("config loads");
             let payments: Payments = cfg.section("payments").expect("typed").expect("present");
             assert_eq!(
                 payments,
@@ -291,33 +299,10 @@ mod tests {
     }
 
     #[test]
-    fn section_type_errors_name_the_section() {
-        figment::Jail::expect_with(|jail| {
-            jail.create_dir("config")?;
-            jail.create_file("config/payments.toml", "retries = \"many\"")?;
-            let cfg = Config::load_from("config").expect("config loads");
-            let err = cfg.section::<Payments>("payments").unwrap_err();
-            assert!(err.to_string().contains("[payments]"), "{err}");
-            Ok(())
-        });
-    }
-
-    #[test]
     fn wrong_types_are_errors() {
         figment::Jail::expect_with(|jail| {
-            jail.create_dir("config")?;
-            jail.create_file("config/server.toml", "port = \"not-a-number\"")?;
-            assert!(matches!(Config::load_from("config"), Err(Error::Config(_))));
-            Ok(())
-        });
-    }
-
-    #[test]
-    fn malformed_toml_is_an_error() {
-        figment::Jail::expect_with(|jail| {
-            jail.create_dir("config")?;
-            jail.create_file("config/app.toml", "name = ")?;
-            assert!(matches!(Config::load_from("config"), Err(Error::Config(_))));
+            jail.set_env("PORT", "not-a-number");
+            assert!(matches!(Config::load(), Err(Error::Config(_))));
             Ok(())
         });
     }
