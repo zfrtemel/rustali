@@ -37,7 +37,7 @@ pub struct {{ name }} {
     pub deleted_at: Option<DateTime<Utc>>,
 }
 
-// The shared base-model accessors (id / timestamps), like a .NET BaseEntity.
+// The shared base-model accessors (id / timestamps).
 impl BaseEntity for {{ name }} {
     type Id = i64;
     fn id(&self) -> Self::Id {

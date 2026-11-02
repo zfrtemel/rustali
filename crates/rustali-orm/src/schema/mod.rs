@@ -1,4 +1,4 @@
-//! Code-first schema model and diff engine (EF Core style).
+//! Code-first schema model and diff engine.
 //!
 //! The owned [`Schema`] (a set of [`Table`]s) is the normalised form of both sides of
 //! a diff: the **desired** schema, built from the application's entities

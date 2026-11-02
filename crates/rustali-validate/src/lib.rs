@@ -1,10 +1,10 @@
 //! Input validation for the Rustali web framework.
 //!
 //! Declare rules on your DTO, then ask for `Validated<Form<T>>` or
-//! `Validated<Json<T>>` in the handler. Invalid JSON requests get a 422 problem
-//! document with an `errors` map; invalid HTML form posts are redirected back with the
-//! errors and the old input flashed into the session (when the session package is
-//! installed), exactly like Laravel.
+//! `Validated<Json<T>>` in the handler. Invalid JSON requests get a 422 response in the
+//! standard envelope with the field errors under `error.details.fields`; invalid HTML form
+//! posts are redirected back with the errors and the old input flashed into the session (when
+//! the session package is installed).
 //!
 //! ```ignore
 //! #[derive(Deserialize, Validate)]

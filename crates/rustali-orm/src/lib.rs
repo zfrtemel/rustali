@@ -1,8 +1,8 @@
 //! Data layer for the Rustali web framework.
 //!
 //! The engine is [SeaORM](https://www.sea-ql.org/SeaORM/); what Rustali adds is the
-//! developer experience: one plain struct per table (`#[derive(Entity)]`, .NET POCO
-//! style), a [`DatabaseProvider`] that wires the pool from `config/database.toml`, a
+//! developer experience: one plain struct per table (`#[derive(Entity)]`, no ORM
+//! boilerplate), a [`DatabaseProvider`] that wires the pool from `DATABASE_URL`, a
 //! [`Db`] extractor, a typed [`Query`] builder that returns your structs and a
 //! serialisable [`Page`] for pagination.
 //!

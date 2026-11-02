@@ -7,9 +7,9 @@
 //! these fields" — logging, auditing, serialisation helpers — without naming the concrete
 //! type.
 //!
-//! This is the .NET `BaseEntity` idea in Rust form: shared *behaviour* through a trait, with
-//! the fields still declared on each struct (and managed by `#[derive(Entity)]`'s timestamp
-//! and key conventions).
+//! A shared base model in Rust form: common *behaviour* through a trait, with the fields still
+//! declared on each struct (and managed by `#[derive(Entity)]`'s timestamp and key
+//! conventions).
 
 use chrono::{DateTime, Utc};
 

@@ -1,7 +1,7 @@
 //! The `rustali` command-line tool.
 //!
 //! `rustali new <name>` scaffolds a fresh application; `rustali make:<thing> <Name>`
-//! generates a source file from a template (Laravel's `make:*` convention, colon and
+//! generates a source file from a template (the `make:*` convention, colon and
 //! all). Everything else (serve, migrate, routes, queue:work, ...) is provided by the
 //! application binary — run those with `cargo run -- <command>` inside a project.
 

@@ -1,7 +1,7 @@
 //! Automatic OpenAPI + offline Swagger UI for the [Rustali](https://github.com/zfrtemel/rustali)
 //! web framework.
 //!
-//! Like .NET's zero-config Swagger: mount it and your API documents itself. There is no
+//! Zero-config: mount it and your API documents itself. There is no
 //! per-route annotation — the spec is generated from the framework's compile-time route
 //! registry (the same data `cargo run -- routes` prints), so every `#[controller]` route shows
 //! up automatically.

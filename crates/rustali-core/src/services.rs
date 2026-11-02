@@ -1,11 +1,9 @@
 //! Explicit dependency injection: the service registry and the [`Provider`] trait.
 //!
-//! Inspired by .NET's `IServiceCollection` rather than Laravel's reflective
-//! container: services are registered by **type** at startup, looked up by type at
-//! runtime, and there is no string binding or auto-wiring magic. Packages ship a
-//! [`Provider`] (the equivalent of a Laravel service provider) that reads
-//! configuration and registers what it owns; handlers receive services through the
-//! [`Inject<T>`](crate::extract::Inject) extractor.
+//! Services are registered by **type** at startup, looked up by type at runtime, with no
+//! string binding and no auto-wiring magic — the type system is the container. Packages ship
+//! a [`Provider`] that reads configuration and registers what it owns; handlers receive
+//! services through the [`Inject<T>`](crate::extract::Inject) extractor.
 
 use std::{
     any::{Any, TypeId, type_name},

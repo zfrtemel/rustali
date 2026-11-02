@@ -1,7 +1,6 @@
 //! Rule predicates and default messages used by `#[derive(Validate)]`.
 //!
-//! Messages follow Laravel's wording so documentation and muscle memory carry over;
-//! the i18n package will make them translatable.
+//! Messages are plain, human-readable English; the i18n package will make them translatable.
 
 use std::fmt::Display;
 
@@ -194,7 +193,7 @@ mod tests {
     }
 
     #[test]
-    fn messages_read_like_laravel() {
+    fn messages_are_human_readable() {
         assert_eq!(
             messages::required("first_name"),
             "The first name field is required."

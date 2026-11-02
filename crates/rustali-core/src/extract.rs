@@ -50,7 +50,7 @@ impl Deref for Ctx {
     }
 }
 
-/// Extracts a registered service by type (.NET-style constructor injection, but per
+/// Extracts a registered service by type (type-indexed dependency injection, but per
 /// handler). Fails with a 500 and a clear message when the service is missing.
 ///
 /// ```ignore

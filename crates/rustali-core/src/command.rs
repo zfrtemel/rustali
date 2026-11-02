@@ -1,4 +1,4 @@
-//! Console commands that run inside the application (Laravel's `artisan`).
+//! Console commands that run inside the application.
 //!
 //! The application binary is also its own CLI: `cargo run -- migrate`,
 //! `cargo run -- routes`. Packages register commands from their [`crate::Provider`];

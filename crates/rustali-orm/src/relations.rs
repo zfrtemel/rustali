@@ -1,8 +1,7 @@
 //! Relation loading helpers used by `#[derive(Entity)]`-generated methods.
 //!
-//! Rust cannot do Laravel-style implicit lazy loading — a field access can neither be
-//! `async` nor run hidden I/O — so every relation load is explicit and `.await`ed. Two
-//! shapes are offered:
+//! Rust has no implicit lazy loading — a field access can neither be `async` nor run hidden
+//! I/O — so every relation load is explicit and `.await`ed. Two shapes are offered:
 //!
 //! - **Lazy (on demand):** `post.comments(&db).await?` loads one parent's related rows.
 //! - **Eager (batch, avoids N+1):** `Post::with_comments(posts, &db).await?` loads all

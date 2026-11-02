@@ -1,11 +1,11 @@
 //! View layer for the Rustali web framework.
 //!
-//! Two philosophies, one trait. By default views are **Askama** templates checked at
-//! compile time (the Razor/.NET side of the house); enable the `tera` feature for
-//! **Tera** templates rendered at runtime with hot reload (the Blade/Laravel side).
-//! Either way a handler returns a [`View`], which renders to HTML and, for an
-//! `Accept: application/json` request, can fall back to JSON when the template struct
-//! is serialisable — the same controller serving SSR and API (VISION §1).
+//! Two approaches, one trait. By default views are **Askama** templates checked at
+//! compile time (a missing variable is a build error, not a 500); enable the `tera` feature
+//! for **Tera** templates rendered at runtime with hot reload. Either way a handler returns a
+//! [`View`], which renders to HTML and, for an `Accept: application/json` request, can fall
+//! back to JSON when the template struct is serialisable — the same controller serving SSR
+//! and API.
 //!
 //! ## Askama (default)
 //!
