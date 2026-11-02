@@ -94,6 +94,7 @@ inventory = "0.3"
 clap = { version = "4", features = ["derive", "env", "wrap_help"] }
 minijinja = "2"
 console = "0.16"
+dialoguer = { version = "0.12", default-features = false }
 
 # --- testing ---
 insta = { version = "1", features = ["json", "yaml", "redactions"] }
