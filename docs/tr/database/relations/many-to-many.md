@@ -1,12 +1,12 @@
 # many_to_many
 
-Bir **çoka-çok** ilişki: bu tablodaki her satır başka bir tablodaki birçok satıra bağlanır ve tersi.
+Bir **çoka-çok** relation: bu tablodaki her row başka bir tablodaki birçok row'a bağlanır ve tersi.
 Bir gönderinin birçok etiketi vardır; bir etiket birçok gönderiye aittir. Her iki tabloda da yabancı
-anahtar yoktur — bunun yerine üçüncü bir **bağlantı tablosu** bağlantı başına bir satır tutar.
+anahtar yoktur — bunun yerine üçüncü bir **bağlantı tablosu** bağlantı başına bir row tutar.
 
-## Bağlantı varlığı
+## Bağlantı entity'si
 
-Bağlantı, her iki tarafa da bir yabancı anahtarı olan sıradan bir varlıktır. `Post ↔ Tag` için
+Bağlantı, her iki tarafa da bir yabancı anahtarı olan sıradan bir entity'dir. `Post ↔ Tag` için
 `post_tags`'tir:
 
 ```rust
@@ -21,11 +21,11 @@ pub struct PostTag {
 }
 ```
 
-İki `belongs_to` ilişkisini bağlantıda bildirmek, Rustali'nin join'i kurmasını sağlayan şeydir.
-(Bağlantı satırlarını doğrudan da yükleyebilir ve ona ekstra kolonlar ekleyebilirsin — bir
-`created_at`, bir `sort_order` — diğer herhangi bir varlık gibi.)
+İki `belongs_to` relation'ını bağlantıda bildirmek, Rustali'nin join'i kurmasını sağlayan şeydir.
+(Bağlantı row'larını doğrudan da yükleyebilir ve ona ekstra column'lar ekleyebilirsin — bir
+`created_at`, bir `sort_order` — diğer herhangi bir entity gibi.)
 
-## İlişkiyi bildirmek
+## Relation'ı bildirmek
 
 Her tarafta, `#[many_to_many(...)]` ile bağlantı aracılığıyla diğerine işaret et:
 
@@ -51,30 +51,30 @@ pub struct Tag {
 
 | Argüman | Anlamı | Varsayılan |
 |---|---|---|
-| *(ilk, konumsal)* | Hedef varlık tipi (`Tag`). | — (zorunlu) |
-| `via = Entity` | Bağlantı varlığı (`PostTag`). | — (zorunlu) |
-| `from = column` | **Bu** varlığa işaret eden bağlantı kolonu. | — (zorunlu) |
-| `to = column` | **Hedefe** işaret eden bağlantı kolonu. | — (zorunlu) |
+| *(ilk, konumsal)* | Hedef entity tipi (`Tag`). | — (zorunlu) |
+| `via = Entity` | Bağlantı entity'si (`PostTag`). | — (zorunlu) |
+| `from = column` | **Bu** entity'ye işaret eden bağlantı column'u. | — (zorunlu) |
+| `to = column` | **Hedefe** işaret eden bağlantı column'u. | — (zorunlu) |
 | `as = name` | Üretilen metot adını geçersiz kıl. | hedefin snake-case'i + `s` (`Tag` → `tags`) |
 
 `from` / `to`'yu bağlantının bakış açısından oku: `Post`'ta, `from = post_id` gönderiler için
-bağlantı kolonudur ve `to = tag_id` etiketler için bağlantı kolonudur. `Tag`'te ikisi yer değiştirir,
-çünkü "bu varlık" artık etikettir.
+bağlantı column'udur ve `to = tag_id` etiketler için bağlantı column'udur. `Tag`'te ikisi yer değiştirir,
+çünkü "bu entity" artık etikettir.
 
-`via`, `from` ve `to`'nun üçü de zorunludur — bir bağlantının, tek taraflı ilişkilerin olduğu gibi
-bir birincil-anahtar varsayılanı yoktur.
+`via`, `from` ve `to`'nun üçü de zorunludur — bir bağlantının, tek taraflı relation'ların olduğu gibi
+bir primary-key varsayılanı yoktur.
 
 ## Üretilen metotlar
 
 `#[many_to_many(Tag, via = PostTag, from = post_id, to = tag_id)]` için, derive `Post`'a şunları
 ekler:
 
-| Metot | Döndürdüğü | Sorgular |
+| Metot | Döndürdüğü | Query'ler |
 |---|---|---|
 | `post.tags(&db)` | `Vec<Tag>` | bir (tembel: bağlantı aracılığıyla tek bir join) |
 | `Post::with_tags(posts, &db)` | `Vec<(Post, Vec<Tag>)>` | grup için iki (istekli) |
 
-`Tag`, ayna ilişkisini bildirdiği için, ters yön de aynı şekilde çalışır: `tag.posts(&db)` ve
+`Tag`, ayna relation'ını bildirdiği için, ters yön de aynı şekilde çalışır: `tag.posts(&db)` ve
 `Tag::with_posts(tags, &db)`.
 
 ## Tembel — bir gönderinin etiketleri
@@ -100,12 +100,12 @@ for (post, tags) in &paired {
 }
 ```
 
-İstekli yükleyici, bağlantı satırlarını ve hedef satırlarını toplu olarak getirir, sonra her
-gönderinin etiketlerini gruplar — gönderi başına iki yerine tüm liste için iki sorgu.
+İstekli yükleyici, bağlantı row'larını ve hedef row'larını toplu olarak getirir, sonra her
+gönderinin etiketlerini gruplar — gönderi başına iki yerine tüm liste için iki query.
 
 ## Bağlantıları iliştirmek ve ayırmak
 
-Bir bağlantı yalnızca bağlantı tablosundaki bir satırdır; bu yüzden bağlantı varlıklarını ekleyerek
+Bir bağlantı yalnızca bağlantı tablosundaki bir row'dur; bu yüzden bağlantı entity'lerini ekleyerek
 ve silerek bağlantıları oluşturur ve kaldırırsın:
 
 ```rust
@@ -123,4 +123,4 @@ if let Some(link) = PostTag::query()
 }
 ```
 
-İlişkiler rehberinin kapsadığı her şey bu kadar. [Genel bakışa](./) dön.
+Relation'lar rehberinin kapsadığı her şey bu kadar. [Genel bakışa](./) dön.

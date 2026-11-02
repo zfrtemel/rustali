@@ -1,13 +1,13 @@
-# CSRF & Oturumlar
+# CSRF & Session'lar
 
-Oturumlar, ziyaretçi başına veriyi imzalanmış bir çerezde saklar. Onların üzerine Rustali, flash
+Session'lar, ziyaretçi başına veriyi imzalanmış bir çerezde saklar. Onların üzerine Rustali, flash
 mesajları, formlar için eski girdi ve CSRF koruması sağlar — sunucuda render edilen bir uygulamanın
 ihtiyaç duyduğu parçalar. Bunlar `sessions` özelliğinden (varsayılan olarak açık) ve
 `SessionProvider`'dan gelir.
 
-## Oturumları etkinleştirmek
+## Session'ları etkinleştirmek
 
-Oturumların, yapılandırma mevcutken çalışan bir katmana ihtiyacı var; bu yüzden hem provider'ı hem
+Session'ların, yapılandırma mevcutken çalışan bir katmana ihtiyacı var; bu yüzden hem provider'ı hem
 de katmanları ekle:
 
 ```rust
@@ -37,15 +37,15 @@ bir iştir.
 
 | Ayar | Değer | Neden |
 |---|---|---|
-| `HttpOnly` | her zaman | JavaScript çerezi okuyamaz; böylece bir XSS hatası oturumu çalamaz. |
-| `SameSite` | `same_site` yapılandırması | `lax` (varsayılan) çerezi çoğu siteler arası istekte engeller; `strict` daha katıdır; `none` siteler arasına izin verir (ve `Secure`'u zorlar). |
+| `HttpOnly` | her zaman | JavaScript çerezi okuyamaz; böylece bir XSS hatası session'ı çalamaz. |
+| `SameSite` | `same_site` yapılandırması | `lax` (varsayılan) çerezi çoğu siteler arası request'te engeller; `strict` daha katıdır; `none` siteler arasına izin verir (ve `Secure`'u zorlar). |
 | imzalı | `app.key` ile | istemci çerezi algılanmadan kurcalayamaz. |
 | `Secure` | üretimde | çerez yalnızca geliştirme dışında HTTPS üzerinden gönderilir. |
 
-Depo süreç başına ve bellek içi olduğu için, oturumlar bir yeniden başlatmada hayatta kalmaz ve
-henüz örnekler arasında paylaşılmaz — bellek [önbelleğiyle](../deeper/cache) aynı uyarı.
+Depo süreç başına ve bellek içi olduğu için, session'lar bir yeniden başlatmada hayatta kalmaz ve
+henüz örnekler arasında paylaşılmaz — bellek [cache'iyle](../deeper/cache) aynı uyarı.
 
-## Oturumu kullanmak
+## Session'ı kullanmak
 
 Ham `Session` extractor'ı rastgele anahtarlanmış değerleri okur ve yazar. Değerler JSON üzerinden
 gidip gelir; böylece herhangi bir `Serialize + DeserializeOwned` tipi çalışır — `get`, eksik bir
@@ -60,12 +60,12 @@ async fn visit(session: Session) -> Result<String> {
 }
 ```
 
-Aşağıdaki flash, eski-girdi ve CSRF yardımcılarının hepsi bu aynı oturumun üzerine kuruludur — aksi
+Aşağıdaki flash, eski-girdi ve CSRF yardımcılarının hepsi bu aynı session'ın üzerine kuruludur — aksi
 hâlde `get`/`insert` ile elle yazacağın desenler için kolaylıklardır.
 
 ## Flash mesajları
 
-`Flash`, tam olarak bir yönlendirmede hayatta kalan tek istekli mesajları kuyruğa alır —
+`Flash`, tam olarak bir yönlendirmede hayatta kalan tek request'lik mesajları queue'ya alır —
 post-redirect-get deseni.
 
 ```rust
@@ -78,11 +78,11 @@ async fn store(db: Db, flash: Flash, /* ... */) -> Result<Redirect> {
 ```
 
 Düzeyler: `success`, `info`, `warning`, `error` (`flash.success(..)`, `flash.error(..)` vb.). Her
-biri bir `level` ve `text` taşıyan bir `Message` kuyruğa alır.
+biri bir `level` ve `text` taşıyan bir `Message` queue'ya alır.
 
-Tam post-redirect-get döngüsü: eylem bir mesaj kuyruğa alır ve yönlendirir; sonraki sayfa kuyruğa
+Tam post-redirect-get döngüsü: eylem bir mesaj queue'ya alır ve yönlendirir; sonraki sayfa queue'ya
 alınmış mesajları `take()`'ler (bu onları da temizler, böylece bir yenileme onları tekrar
-göstermez) ve şablon onları render eder.
+göstermez) ve template onları render eder.
 
 ```rust
 // 1. eylem bir mesaj kuyruğa alır, sonra yönlendirir
@@ -122,7 +122,7 @@ edilir (`Level` enum'u `Display`'i uygular); böylece bir CSS sınıfı olarak d
 
 ## Eski girdi ve hatalar
 
-Bir [doğrulanmış](../basics/validation) form başarısız olduğunda, extractor hataları ve gönderilen
+Bir [validate edilmiş](../basics/validation) form başarısız olduğunda, extractor hataları ve gönderilen
 değerleri flash'lar ve geri yönlendirir. Formu tekrar render ederken onları oku:
 
 ```rust
@@ -134,7 +134,7 @@ flash.clear_old().await;                        // bir kez render ettikten sonra
 
 ## CSRF koruması
 
-`csrf = true` ile, her **güvensiz** istek (`POST`, `PUT`, `PATCH`, `DELETE`) geçerli bir token
+`csrf = true` ile, her **güvensiz** request (`POST`, `PUT`, `PATCH`, `DELETE`) geçerli bir token
 taşımalıdır. Güvenli metotlar (`GET`, `HEAD`, `OPTIONS`, `TRACE`) ve `/api/*` yolları — bunlar
 çerezlerle değil, bearer token'larıyla kimlik doğrular — muaftır. Eksik ya da yanlış bir token
 `403` ile reddedilir.
@@ -155,21 +155,21 @@ async fn new_form(csrf: Csrf) -> Result<View<NewPost>> {
 </form>
 ```
 
-`csrf.field()`, gizli bir `<input name="_token" ...>` render eder. JavaScript istekleri için, bunun
+`csrf.field()`, gizli bir `<input name="_token" ...>` render eder. JavaScript request'leri için, bunun
 yerine ham `csrf.token().await` değerini `X-CSRF-Token` başlığında gönder.
 
 ### Kontrol nasıl çalışır
 
-Token, ilk ihtiyaç duyulduğunda ziyaretçinin oturumunda saklanan rastgele bir değerdir. Güvensiz bir
-istekte katman, gönderilen token'ı (`_token` alanından ya da `X-CSRF-Token` başlığından)
-oturumdakiyle karşılaştırır; bir eşleşme geçer, başka her şey bir 403'tür. Token oturumda yaşadığı
-için — imzalanmış çereze bağlı — başka bir sitedeki bir saldırgan bir isteği sahte olarak oluşturmak
+Token, ilk ihtiyaç duyulduğunda ziyaretçinin session'ında saklanan rastgele bir değerdir. Güvensiz bir
+request'te katman, gönderilen token'ı (`_token` alanından ya da `X-CSRF-Token` başlığından)
+session'dakiyle karşılaştırır; bir eşleşme geçer, başka her şey bir 403'tür. Token session'da yaşadığı
+için — imzalanmış çereze bağlı — başka bir sitedeki bir saldırgan bir request'i sahte olarak oluşturmak
 için onu okuyamaz, ki CSRF korumasının tüm amacı budur.
 
 ### Bir tek sayfalı uygulamadan ya da fetch()'ten
 
 Sayfa sunucuda render edilen bir `<form>` yerine JavaScript tarafından yönlendirildiğinde, token'ı
-bir kez oku ve onu her değiştiren istekte bir başlık olarak gönder:
+bir kez oku ve onu her değiştiren request'te bir başlık olarak gönder:
 
 ```rust
 // token'ı sayfaya göster (örn. bir <meta> etiketinde ya da bir JSON bootstrap'ta)

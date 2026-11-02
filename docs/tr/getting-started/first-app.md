@@ -96,7 +96,7 @@ pub struct Post {
 }
 ```
 
-Ardından değişiklikten migration'ı üret — diff, varlığını okur ve ilk taslağı yazar:
+Ardından değişiklikten migration'ı üret — diff, entity'ni okur ve ilk taslağı yazar:
 
 ```bash
 cargo run -- migrate:diff "create posts"   # gözden geçirilmiş bir migration + anlık görüntü yazar
@@ -106,8 +106,8 @@ cargo run -- migrate
 ::: tip
 `migrate:diff`, üretilen migration'ı `db/migrations/` altına yazar. Derlenmesi için onu
 `src/migrations/` içine taşı ve `Migrator`'ında listele — otomatik yerleştirme yol
-haritasında. Tam iş akışı için [Migration'lar](../database/migrations) sayfasına bak.
+haritasında. Tam workflow için [Migration'lar](../database/migrations) sayfasına bak.
 :::
 
 Controller'ı bağla (`App::builder().controllers()` zaten binary'deki her `#[controller]`'ı
-toplar) ve CRUD'un hazır. Sıradaki: [Yönlendirme & Controller](../basics/routing).
+toplar) ve CRUD'un hazır. Sıradaki: [Routing & Controller](../basics/routing).

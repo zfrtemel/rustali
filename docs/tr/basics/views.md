@@ -1,14 +1,14 @@
-# Görünümler
+# View'lar
 
-Görünümler HTML render eder. Rustali varsayılan olarak **Askama** kullanır; o da şablonlarını
-Rust'a derler ve derleme zamanında denetler — eksik bir değişken ya da bir şablondaki yazım
-hatası, üretimde bir 500 değil, bir derleme hatasıdır. Hot reload ile çalışma zamanı şablonları
-istersen, **Tera** arka ucu bir özelliğin arkasında mevcuttur.
+View'lar HTML render eder. Rustali varsayılan olarak **Askama** kullanır; o da template'lerini
+Rust'a derler ve derleme zamanında denetler — eksik bir değişken ya da bir template'teki yazım
+hatası, üretimde bir 500 değil, bir derleme hatasıdır. Hot reload ile çalışma zamanı template'leri
+istersen, **Tera** backend'i bir özelliğin arkasında mevcuttur.
 
 ## Askama (varsayılan)
 
-Bir şablon, `Template`'i türeten ve bir şablon dosyası adlandıran bir struct'tır. Alanları,
-şablonda kullanılabilir değişkenlerdir.
+Bir template, `Template`'i türeten ve bir template dosyası adlandıran bir struct'tır. Alanları,
+template'te kullanılabilir değişkenlerdir.
 
 ```rust
 use rustali::prelude::*;   // `View` ve `Template`'i kapsama getirir
@@ -29,7 +29,7 @@ async fn index(ctx: Ctx, db: Db) -> Result<View<PostsIndex>> {
 }
 ```
 
-Şablonlar varsayılan olarak `templates/` altında yaşar. Askama, crate kökünden bir `askama.toml`
+Template'ler varsayılan olarak `templates/` altında yaşar. Askama, crate kökünden bir `askama.toml`
 okur:
 
 ```toml
@@ -46,7 +46,7 @@ dirs = ["templates"]
 {% endfor %}
 ```
 
-`View::new(page)`, bir `200 text/html` yanıtı döndürür. `with_status` ile farklı bir durum
+`View::new(page)`, bir `200 text/html` response'u döndürür. `with_status` ile farklı bir durum
 ayarla — geçersiz bir formu yeniden render etmek için kullanışlı:
 
 ```rust
@@ -56,12 +56,12 @@ Ok(View::new(login_page).with_status(StatusCode::UNPROCESSABLE_ENTITY))
 `View<T>` yalnızca bir `IntoResponse` olduğu için, `Result<View<T>>` döndüren bir handler da
 diğerleri gibi otomatik hata render'ı alır.
 
-### Bir şablon struct'ı bir görünüm modelidir
+### Bir template struct'ı bir view modelidir
 
-Şablon struct'ı tam olarak sayfanın ihtiyaç duyduğu veridir — fazlası değil. Varlıkları olduğu
-gibi geçirmek yerine onu görünüm için şekillendir: biçimlendirilmiş bir tarihi, bir görünen adı,
+Template struct'ı tam olarak sayfanın ihtiyaç duyduğu veridir — fazlası değil. Entity'leri olduğu
+gibi geçirmek yerine onu view için şekillendir: biçimlendirilmiş bir tarihi, bir görünen adı,
 bir bayrağı önceden hesapla. [Sayfalanmış](../database/queries#pagination) bir `Page<T>`'nin
-`map`'i olduğundan, sayfalama sayılarını korurken satırları bir görünüm modeline
+`map`'i olduğundan, sayfalama sayılarını korurken satırları bir view modeline
 dönüştürebilirsin:
 
 ```rust
@@ -69,12 +69,12 @@ let page = Post::query().paginate(&db, 1, 20).await?
     .map(|post| PostRow { title: post.title, excerpt: truncate(&post.body, 140) });
 ```
 
-Sunum mantığını şablon yerine handler'da (düz Rust) tutmak, şablonu basit ve mantığı test
+Sunum mantığını template yerine handler'da (düz Rust) tutmak, template'i basit ve mantığı test
 edilebilir tutar.
 
 ## Düzenler (layout)
 
-Askama şablon kalıtımını destekler. Bir temel düzen bloklar bildirir; sayfalar onu genişletir
+Askama template kalıtımını destekler. Bir temel düzen bloklar bildirir; sayfalar onu genişletir
 ve doldurur.
 
 ```html
@@ -97,8 +97,8 @@ ve doldurur.
 
 ## Parçalar (partial)
 
-Yeniden kullanılabilir bir parçayı başka bir şablona `{% include %}` ile çek. Parça, kendisini
-dahil eden şablonla aynı bağlamı görür:
+Yeniden kullanılabilir bir parçayı başka bir template'e `{% include %}` ile çek. Parça, kendisini
+dahil eden template'le aynı bağlamı görür:
 
 ```html
 <!-- templates/posts/_card.html -->
@@ -112,7 +112,7 @@ dahil eden şablonla aynı bağlamı görür:
 {% endfor %}
 ```
 
-## Bir bakışta şablon söz dizimi
+## Bir bakışta template söz dizimi
 
 Askama'nın söz dizimi Jinja benzeridir. En çok başvuracağın parçalar:
 
@@ -123,15 +123,15 @@ Askama'nın söz dizimi Jinja benzeridir. En çok başvuracağın parçalar:
 | `{% if let Some(x) = opt %} … {% endif %}` | Bir `Option`/deseni eşle (gerçek Rust desenleri). |
 | `{% for item in items %} … {% endfor %}` | Döngü; `loop.index` 1 tabanlı konumu verir. |
 | `{% extends "base.html" %}` / `{% block %}` | Düzen kalıtımı. |
-| `{% include "partial.html" %}` | Başka bir şablonu satır içine al. |
+| `{% include "partial.html" %}` | Başka bir template'i satır içine al. |
 | <code v-pre>{{ value\|filter }}</code> | Bir filtre uygula, örn. `\|safe`, `\|upper`. |
 
-Şablonlar Rust'a derlendiği için içlerindeki ifadeler tip denetiminden geçer: var olmayan bir
+Template'ler Rust'a derlendiği için içlerindeki ifadeler tip denetiminden geçer: var olmayan bir
 metodu çağırmak ya da struct'ta olmayan bir alanı yazdırmak, `cargo build`'i başarısız kılar.
 
 ## Kaçış (escaping)
 
-Askama, `.html` şablonlarında HTML'i otomatik kaçışlar. Güvenilir, önceden render edilmiş bir
+Askama, `.html` template'lerinde HTML'i otomatik kaçışlar. Güvenilir, önceden render edilmiş bir
 dizeyi (bir CSRF gizli girdisi gibi) yaymak için onu `safe`'ten geçir:
 
 ```html
@@ -143,8 +143,8 @@ dizeyi (bir CSRF gizli girdisi gibi) yaymak için onu `safe`'ten geçir:
 
 ## Formlar: hatalar ve eski girdi
 
-Bir [doğrulanmış](validation) form gönderimi başarısız olduğunda, hatalar ve gönderilen değerler
-oturuma flash'lanır ve istek geri yönlendirilir. Formu render ederken bunları şablon struct'ına
+Bir [validation'dan geçmiş](validation) form gönderimi başarısız olduğunda, hatalar ve gönderilen değerler
+session'a flash'lanır ve request geri yönlendirilir. Formu render ederken bunları template struct'ına
 çek:
 
 ```rust
@@ -168,11 +168,11 @@ async fn index(ctx: Ctx, db: Db, flash: Flash, csrf: Csrf) -> Result<View<PostsI
 {% if let Some(message) = title_error %}<p class="error">{{ message }}</p>{% endif %}
 ```
 
-`Flash` ve `Csrf`'in tamamı için [CSRF & Oturumlar](../security/csrf)'a bak.
+`Flash` ve `Csrf`'in tamamı için [CSRF & Session'lar](../security/csrf)'a bak.
 
 ## Flash mesajları
 
-`flash.take()`, kuyruğa alınmış mesajları döndürür ve temizler; bunları düzeninde render
+`flash.take()`, queue'ya alınmış mesajları döndürür ve temizler; bunları düzeninde render
 edersin:
 
 ```rust
@@ -190,7 +190,7 @@ Bir `Message`'ın bir `level`'ı (`success`, `info`, `warning`, `error`) ve `tex
 
 ## Tera (çalışma zamanı, `tera` özelliği)
 
-Çalışma zamanı şablonları için `tera` özelliğini etkinleştir. Motoru `TeraProvider` ile kaydet,
+Çalışma zamanı template'leri için `tera` özelliğini etkinleştir. Motoru `TeraProvider` ile kaydet,
 sonra serileştirilebilir bir bağlamla ada göre render et:
 
 ```rust
@@ -200,7 +200,7 @@ async fn index(views: Inject<TeraView>) -> Result<Html<String>> {
 ```
 
 Tera varsayılan olarak `views/**/*` okur (`view` bölümü aracılığıyla yapılandırılabilir). Derleme
-zamanı güvenliği istediğinde Askama'yı kullan; tasarımcıların yeniden derleme olmadan şablonları
+zamanı güvenliği istediğinde Askama'yı kullan; tasarımcıların yeniden derleme olmadan template'leri
 düzenlemesi gerektiğinde Tera'ya başvur.
 
 ## SSR ve JSON birlikte
@@ -208,4 +208,4 @@ düzenlemesi gerektiğinde Tera'ya başvur.
 Bir controller, bir route'ta bir HTML `View`'ı ve başka bir route'ta `Json`'ı sunabilir — aynı
 handler tarzı, farklı dönüş tipi. Hatalar çağırana uyacak şekilde render edilir (tarayıcılar
 için HTML sayfası, API istemcileri için problem+JSON); böylece tek bir controller ikisini de
-temizce sunar. [Yanıtlar & Hatalar](responses)'a bak.
+temizce sunar. [Response'lar & Hatalar](responses)'a bak.

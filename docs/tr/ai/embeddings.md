@@ -2,12 +2,12 @@
 
 Bir embedding, bir metin parçasını anlamını yakalayan bir sayı listesine — bir vektöre — çevirir.
 Benzer şeyler ifade eden iki metin, benzer yönlere işaret eden vektörler alır; böylece "bunlar ne
-kadar ilişkili?" sorusunu anahtar kelime eşleştirme yerine aritmetikle ölçebilirsin. Bu, anlamsal
-aramanın ve [getirimin (RAG)](rag) temelidir.
+kadar ilişkili?" sorusunu anahtar kelime eşleştirme yerine aritmetikle ölçebilirsin. Bu, semantik
+aramanın ve [retrieval'ın (RAG)](rag) temelidir.
 
 ## Embedding üretmek
 
-Tutamaca `ctx.ai()` ile eriş, sonra tek bir dizeyi `embed` et ya da birçoğunu `embed_batch` et:
+Handle'a `ctx.ai()` ile eriş, sonra tek bir string'i `embed` et ya da birçoğunu `embed_batch` et:
 
 ```rust
 let ai = ctx.ai()?;
@@ -19,8 +19,8 @@ let texts = vec!["first".to_owned(), "second".to_owned()];
 let vectors = ai.embed_batch(&texts).await?;       // Vec<Vec<f32>>, girdi başına bir, sırayla
 ```
 
-**Bir `embed` döngüsü yerine `embed_batch`'i tercih et.** Bir arka uç, metin başına bir yerine tüm
-grup için bir model geçişi (ya da bir ağ gidiş-dönüşü) çalıştırır — birçok öğe için çok daha hızlı.
+**Bir `embed` döngüsü yerine `embed_batch`'i tercih et.** Bir backend, metin başına bir yerine tüm
+batch için bir model geçişi (ya da bir ağ gidiş-dönüşü) çalıştırır — birçok öğe için çok daha hızlı.
 
 `ai.dimensions()`, önceden ihtiyacın varsa (örneğin bir veritabanı kolonunu boyutlandırmak için)
 mevcut modelin ürettiği vektör uzunluğunu sana söyler.
@@ -45,7 +45,7 @@ Kötü girdide güvenlidir — farklı uzunluklar, boş ya da tümü sıfır vek
 
 ## En benzeri bulmak
 
-Gündelik kullanım, "bir sorgu verildiğinde, metinlerimden hangileri en yakın?"tir. Sorguyu embed et,
+Gündelik kullanım, "bir query verildiğinde, metinlerimden hangileri en yakın?"tir. Query'yi embed et,
 adayları embed et, benzerliğe göre sırala:
 
 ```rust
@@ -64,7 +64,7 @@ for (text, score) in ranked.iter().take(3) {
 }
 ```
 
-Bunu etrafta tuttuğun bir koleksiyon üzerinde yaptığında, adayları her seferinde yeniden embed etme
+Bunu etrafta tuttuğun bir koleksiyon üzerinde yaptığında, aday'ları her seferinde yeniden embed etme
 — vektörlerini bir kez sakla. [`VectorStore`](rag)'un tam olarak senin için yaptığı budur.
 
 ## Vektörleri saklamak
@@ -80,7 +80,7 @@ Arama yerleşik, süreç içi bir depo için [`VectorStore`](rag)'u kullan.
 
 ## Hangi model kullanılır
 
-`candle` arka ucuyla, embedding'ler CPU'da çalışan yerel bir cümle dönüştürücüden gelir (varsayılan
-`all-MiniLM-L6-v2`, 384 boyut). `mock` ile, deterministik yer tutuculardır — aynı metin her zaman
-aynı vektörü verir; böylece testler kararlıdır, ama sayılar gerçek bir anlam taşımaz. Bir modeli
-seçmek ve yüklemek için [Modeller](models)'e bak.
+`candle` backend'iyle, embedding'ler CPU'da çalışan yerel bir sentence transformer'dan gelir
+(varsayılan `all-MiniLM-L6-v2`, 384 boyut). `mock` ile, deterministik yer tutuculardır — aynı metin
+her zaman aynı vektörü verir; böylece testler kararlıdır, ama sayılar gerçek bir anlam taşımaz. Bir
+modeli seçmek ve yüklemek için [Modeller](models)'e bak.

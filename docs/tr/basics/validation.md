@@ -1,7 +1,7 @@
-# İstekler & Doğrulama
+# Request'ler & Validation
 
-Bir handler, istek gövdesini bir extractor aracılığıyla alır. Güvenmek istediğin girdiler için
-**doğrulanmış** extractor'ları kullan: kurallarını DTO'nda `#[derive(Validate)]` ile bildir,
+Bir handler, request gövdesini bir extractor aracılığıyla alır. Güvenmek istediğin girdiler için
+**validation'dan geçmiş** extractor'ları kullan: kurallarını DTO'nda `#[derive(Validate)]` ile bildir,
 sonra `Validated<Json<T>>` ya da `Validated<Form<T>>` iste. Geçersiz girdi asla handler'ına
 ulaşmaz.
 
@@ -69,7 +69,7 @@ fn no_links(body: &String) -> Result<(), String> {
 }
 ```
 
-### İç içe doğrulama
+### İç içe validation
 
 `#[rule(nested)]`, kendisi bir `Validate` tipi olan bir alanı doğrular; böylece her şeyi tek bir
 struct'a düzleştirmek yerine DTO'ları birleştirebilirsin:
@@ -127,9 +127,9 @@ olarak `422 Unprocessable Entity` alır:
 
 `Validated<Json<T>>` ve `Validated<Form<T>>` iki ayrı tiptir; bu yüzden davranışı handler'ın
 hangisini istediğine göre seçersin. Form varyantı başarısızlıkta farklı davranır: hataları ve
-gönderilen değerleri oturuma flash'lar ve **geri yönlendirir** — `Referer`'a ya da yoksa `/`'a —
-böylece form, mesajlarla doldurulmuş olarak yeniden render edilir. (Oturum paketi kurulu
-değilse, 422 sayfasına geri döner. Bir `/api/*` yoluna yapılan ya da JSON isteyen bir istek,
+gönderilen değerleri session'a flash'lar ve **geri yönlendirir** — `Referer`'a ya da yoksa `/`'a —
+böylece form, mesajlarla doldurulmuş olarak yeniden render edilir. (Session paketi kurulu
+değilse, 422 sayfasına geri döner. Bir `/api/*` yoluna yapılan ya da JSON isteyen bir request,
 form varyantı aracılığıyla bile her zaman 422 belgesini alır.)
 
 ```rust
@@ -145,8 +145,8 @@ async fn store(
 }
 ```
 
-Yönlendirilen istekte hataları ve eski girdiyi geri okumak [Görünümler](views) ile
-[CSRF & Oturumlar](../security/csrf)'da ele alınmıştır. Kısaca:
+Yönlendirilen request'te hataları ve eski girdiyi geri okumak [View'lar](views) ile
+[CSRF & Session'lar](../security/csrf)'da ele alınmıştır. Kısaca:
 
 ```rust
 let errors = flash.errors().await;          // ValidationErrors
@@ -154,7 +154,7 @@ let old_title = flash.old("title").await;    // Option<String>
 errors.first("title");                        // Option<&str>
 ```
 
-## Düz (doğrulanmamış) gövdeler
+## Düz (validation'sız) gövdeler
 
 Kurallara ihtiyacın olmadığında, çıplak `Json<T>` / `Form<T>` extractor'ları gövdeyi doğrudan
 ayrıştırır. Yine de elle bir hata döndürebilirsin:

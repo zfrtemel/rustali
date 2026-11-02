@@ -1,11 +1,11 @@
 # has_one
 
-Sahip olan taraftan bir **bire-bir** ilişki: bu satırın başka bir tabloda tam olarak bir ilişkili
-satırı vardır ve o diğer tablo yabancı anahtarı tutar. Bir yazarın bir profili vardır; bir
+Sahip olan taraftan bir **bire-bir** relation: bu row'un başka bir tabloda tam olarak bir ilişkili
+row'u vardır ve o diğer tablo yabancı anahtarı tutar. Bir yazarın bir profili vardır; bir
 kullanıcının bir ayar kümesi vardır.
 
-`has_one`, [`has_many`](has-many)'nin tek-satır ikizidir: aynı sahip olan taraf, aynı yabancı-anahtar
-yerleşimi, ama ilişkili tablonun en fazla bir eşleşen satırı vardır; bu yüzden bir `Vec` yerine bir
+`has_one`, [`has_many`](has-many)'nin tek-row ikizidir: aynı sahip olan taraf, aynı yabancı-anahtar
+yerleşimi, ama ilişkili tablonun en fazla bir eşleşen row'u vardır; bu yüzden bir `Vec` yerine bir
 `Option` elde edersin.
 
 ## Bildirmek
@@ -30,15 +30,15 @@ pub struct Profile {
 ```
 
 Attribute, `Author`'a (sahibe) gelir. `to = author_id`, **hedef** tablodaki yabancı-anahtar
-kolonunu (`profiles.author_id`) adlandırır.
+column'unu (`profiles.author_id`) adlandırır.
 
 ### Argümanlar
 
 | Argüman | Anlamı | Varsayılan |
 |---|---|---|
-| *(ilk, konumsal)* | Hedef varlık tipi (`Profile`). | — (zorunlu) |
-| `to = column` | **Hedef** tablodaki yabancı-anahtar kolonu. | — (zorunlu) |
-| `from = column` | Geri işaret ettiği yerel kolon. | bu tablonun birincil anahtarı (`id`) |
+| *(ilk, konumsal)* | Hedef entity tipi (`Profile`). | — (zorunlu) |
+| `to = column` | **Hedef** tablodaki yabancı-anahtar column'u. | — (zorunlu) |
+| `from = column` | Geri işaret ettiği yerel column. | bu tablonun primary key'i (`id`) |
 | `as = name` | Üretilen metot adını geçersiz kıl. | hedefin snake-case'i (`profile`) |
 
 `has_many` ile aynı argümanlar — yalnızca kardinalite farklı.
@@ -47,7 +47,7 @@ kolonunu (`profiles.author_id`) adlandırır.
 
 `#[has_one(Profile, to = author_id)]` için, derive `Author`'a şunları ekler:
 
-| Metot | Döndürdüğü | Sorgular |
+| Metot | Döndürdüğü | Query'ler |
 |---|---|---|
 | `author.profile(&db)` | `Option<Profile>` | bir (tembel) |
 | `Author::with_profile(authors, &db)` | `Vec<(Author, Option<Profile>)>` | grup için bir (istekli) |

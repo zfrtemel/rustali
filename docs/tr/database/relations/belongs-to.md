@@ -1,8 +1,8 @@
 # belongs_to
 
-Bire-çok ilişkinin **çocuk tarafı**: bu satır, tuttuğu bir yabancı anahtar aracılığıyla başka bir
-tablodaki bir satıra işaret eder. Bir yorum bir gönderiye aittir; bir gönderi bir yazara aittir. Bu,
-yabancı-anahtar kolonunu *tutan* taraftır.
+Bire-çok relation'ın **çocuk tarafı**: bu row, tuttuğu bir yabancı anahtar aracılığıyla başka bir
+tablodaki bir row'a işaret eder. Bir yorum bir gönderiye aittir; bir gönderi bir yazara aittir. Bu,
+yabancı-anahtar column'unu *tutan* taraftır.
 
 ## Bildirmek
 
@@ -18,36 +18,36 @@ pub struct Comment {
 ```
 
 Attribute, `Comment`'e (anahtara sahip olan çocuk) gelir. `from = post_id`, **bu** tablodaki
-yabancı-anahtar kolonunu adlandırır.
+yabancı-anahtar column'unu adlandırır.
 
 ### Argümanlar
 
 | Argüman | Anlamı | Varsayılan |
 |---|---|---|
-| *(ilk, konumsal)* | Hedef varlık tipi (`Post`). | — (zorunlu) |
-| `from = column` | **Bu** tablodaki yabancı-anahtar kolonu. | — (zorunlu) |
-| `to = column` | Hedefteki referans verilen kolon. | hedefin birincil anahtarı (`id`) |
+| *(ilk, konumsal)* | Hedef entity tipi (`Post`). | — (zorunlu) |
+| `from = column` | **Bu** tablodaki yabancı-anahtar column'u. | — (zorunlu) |
+| `to = column` | Hedefteki referans verilen column. | hedefin primary key'i (`id`) |
 | `as = name` | Üretilen metot adını geçersiz kıl. | hedefin snake-case'i (`post`) |
 
-`from` zorunludur. `to`, yabancı anahtarın hedefin birincil anahtarına referans verdiği normal
-durumu kapsayan hedefin `id`'sine varsayılan olur; onu yalnızca farklı bir kolona referans vermek
+`from` zorunludur. `to`, yabancı anahtarın hedefin primary key'ine referans verdiği normal
+durumu kapsayan hedefin `id`'sine varsayılan olur; onu yalnızca farklı bir column'a referans vermek
 için ayarla.
 
 ## Üretilen metotlar
 
 `#[belongs_to(Post, from = post_id)]` için, derive `Comment`'e şunları ekler:
 
-| Metot | Döndürdüğü | Sorgular |
+| Metot | Döndürdüğü | Query'ler |
 |---|---|---|
 | `comment.post(&db)` | `Option<Post>` | bir (tembel) |
 | `Comment::with_post(comments, &db)` | `Vec<(Comment, Option<Post>)>` | grup için bir (istekli) |
 
-Sonuç bir `Option`'dır çünkü yabancı anahtar artık var olmayan bir satıra referans verebilir (ya da
+Sonuç bir `Option`'dır çünkü yabancı anahtar artık var olmayan bir row'a referans verebilir (ya da
 null olabilir). Metot adı hedeften gelir: `Post` → `post`.
 
 ## Metodu `as` ile adlandırmak
 
-İlişki farklı bir ad altında daha iyi okunduğunda — ya da bir tablonun aynı hedefe iki yabancı
+Relation farklı bir ad altında daha iyi okunduğunda — ya da bir tablonun aynı hedefe iki yabancı
 anahtarı olduğunda — `as` kullan:
 
 ```rust

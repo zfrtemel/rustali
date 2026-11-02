@@ -1,4 +1,4 @@
-# Sayfalama
+# Pagination
 
 Tüm bir tabloyu belleğe yüklemek ölçeklenmez. `paginate`, sonuçların **bir sayfasını** ve aynı
 çağrıda, bir UI'nin ya da API istemcisinin sayfa kontrollerini render etmek için ihtiyaç duyduğu
@@ -10,9 +10,9 @@ toplamları getirir.
 Todo::query().paginate(&db, page, per_page) -> Result<Page<Todo>>
 ```
 
-[Sorgu builder'ı](queries) üzerinde bir terminal metot: her zamanki gibi bir sorgu kur, sonra onu
+[Query builder'ı](queries) üzerinde bir terminal metot: her zamanki gibi bir query kur, sonra onu
 `fetch_all` yerine `paginate` ile bitir. `page` **1 tabanlıdır**. Hem `page` hem `per_page` en az
-`1`'e sıkıştırılır; böylece bir sorgu dizesinden gelen aralık dışı değerler asla panikleyemez ya
+`1`'e sıkıştırılır; böylece bir query dizesinden gelen aralık dışı değerler asla panikleyemez ya
 da sıfıra bölemez.
 
 ```rust
@@ -28,25 +28,25 @@ for todo in &page.items {
 ```
 
 ::: tip Sıralama önemlidir
-Sayfalanmış bir sorguya her zaman kararlı bir `order_by` ver. Biri olmadan, veritabanı sayfalar
-arasında satırları farklı bir sırada döndürebilir; böylece bir satır iki kez görünebilir ya da
-atlanabilir. Birincil anahtar ya da `created_at` sonra `id` gibi benzersiz ve kararlı bir şeye göre
+Sayfalanmış bir query'ye her zaman kararlı bir `order_by` ver. Biri olmadan, veritabanı sayfalar
+arasında row'ları farklı bir sırada döndürebilir; böylece bir row iki kez görünebilir ya da
+atlanabilir. Primary key ya da `created_at` sonra `id` gibi benzersiz ve kararlı bir şeye göre
 sırala.
 :::
 
 ## `Page<T>`
 
-`paginate`, bir `Page<T>` döndürür — satırlar artı sayfalamayı render etmek için gereken her şey.
+`paginate`, bir `Page<T>` döndürür — row'lar artı pagination'ı render etmek için gereken her şey.
 `Serialize`'ı türetir; böylece bir API handler'ı onu doğrudan JSON olarak döndürebilir.
 
 ### Alanlar
 
 | Alan | Anlamı |
 |---|---|
-| `items` | bu sayfadaki satırlar (`Vec<T>`) |
+| `items` | bu sayfadaki row'lar (`Vec<T>`) |
 | `page` | geçerli sayfa, 1 tabanlı |
 | `per_page` | istenen sayfa boyutu |
-| `total` | tüm sayfalardaki toplam satır |
+| `total` | tüm sayfalardaki toplam row |
 | `last_page` | son sayfanın numarası (her zaman ≥ 1) |
 
 ```json
@@ -59,10 +59,10 @@ sırala.
 |---|---|
 | `has_next()` | bir sonraki sayfa varsa `true` |
 | `has_prev()` | bir önceki sayfa varsa `true` |
-| `map(f)` | her öğesi dönüştürülmüş, sayfalama sayıları korunmuş bir `Page<U>` |
+| `map(f)` | her öğesi dönüştürülmüş, pagination sayıları korunmuş bir `Page<U>` |
 
 `has_next` / `has_prev`, "sonraki" ve "önceki" kontrollerini etkinleştirmek ya da devre dışı
-bırakmak için kullandığın şeydir. `map`, toplamları yeniden hesaplamadan satırları bir görünüm
+bırakmak için kullandığın şeydir. `map`, toplamları yeniden hesaplamadan row'ları bir view
 modeline çevirir:
 
 ```rust
@@ -73,7 +73,7 @@ let page = Todo::query().paginate(&db, 1, 20).await?
 
 ## Bir API handler'ında
 
-Sayfayı ve boyutu sorgu dizesinden oku, bir istemcinin bir milyon satır isteyememesi için boyutu
+Sayfayı ve boyutu query dizesinden oku, bir istemcinin bir milyon row isteyememesi için boyutu
 sınırla ve `Page`'i JSON olarak döndür:
 
 ```rust
@@ -95,7 +95,7 @@ kontrolleri doğrudan bu sayılardan render edebilir.
 
 ## Bir SSR sayfasında
 
-Sunucuda render edilen bir liste için, `Page`'i şablona geçir ve kontrolleri metotlarından yönlendir:
+Sunucuda render edilen bir liste için, `Page`'i template'e geçir ve kontrolleri metotlarından yönlendir:
 
 ```rust
 #[get("/")]

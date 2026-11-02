@@ -34,17 +34,17 @@ Her ayar temiz, düz bir anahtardır. Yaygın olanlar:
 |---|---|
 | `APP_NAME` | uygulama adı (loglar, varsayılan sayfa başlıkları) |
 | `APP_ENV` | `development` \| `test` \| `production` |
-| `APP_DEBUG` | yanıtlarda ayrıntılı hata detayı (üretimde kapat) |
+| `APP_DEBUG` | response'larda ayrıntılı hata detayı (üretimde kapat) |
 | `APP_KEY` | çerezleri ve JWT'leri imzalayan sır (≥ 16 karakter) |
 | `HOST` / `PORT` | bağlanılacak adres (`127.0.0.1` / `8000`) |
 | `LOG_LEVEL` / `LOG_JSON` | tracing filtresi; `true` olduğunda satır başına bir JSON nesnesi |
 | `DATABASE_URL` | veritabanı bağlantı dizesi |
 | `DATABASE_MAX_CONNECTIONS` / `DATABASE_LOGGING` | havuz boyutu; her ifadeyi logla |
 | `SOFT_DELETE` | silmek yerine `deleted_at` damgala ([ayrıntılar](../database/base-entity)) |
-| `CACHE_DRIVER` / `CACHE_URL` | önbellek arka ucu ([ayrıntılar](../deeper/cache)) |
-| `MAIL_TRANSPORT` / `MAIL_FROM` / `MAIL_URL` | e-posta arka ucu ([ayrıntılar](../deeper/mail)) |
-| `QUEUE_CAPACITY` | süreç içi kuyruk boyutu ([ayrıntılar](../deeper/queues)) |
-| `SESSION_COOKIE` / `SESSION_LIFETIME_MINUTES` / `SESSION_CSRF` | oturumlar ([ayrıntılar](../security/csrf)) |
+| `CACHE_DRIVER` / `CACHE_URL` | cache backend'i ([ayrıntılar](../deeper/cache)) |
+| `MAIL_TRANSPORT` / `MAIL_FROM` / `MAIL_URL` | e-posta backend'i ([ayrıntılar](../deeper/mail)) |
+| `QUEUE_CAPACITY` | süreç içi queue boyutu ([ayrıntılar](../deeper/queues)) |
+| `SESSION_COOKIE` / `SESSION_LIFETIME_MINUTES` / `SESSION_CSRF` | session'lar ([ayrıntılar](../security/csrf)) |
 | `OPENAPI_TITLE` / `OPENAPI_VERSION` | OpenAPI belge bilgisi |
 
 Değerler en belirgin tipe ayrıştırılır — `PORT=8000` bir tamsayıdır, `APP_DEBUG=false` bir
@@ -59,12 +59,12 @@ uygun bir `.env` commit'le ve üretimde gerçek değerleri (sırlar, `APP_ENV=pr
 kılarlar.
 
 `APP_DEBUG` üretimde otomatik olarak kapatılmaz — orada `APP_DEBUG=false` ayarla. Debug
-açıkken, hata yanıtları gerçek kullanıcılara göstermek istemeyeceğin iç detayları (yığın
+açıkken, hata response'ları gerçek kullanıcılara göstermek istemeyeceğin iç detayları (yığın
 mesajları, veritabanı hataları) içerir.
 
 ## Anahtar
 
-`APP_KEY`, oturum çerezlerini ve JWT'leri imzalar ve en az 16 karakter olmalıdır. Geliştirmede
+`APP_KEY`, session çerezlerini ve JWT'leri imzalar ve en az 16 karakter olmalıdır. Geliştirmede
 iskelet tek kullanımlık bir anahtar getirir; üretimde ortamdan gerçek bir sır ayarla ve asla
 commit'leme:
 
@@ -107,6 +107,6 @@ let payments: Option<Payments> = ctx.config().section("payments")?;
 Tip `Default`'u uyguladığında ve değerler yok olabileceğinde `section_or_default::<T>("name")`
 kullan.
 
-> Yapılandırmaya ihtiyaç duyan bir paket (veritabanı, önbellek, e-posta, …), bölümünü
+> Yapılandırmaya ihtiyaç duyan bir paket (veritabanı, cache, e-posta, …), bölümünü
 > [provider](../deeper/providers)'ı içinde bu şekilde okur; böylece framework ve uygulama
 > yapılandırması için tek, tutarlı bir mekanizma olur.

@@ -1,7 +1,7 @@
-# Temel Varlık & Soft Delete
+# Temel Entity & Soft Delete
 
-Çoğu tablo aynı birkaç kolonu paylaşır: bir birincil anahtar, oluşturma ve güncelleme zaman
-damgaları ve — silinen satırları etrafta tutuyorsan — bir `deleted_at` işareti. Rustali bunlara
+Çoğu tablo aynı birkaç column'ı paylaşır: bir primary key, oluşturma ve güncelleme zaman
+damgaları ve — silinen row'ları etrafta tutuyorsan — bir `deleted_at` işareti. Rustali bunlara
 iki trait aracılığıyla paylaşılan bir şekil verir, `BaseEntity` ve `SoftDelete`, ve `make:model`
 iskeleti bunları senin için yazar; böylece her model aynı temelden başlar — diğer dillerde bir
 temel sınıfa başvuracağın fikir, Rust'ın kalıtımı olmadığı için trait olarak ifade edilir.
@@ -37,9 +37,9 @@ impl SoftDelete for Post {
 }
 ```
 
-Kendi kolonlarını anahtar ile zaman damgaları arasına eklersin. Zaman damgaları
+Kendi column'larını anahtar ile zaman damgaları arasına eklersin. Zaman damgaları
 `#[derive(Entity)]`'nin konvansiyonlarıyla yönetilir (`created_at` eklemede, `updated_at` her
-kaydetmede — [Varlıklar → Zaman damgaları](entities#zaman-damgaları)'na bak); bu yüzden onları
+kaydetmede — [Entity'ler → Zaman damgaları](entities#zaman-damgaları)'na bak); bu yüzden onları
 asla elle ayarlamazsın.
 
 ## `BaseEntity`
@@ -61,7 +61,7 @@ audit_line(&post);     // BaseEntity uygulayan her model için çalışır
 ```
 
 Onu elle uygula (yukarıdaki gibi) ya da iskeletin yazmasına izin ver. Ona yalnızca paylaşılan
-işlemenin işe yaradığı modellerde ihtiyacın var — bir varlığın çalışması için gerekli değildir.
+işlemenin işe yaradığı modellerde ihtiyacın var — bir entity'nin çalışması için gerekli değildir.
 
 ## `SoftDelete`
 
@@ -70,7 +70,7 @@ erişimci ve bir kolaylık metodu ekler:
 
 | Metot | Döndürdüğü |
 |---|---|
-| `deleted_at()` | `Option<DateTime<Utc>>` — satırın ne zaman çöpe atıldığı ya da canlıyken `None` |
+| `deleted_at()` | `Option<DateTime<Utc>>` — row'un ne zaman çöpe atıldığı ya da canlıyken `None` |
 | `is_trashed()` | `deleted_at` ayarlandığında `true` |
 
 ```rust
@@ -80,7 +80,7 @@ if post.is_trashed() {
 ```
 
 Trait yalnızca erişimci tarafıdır. **Davranış** — bir `delete`'i bir damgaya çevirmek ve çöpe
-atılmış satırları sorgulardan gizlemek — yapılandırmayla yönlendirilir ve sırada anlatılır.
+atılmış row'ları query'lerden gizlemek — yapılandırmayla yönlendirilir ve sırada anlatılır.
 
 ## Soft delete davranışı
 
@@ -91,12 +91,12 @@ Soft delete, varsayılan olarak kapalı, proje genelinde bir politikadır. Onu `
 SOFT_DELETE=true
 ```
 
-Açıkken, bir `deleted_at` kolonu olan herhangi bir model için:
+Açıkken, bir `deleted_at` column'ı olan herhangi bir model için:
 
 - **`delete`, kaldırmak yerine damgalar.** `post.delete(&db)`, `deleted_at = now()` ayarlar ve bir
-  `DELETE` göndermek yerine satırı tabloda bırakır.
-- **Sorgular çöpe atılmış satırları gizler.** `Post::query()` ve dolayısıyla `find`, `all` ve
-  `count`, `deleted_at IS NULL`'a filtrelenmiş başlar; böylece çöpe atılmış satırlar sıradan
+  `DELETE` göndermek yerine row'u tabloda bırakır.
+- **Query'ler çöpe atılmış row'ları gizler.** `Post::query()` ve dolayısıyla `find`, `all` ve
+  `count`, `deleted_at IS NULL`'a filtrelenmiş başlar; böylece çöpe atılmış row'lar sıradan
   okumalarda görünmez.
 
 ```rust
@@ -107,17 +107,17 @@ post.delete(&db).await?;                       // deleted_at damgalandı, satır
 assert!(Post::find(&db, id).await?.is_none());  // normal sorgulardan gizlendi
 ```
 
-`soft_delete = false` ile (varsayılan), `delete` satırı kaldırır ve sorgular filtrelenmez —
-`deleted_at` kolonu o zaman yalnızca kendin kullanabileceğin bir veridir.
+`soft_delete = false` ile (varsayılan), `delete` row'u kaldırır ve query'ler filtrelenmez —
+`deleted_at` column'ı o zaman yalnızca kendin kullanabileceğin bir veridir.
 
 Anahtar, yapılandırmadan başlangıçta bir kez okunur; bu yüzden tüm uygulama için çağrı başına bir
-karar değil, tek, tutarlı bir politikadır. `deleted_at` kolonu olmayan bir model her iki durumda
+karar değil, tek, tutarlı bir politikadır. `deleted_at` column'ı olmayan bir model her iki durumda
 da etkilenmez — `delete`'i her zaman gerçek bir silmedir.
 
-## Çöpe atılmış satırları görmek
+## Çöpe atılmış row'ları görmek
 
-Soft delete açıkken ve çöpe atılmış satırlara da ihtiyacın olduğunda — bir "yakında silindi"
-görünümü, bir admin ekranı — o tek sorgu için SeaORM'e in, çünkü varlığın `query()`'si onları
+Soft delete açıkken ve çöpe atılmış row'lara da ihtiyacın olduğunda — bir "yakında silindi"
+view'ı, bir admin ekranı — o tek query için SeaORM'e in, çünkü entity'nin `query()`'si onları
 filtreler:
 
 ```rust
@@ -127,7 +127,7 @@ use rustali::orm::sea_orm::EntityTrait;
 let all = post_entity::Entity::find().all(&db).await?;
 ```
 
-Bu bilinçli olarak açıktır: varsayılan yol güvenlidir (çöpe atılmış satırlar gizli kalır) ve
+Bu bilinçli olarak açıktır: varsayılan yol güvenlidir (çöpe atılmış row'lar gizli kalır) ve
 onları görmek bilinçli bir adımdır.
 
 Sıradaki: [Migration'lar (Code-First)](migrations).

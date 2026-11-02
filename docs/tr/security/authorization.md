@@ -28,15 +28,15 @@ async fn destroy(/* ... */) -> Result<StatusCode> { /* ... */ }
   `post.update` gibi herhangi bir özel politikanın yeteneği.
 - `#[authorize(role = "editor")]`, `role:editor` yeteneğine genişleyen bir şekerdir.
 
-İstek anında filtre, mevcut kullanıcıyı çözer, yeteneği değerlendirir ve kimse giriş yapmamışsa
-**401** ya da kullanıcı mevcut ama reddedilmişse **403** yanıtını verir — handler çalışmadan önce.
+Request anında filtre, mevcut kullanıcıyı çözer, yeteneği değerlendirir ve kimse giriş yapmamışsa
+**401** ya da kullanıcı mevcut ama reddedilmişse **403** response'unu verir — handler çalışmadan önce.
 Ayrım istemciler için önemlidir: 401 "giriş yap" demektir, 403 "giriş yaptın ama izin verilmedi"
 demektir.
 
 ## Özel politikalar
 
 Rollerin ötesindeki her şey için `Policy`'yi uygula: ona bir yetenek adı ve bir async karar ver.
-Bağlamı, (isteğe bağlı) aktörü ve istek parçalarını içeren bir `Check` alır.
+Bağlamı, (isteğe bağlı) aktörü ve request parçalarını içeren bir `Check` alır.
 
 ```rust
 use rustali::prelude::*;
@@ -62,7 +62,7 @@ impl Policy for UpdatePost {
 |---|---|
 | `check.ctx` | `AppContext` (veritabanı, servisler, yapılandırma) |
 | `check.actor` | `Option<&dyn Actor>` — mevcut kullanıcı (`id()`, `roles()`) |
-| `check.parts` | istek başlığı (yol, başlıklar, uzantılar) |
+| `check.parts` | request başlığı (yol, başlıklar, uzantılar) |
 
 Politikaları builder'da kaydet, sonra bir route'tan yeteneğe atıfta bulun:
 
@@ -162,7 +162,7 @@ Varsayılan middleware yığınına ihtiyaç duyar (bağlamı enjekte eden ve ku
 
 `#[authorize]`, varsayılan middleware yığını içinde çalışan bir tower katmanı yayar; böylece enjekte
 edilen `AppContext`'i ve çözülen kullanıcıyı görür. Bir katman olduğu için, karar handler
-gövdenden önce gerçekleşir — reddedilen bir istek asla koduna dokunmaz. Bilinmeyen bir yetenek
+gövdenden önce gerçekleşir — reddedilen bir request asla koduna dokunmaz. Bilinmeyen bir yetenek
 reddedilir ve loglanır; böylece bir yazım hatası açık değil, kapalı başarısız olur.
 
 > `rustali make:policy <Name>`, senin için bir `Policy` oluşturur.

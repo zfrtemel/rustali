@@ -1,6 +1,6 @@
 # has_many
 
-**Bire-çok** ilişki: bu tablodaki bir satır, başka bir tablodaki birçok satıra sahiptir. Bir
+**Bire-çok** relation: bu tablodaki bir row, başka bir tablodaki birçok row'a sahiptir. Bir
 gönderinin birçok yorumu vardır; bir yazarın birçok gönderisi vardır. Bu "bir" tarafıdır — yabancı
 anahtarı *tutmayan* taraf.
 
@@ -24,26 +24,26 @@ pub struct Comment {
 }
 ```
 
-Attribute, `Post`'a (sahibe) gelir. `to = post_id`, **hedef** tablodaki yabancı-anahtar kolonunu
-(`comments.post_id`) adlandırır — bu satıra geri işaret eden kolon.
+Attribute, `Post`'a (sahibe) gelir. `to = post_id`, **hedef** tablodaki yabancı-anahtar column'unu
+(`comments.post_id`) adlandırır — bu row'a geri işaret eden column.
 
 ### Argümanlar
 
 | Argüman | Anlamı | Varsayılan |
 |---|---|---|
-| *(ilk, konumsal)* | Hedef varlık tipi (`Comment`). | — (zorunlu) |
-| `to = column` | **Hedef** tablodaki yabancı-anahtar kolonu. | — (zorunlu) |
-| `from = column` | Geri işaret ettiği yerel kolon. | bu tablonun birincil anahtarı (`id`) |
+| *(ilk, konumsal)* | Hedef entity tipi (`Comment`). | — (zorunlu) |
+| `to = column` | **Hedef** tablodaki yabancı-anahtar column'u. | — (zorunlu) |
+| `from = column` | Geri işaret ettiği yerel column. | bu tablonun primary key'i (`id`) |
 | `as = name` | Üretilen metot adını geçersiz kıl. | hedefin snake-case'i + `s` (`Comment` → `comments`) |
 
-`to` zorunludur çünkü Rustali yabancı-anahtar kolon adını tahmin etmez. `from`, olağan durum olan
-birincil anahtara varsayılan olur; onu yalnızca anahtar farklı bir kolon olduğunda ayarla.
+`to` zorunludur çünkü Rustali yabancı-anahtar column adını tahmin etmez. `from`, olağan durum olan
+primary key'e varsayılan olur; onu yalnızca anahtar farklı bir column olduğunda ayarla.
 
 ## Üretilen metotlar
 
 `#[has_many(Comment, to = post_id)]` için, derive `Post`'a şunları ekler:
 
-| Metot | Döndürdüğü | Sorgular |
+| Metot | Döndürdüğü | Query'ler |
 |---|---|---|
 | `post.comments(&db)` | `Vec<Comment>` | bir (tembel) |
 | `Post::with_comments(posts, &db)` | `Vec<(Post, Vec<Comment>)>` | grup için bir (istekli) |
@@ -71,8 +71,8 @@ for (post, comments) in &paired {
 }
 ```
 
-İstekli biçim olmadan, döngü içinde `post.comments(&db)`'yi çağırmak gönderi başına bir sorgu
-çalıştırırdı — N+1 problemi. `with_comments`, her gönderinin yorumlarını tek bir ek sorguda yükler
+İstekli biçim olmadan, döngü içinde `post.comments(&db)`'yi çağırmak gönderi başına bir query
+çalıştırırdı — N+1 problemi. `with_comments`, her gönderinin yorumlarını tek bir ek query'de yükler
 ve onları önceden gruplanmış olarak geri verir.
 
 ## Diğer taraf

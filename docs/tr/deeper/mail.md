@@ -53,11 +53,11 @@ impl Mailable for Welcome {
 HTML'in yanında bir düz metin parçası istediğinde `text` sağla (teslim edilebilirlik ve yalnızca
 metin istemcileri için iyi); onu dışarıda bırak, mesaj yalnızca HTML olur.
 
-### Gövdeyi bir şablonla render etmek
+### Gövdeyi bir template ile render etmek
 
 Gövde yalnızca bir `String`'tir; bu yüzden onu istediğin gibi render et — bir
-[Askama şablonu](../basics/views) dahil. Herhangi bir `askama::Template`'in bir `String` döndüren bir
-`render()`'ı vardır; böylece bir mailable bir şablona sahip olabilir ve onu `html`'de render
+[Askama template'i](../basics/views) dahil. Herhangi bir `askama::Template`'in bir `String` döndüren bir
+`render()`'ı vardır; böylece bir mailable bir template'e sahip olabilir ve onu `html`'de render
 edebilir:
 
 ```rust
@@ -77,8 +77,8 @@ impl Mailable for Welcome {
 }
 ```
 
-Bu, e-posta işaretlemesini Rust dizelerinde satır içinde değil, sayfa görünümlerinin yanında
-`templates/` altında bir şablon dosyasında tutar.
+Bu, e-posta işaretlemesini Rust dizelerinde satır içinde değil, sayfa view'larının yanında
+`templates/` altında bir template dosyasında tutar.
 
 ## Gönderme
 
@@ -98,7 +98,7 @@ Bir mesaj için göndereni geçersiz kılmak üzere `send_from(from, to, &mail)`
 
 ## Arka planda gönderme
 
-E-posta yavaştır; onu bir [iş](queues)'ten göndererek istek yolundan uzak tut:
+E-posta yavaştır; onu bir [job](queues)'tan göndererek request yolundan uzak tut:
 
 ```rust
 #[derive(Serialize, Deserialize)]
@@ -125,7 +125,7 @@ seçer:
 - **geliştirme** — `log`, böylece çalıştıracak bir SMTP sunucusu olmadan render edilen mesajı
   terminalinde görürsün.
 - **testler** — `memory`, böylece tam olarak neyin gönderildiğini iddia edebilirsin (aşağıya bak).
-- **üretim** — `smtp`, `url` aracılığıyla gerçek e-posta servisine yönlendirilmiş.
+- **üretim** — `smtp`, `url` aracılığıyla gerçek e-posta servisine route edilmiş.
 
 Mailer tek bir `send` çağrısının arkasında oturduğu için, taşıyıcıları değiştirmek mesajları kuran
 ve gönderen koda asla dokunmaz.

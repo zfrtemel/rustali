@@ -1,6 +1,6 @@
-# Yanıtlar & Hatalar
+# Response'lar & Hatalar
 
-## Bir yanıt döndürmek
+## Bir response döndürmek
 
 Herhangi bir handler, `IntoResponse`'ı uygulayan bir tip döndürür. Yaygın olanlar:
 
@@ -10,8 +10,8 @@ Herhangi bir handler, `IntoResponse`'ı uygulayan bir tip döndürür. Yaygın o
 | `Json<T>` | `application/json` |
 | `Html<String>`, `View<T>` | `text/html` |
 | `Redirect::to("/path")` | 303 yönlendirme |
-| `StatusCode` | o durumla boş bir yanıt |
-| `(StatusCode, T)` | `T`'nin yanıtı, durumu geçersiz kılınmış |
+| `StatusCode` | o durumla boş bir response |
+| `(StatusCode, T)` | `T`'nin response'u, durumu geçersiz kılınmış |
 | `ApiResponse<T>` | standart `{ success, data, error }` JSON zarfı (aşağıya bak) |
 | `Result<T>` | `Ok`'ta `T`, `Err`'de render edilmiş bir hata |
 
@@ -25,7 +25,7 @@ async fn store(db: Db, Json(input): Json<CreateTodo>) -> Result<(StatusCode, Jso
 
 ### Durum ve başlık ayarlamak
 
-Tuple'lar bir yanıt oluşturur: başa bir durum, ortaya bir başlık dizisi ekle. Bu düz axum'dur —
+Tuple'lar bir response oluşturur: başa bir durum, ortaya bir başlık dizisi ekle. Bu düz axum'dur —
 herhangi bir `IntoResponse` tuple şekli çalışır:
 
 ```rust
@@ -49,7 +49,7 @@ Bir yönlendirme için `Redirect::to("/path")` (303) kullan; ihtiyaç duyduğund
 
 İstisna yoktur. Başarısız olabilen iş `Result<T>` döndürür — `Result<T, rustali::Error>`'ın
 takma adı — ve `?` başarısızlıkları yayar. Framework, bir `Error`'ı senin için doğru HTTP
-yanıtına çevirir.
+response'una çevirir.
 
 ```rust
 #[get("/{id}")]
@@ -69,7 +69,7 @@ async fn show(db: Db, Path(id): Path<i64>) -> Result<Json<Todo>> {
 | `BadRequest(msg)` | 400 | `Error::bad_request("...")` |
 | `Unauthorized` | 401 | `Error::Unauthorized` |
 | `Forbidden` | 403 | `Error::Forbidden` |
-| `Validation(errors)` | 422 | [doğrulanmış](validation) extractor'lardan |
+| `Validation(errors)` | 422 | [validation'dan geçmiş](validation) extractor'lardan |
 | `TooManyRequests { .. }` | 429 | `Throttle`'dan |
 | `Database(..)` | 500 | `Error::database(e)` (ORM `DbErr`'i senin için eşler) |
 | `Config(..)` | 500 | yapılandırma yükleme başarısızlığı |
@@ -107,9 +107,9 @@ sızıntıdır. Ve `internal` / veritabanı hataları detaylarını debug dış�
 yığın mesajı ya da SQL dizesi, senin için request id ile loglanırken asla bir üretim istemcisine
 ulaşmaz.
 
-## Yanıt zarfı
+## Response zarfı
 
-Bir JSON API için, başarılı yanıtları `ApiResponse<T>` içine sar; böylece her yanıt — başarı
+Bir JSON API için, başarılı response'ları `ApiResponse<T>` içine sar; böylece her response — başarı
 **ve** hata — **aynı üç alana** sahip olur: `success` / `data` / `error`. Bir istemci tek bir
 şekli ayrıştırır ve hangi anahtarların mevcut olduğuna göre asla dallanmaz.
 
@@ -137,7 +137,7 @@ Hatalar **aynı** zarfa otomatik olarak render edilir — onları elle oluşturm
 ```
 
 Şekil asla değişmez: `data` başarısızlıkta `null`, `error` başarıda `null` olur ve üç anahtar her
-zaman mevcuttur. Bir hataya özgü her şey — alan başına doğrulama mesajları, request id, yol —
+zaman mevcuttur. Bir hataya özgü her şey — alan başına validation mesajları, request id, yol —
 fazladan bir üst düzey anahtar olarak değil, `error.details` içinde yaşar:
 
 ```json
@@ -165,18 +165,18 @@ bir API'yi sunmasını sağlayan şey budur. Kural:
   JSON zarfı.
 
 Eksik bir sayfaya ulaşan bir tarayıcı, stillenmiş bir 404 sayfası alır; `/api/...`'ya bir
-`fetch()`, `{ success, data, error }` zarfını alır. Her yanıt ayrıca logları ilişkilendirmek
+`fetch()`, `{ success, data, error }` zarfını alır. Her response ayrıca logları ilişkilendirmek
 için bir `x-request-id` başlığı taşır (başarısızlıklarda `error.details.request_id`'ye
 yansıtılır).
 
 ## Özel hata sayfaları
 
 Render'ı `App::builder().on_error(...)` ile geçersiz kıl —
-[Middleware & Filtreler](middleware#hata-render-ini-geçersiz-kılmak)'e bak. Hatayı ve bazı istek
-bilgilerini alır ve kendi yanıtını döndürebilir ya da varsayılana erteleyebilir.
+[Middleware & Filtreler](middleware#hata-render-ını-gecersiz-kılmak)'e bak. Hatayı ve bazı request
+bilgilerini alır ve kendi response'unu döndürebilir ya da varsayılana erteleyebilir.
 
 ## Panikler
 
 Bir handler'daki bir panik yakalanır ve bir `500`'e çevrilir (varsayılan yığının catch-panic
-katmanı); böylece bir kötü istek asla sunucuyu düşürmez. Bir panik yine de bir hatadır — onu
+katmanı); böylece bir kötü request asla sunucuyu düşürmez. Bir panik yine de bir hatadır — onu
 düzelt; yakalama bir güvenlik ağıdır, hata işleme değil.

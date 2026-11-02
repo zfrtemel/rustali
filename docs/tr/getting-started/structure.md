@@ -28,7 +28,7 @@ Her üst düzey parçanın ne işe yaradığı:
   şema anlık görüntüsü.
 - **`src/`** — kodun. `main.rs` uygulamayı önyükler; gerisi, üreteçlerin oluşturduğu
   controller'lar, modeller vb.'dir.
-- **`templates/`** — binary'ye derlenen Askama şablonları (`api` preset'li bir projede yoktur).
+- **`templates/`** — binary'ye derlenen Askama template'leri (`api` preset'li bir projede yoktur).
 
 ## `main.rs`
 

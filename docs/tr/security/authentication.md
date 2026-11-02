@@ -1,7 +1,7 @@
 # Kimlik Doğrulama
 
 Kimlik doğrulama kullanıma hazır gelir: argon2id parola özetleme, uyguladığın bir kullanıcı
-sözleşmesi ve isteğe bağlanmış bir guard zinciri (SSR için çerez oturumları, API'ler için bearer
+sözleşmesi ve isteğe bağlanmış bir guard zinciri (SSR için çerez session'ları, API'ler için bearer
 JWT); böylece `Auth<User>` sorunsuz çalışır.
 
 ## Parçalar
@@ -37,12 +37,12 @@ impl Authenticatable for User {
 }
 ```
 
-`auth_id`, oturumlarda ve token'larda saklanan tanımlayıcıdır; `password_hash`, saklanan argon2 PHC
+`auth_id`, session'larda ve token'larda saklanan tanımlayıcıdır; `password_hash`, saklanan argon2 PHC
 dizesidir; `roles`, yerleşik `role:<name>` yeteneğini besler ([Yetkilendirme](authorization)).
 
 ## 2. Kullanıcı deposu
 
-Kullanıcıları yüklemek için `UserStore`'u uygula — id'ye göre (bir oturumu/token'ı geri yüklemek
+Kullanıcıları yüklemek için `UserStore`'u uygula — id'ye göre (bir session'ı/token'ı geri yüklemek
 için) ve giriş alanına göre (kimlik bilgilerini kontrol etmek için):
 
 ```rust
@@ -68,7 +68,7 @@ impl UserStore for Users {
 
 ## 3. Bağla
 
-Auth'un oturumlara ihtiyacı var; bu yüzden `SessionProvider`'ı ve oturum katmanlarını da ekle:
+Auth'un session'lara ihtiyacı var; bu yüzden `SessionProvider`'ı ve session katmanlarını da ekle:
 
 ```rust
 App::builder()
@@ -81,12 +81,12 @@ App::builder()
     .await
 ```
 
-Varsayılan olarak guard zinciri `[Session, Bearer]`'dir — oturum çerezi ya da bir
-`Authorization: Bearer <jwt>` bir kullanıcıya çözülürse bir istek kimliği doğrulanmış olur. Guard'lar
+Varsayılan olarak guard zinciri `[Session, Bearer]`'dir — session çerezi ya da bir
+`Authorization: Bearer <jwt>` bir kullanıcıya çözülürse bir request kimliği doğrulanmış olur. Guard'lar
 sırayla denenir ve çözülen ilki kazanır; böylece tek bir uygulama hem bir SSR sitesini (çerezler)
 hem de bir API'yi (token'lar) aynı handler'lardan sunar. Zinciri
 `AuthProvider::new(Users).guards([Guard::Session])` ile değiştir — örneğin, yalnızca çerezli bir
-uygulama ya da oturum guard'ını bırakan yalnızca API'li bir servis. `Bearer` guard'ı `jwt`
+uygulama ya da session guard'ını bırakan yalnızca API'li bir servis. `Bearer` guard'ı `jwt`
 özelliğine ihtiyaç duyar (varsayılan olarak açık).
 
 ## Parolalar
@@ -107,7 +107,7 @@ kilitlemek yerine su yüzüne çıkar.
 
 ## Kayıt olma ve giriş yapma
 
-`Login<User>` extractor'ı oturum girişini gerçekleştirir (fiksasyonu önlemek için oturum id'sini
+`Login<User>` extractor'ı session girişini gerçekleştirir (fiksasyonu önlemek için session id'sini
 döndürür):
 
 ```rust
@@ -175,7 +175,7 @@ let token = jwt::issue(&ctx, &user.auth_id(), 3600)?;   // 1 saat geçerli
 ```
 
 İstemciler ardından `Authorization: Bearer <token>` gönderir; `Auth<User>`, onu tam olarak bir
-oturum gibi depo aracılığıyla çözer. `app.key` en az 16 karakter olmalıdır
+session gibi depo aracılığıyla çözer. `app.key` en az 16 karakter olmalıdır
 ([Yapılandırma](../getting-started/configuration)'ya bak).
 
 > Tüm akış — kayıt, giriş, çıkış, korunan bir sayfa ve yanlış-parola yolu — `auth-app` örneğinde

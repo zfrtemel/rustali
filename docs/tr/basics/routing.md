@@ -1,8 +1,8 @@
-# Yönlendirme & Controller
+# Routing & Controller
 
 Rustali'de bir route, **ona hizmet veren handler'ın üzerinde** yaşar. Ayrı bir route dosyası
 tutmazsın; bir metodu HTTP fiili ve yoluyla işaretlersin ve `#[controller]` makrosu onu
-router'a bağlar — route ve ona yanıt veren kod bir arada durur ve `cargo run -- routes` tüm
+router'a bağlar — route ve ona response veren kod bir arada durur ve `cargo run -- routes` tüm
 tabloyu yazdırır.
 
 ## İlk controller
@@ -26,7 +26,7 @@ Dikkat edilecek üç şey:
 - `#[controller("/")]` bir **inherent `impl`** üzerine gelir ve içindeki her route için bir
   yol öneki bildirir.
 - `#[get("/")]` bir route bildirir. Yolu, controller önekiyle **birleştirilir**; bu yüzden bu
-  handler `GET /`'e yanıt verir.
+  handler `GET /`'e response verir.
 - Handler'lar **`self` olmayan** düz `async fn`'lerdir. Bir controller durumsuz bir ad
   uzayıdır; bir handler'ın ihtiyacı olan her şey extractor'lar aracılığıyla gelir (aşağıya
   bak). Bu derleme zamanında zorunlu kılınır — bir `self` alıcısı net bir hatadır.
@@ -92,9 +92,9 @@ async fn show(Path(p): Path<PostPath>) -> String {
 }
 ```
 
-## Sorgu dizeleri
+## Query dizeleri
 
-Sorgu dizesini `Query` ile bir `Deserialize` struct'a bağla:
+Query dizesini `Query` ile bir `Deserialize` struct'a bağla:
 
 ```rust
 #[derive(Deserialize)]
@@ -113,11 +113,11 @@ async fn index(db: Db, Query(paging): Query<Paging>) -> Result<Json<Page<Todo>>>
 }
 ```
 
-## İstek gövdeleri
+## Request gövdeleri
 
 `Json<T>` bir JSON gövdesini ayrıştırır; `Form<T>` bir URL kodlu form gövdesini ayrıştırır.
-Doğrulamak istediğin girdiler için bunun yerine `Validated<Json<T>>` / `Validated<Form<T>>`'e
-başvur — [İstekler & Doğrulama](validation.md)'ya bak.
+Validation yapmak istediğin girdiler için bunun yerine `Validated<Json<T>>` / `Validated<Form<T>>`'e
+başvur — [Request'ler & Validation](validation.md)'a bak.
 
 ```rust
 #[post("/")]
@@ -135,19 +135,19 @@ En çok kullanacakların:
 | Extractor | Sana verdiği |
 |---|---|
 | `Path<T>` | Yol parametreleri |
-| `Query<T>` | Ayrıştırılmış sorgu dizesi |
-| `Json<T>` / `Form<T>` | İstek gövdesi |
+| `Query<T>` | Ayrıştırılmış query dizesi |
+| `Json<T>` / `Form<T>` | Request gövdesi |
 | `Db` | Bir veritabanı bağlantısı (`orm` özelliği) |
 | `Ctx` | Paylaşılan `AppContext` (yapılandırma, servisler) |
 | `Inject<T>` | Tipe göre tek bir kayıtlı servis |
 | `Auth<U>` / `OptionalAuth<U>` | Kimliği doğrulanmış kullanıcı (`auth` özelliği) |
-| `Flash`, `Csrf`, `Session` | Oturum yardımcıları (`sessions` özelliği) |
+| `Flash`, `Csrf`, `Session` | Session yardımcıları (`sessions` özelliği) |
 
 Extractor'lar iki türe ayrılır ve bu ayrım akılda tutulacak tek kuraldır:
 
-- **İstek başlığından** (`Path`, `Query`, `Ctx`, `Db`, `Inject`, `Auth`, `Session`, …) yalnızca
+- **Request başlığından** (`Path`, `Query`, `Ctx`, `Db`, `Inject`, `Auth`, `Session`, …) yalnızca
   üst veri okur; bu yüzden istediğin kadarına, herhangi bir sırada sahip olabilirsin.
-- **Gövdeden** (`Json`, `Form`, `Validated`) isteği **tüketir**; bu yüzden en fazla bir tane
+- **Gövdeden** (`Json`, `Form`, `Validated`) request'i **tüketir**; bu yüzden en fazla bir tane
   olabilir ve argüman listesinde **en sona** gelmelidir.
 
 ```rust
@@ -165,13 +165,13 @@ async fn add_comment(
 Bir gövde extractor'ını en son dışında bir yere koymak derleme hatasıdır; yani kural yalnızca
 tavsiye edilmez, zorunlu kılınır.
 
-## Yanıtlar
+## Response'lar
 
 Bir handler, `IntoResponse`'ı uygulayan her şeyi döndürür:
 
 - `&'static str` / `String` → `text/plain`
 - `Json<T>` → `application/json`
-- `Html<String>` ya da `View<T>` → `text/html` ([Görünümler](views.md)'e bak)
+- `Html<String>` ya da `View<T>` → `text/html` ([View'lar](views.md)'a bak)
 - `Redirect::to("/path")` → 303 yönlendirme
 - `StatusCode` ya da `(StatusCode::CREATED, Json(todo))` gibi bir tuple ile durumu ayarla
 - Hatanın framework [`Error`](responses.md)'ı olduğu `Result<T>` — `?` sorunsuz çalışır
@@ -186,7 +186,7 @@ async fn destroy(db: Db, Path(id): Path<i64>) -> Result<StatusCode> {
 
 ## Adlandırılmış route'lar
 
-Bir route'a `name` ver; route tablosunda ve (görünüm katmanının URL yardımcısı geldiğinde)
+Bir route'a `name` ver; route tablosunda ve (view katmanının URL yardımcısı geldiğinde)
 üretilen bağlantılarda görünür:
 
 ```rust
@@ -221,11 +221,11 @@ impl PostController {
 ```
 
 Hatalar istemciye uyacak şekilde otomatik olarak render edilir (API çağıranlar için JSON,
-tarayıcılar için bir HTML sayfası) — [Yanıtlar & Hatalar](responses.md)'a bak.
+tarayıcılar için bir HTML sayfası) — [Response'lar & Hatalar](responses.md)'a bak.
 
 ## Eşleşmeyen route'lar
 
-Hiçbir route'la eşleşmeyen bir istek, framework'ün `NotFound` hatasını döndüren yerleşik bir
+Hiçbir route'la eşleşmeyen bir request, framework'ün `NotFound` hatasını döndüren yerleşik bir
 handler'a düşer; böylece bir 404, diğer herhangi bir hata gibi pazarlık edilir — bir API
 istemcisi için JSON, bir tarayıcı için bir HTML hata sayfası. Bunu sen bağlamazsın; varsayılan
 yığınla gelir.

@@ -1,10 +1,10 @@
-# Sohbet
+# Chat
 
-Sohbet metin üretimidir: modele bir istem — ya da bütün bir konuşma — verirsin ve bir yanıt yazar.
-Bir RAG uygulamasının diğer yarısıdır (getirim gerçekleri bulur, sohbet yanıtı yazar) ve özetler,
+Chat, metin üretimidir: modele bir prompt — ya da bütün bir konuşma — verirsin ve bir yanıt yazar.
+Bir RAG uygulamasının diğer yarısıdır (retrieval gerçekleri bulur, chat yanıtı yazar) ve özetler,
 taslaklar ve asistanlar için tek başına da yararlıdır.
 
-## Tek seferlik bir istem
+## Tek seferlik bir prompt
 
 `prompt`, tek bir soru için kısayoldur:
 
@@ -15,7 +15,7 @@ let reply = ai.prompt("Write a one-line summary of the borrow checker.").await?;
 
 ## Bir konuşma
 
-Çok turlu bağlam için — bir sistem talimatı, önceki turlar — mesajları kur ve `chat`'i çağır:
+Çok turlu bağlam için — bir system talimatı, önceki turlar — mesajları kur ve `chat`'i çağır:
 
 ```rust
 use rustali_ai::ChatMessage;
@@ -28,20 +28,20 @@ let reply = ai.chat(&[
 ]).await?;
 ```
 
-Üç rol, sohbet modellerinin nasıl istemlendiğini yansıtır:
+Üç rol, chat modellerine prompt'un nasıl verildiğini yansıtır:
 
 | Rol | Kurulduğu | Amaç |
 |---|---|---|
 | system | `ChatMessage::system(..)` | Asistanı yönlendiren talimatlar. |
 | user | `ChatMessage::user(..)` | Kişinin söylediği. |
-| assistant | `ChatMessage::assistant(..)` | Çok turlu bir sohbette bağlam için önceki bir yanıt. |
+| assistant | `ChatMessage::assistant(..)` | Çok turlu bir konuşmada bağlam için önceki bir yanıt. |
 
 `prompt(text)`, yalnızca `chat(&[ChatMessage::user(text)])`'tir.
 
-## Sohbet kullanılabilir mi?
+## Chat kullanılabilir mi?
 
-Sohbet ve embedding'ler **bağımsızdır** — bir tutamaç birini, diğerini ya da ikisini de sağlayabilir.
-Kullanmadan önce kontrol et ve yapılandırılmış bir sohbet arka ucu yoksa bir hata bekle:
+Chat ve embedding'ler **bağımsızdır** — bir handle birini, diğerini ya da ikisini de sağlayabilir.
+Kullanmadan önce kontrol et ve yapılandırılmış bir chat backend'i yoksa bir hata bekle:
 
 ```rust
 if ai.has_chat() {
@@ -49,20 +49,20 @@ if ai.has_chat() {
 }
 ```
 
-Varsayılan `mock` arka ucuyla, `prompt` / `chat`, son kullanıcı mesajını yankılayan **deterministik
+Varsayılan `mock` backend'iyle, `prompt` / `chat`, son kullanıcı mesajını yankılayan **deterministik
 bir taslak** döndürür. Bu, gerçek bir model yerindeyken önce istek akışını, route'ları ve şablonları
-kurup test etmek için yeterlidir — taslağı gerçek bir arka uçla değiştirdiğinde kodunun şekli
+kurup test etmek için yeterlidir — taslağı gerçek bir backend'le değiştirdiğinde kodunun şekli
 değişmez.
 
-## Arka uçlar
+## Backend'ler
 
-Metin üretimi `Chat` trait'inin arkasındadır; böylece herhangi bir arka uç — yerel bir model ya da
+Metin üretimi `Chat` trait'inin arkasındadır; böylece herhangi bir backend — yerel bir model ya da
 `OpenAI` ya da Anthropic gibi uzak bir provider — aynı `generate(messages) -> String`'i uygular ve
-aynı `ai.chat(..)` / `ai.prompt(..)` çağrılarına takılır. Bugün gelen arka uç deterministik
-`mock`'tur; gerçek üretim arka uçları, çağrı yerlerini değiştirmeden bu trait'in arkasına takılır.
+aynı `ai.chat(..)` / `ai.prompt(..)` çağrılarına takılır. Bugün gelen backend deterministik
+`mock`'tur; gerçek üretim backend'leri, çağrı yerlerini değiştirmeden bu trait'in arkasına takılır.
 
 ::: tip Yavaş çağrıları istek yolundan uzak tut
-Üretim saniyeler sürebilir. Akışlanmayan, kullanıcıya dönük her şey için, onu bir
-[kuyruğa alınmış işten](../deeper/queues) çalıştırmayı ve sonucu, yavaş bir üçüncü taraf API
+Üretim saniyeler sürebilir. Stream edilmeyen, kullanıcıya dönük her şey için, onu bir
+[queue'ya alınmış job'dan](../deeper/queues) çalıştırmayı ve sonucu, yavaş bir üçüncü taraf API
 çağrısında yapacağın gibi, bant dışı teslim etmeyi düşün.
 :::

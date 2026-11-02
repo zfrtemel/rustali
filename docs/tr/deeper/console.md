@@ -32,7 +32,7 @@ Hangi komutların var olduğu, hangi provider'ları eklediğine bağlıdır:
 | `routes` | her zaman | Controller route'larını middleware'leriyle listele. |
 | `help` | her zaman | Komutları listele. |
 | `migrate`, `migrate:diff`, `migrate:status`, `migrate:rollback`, `migrate:fresh`, `migrate:refresh`, `migrate:reset` | `.migrations::<M>()` | Veritabanı migration'ları. |
-| `queue:work` | `QueueProvider` | Kuyruğa alınmış işleri işle. |
+| `queue:work` | `QueueProvider` | Queue'ya alınmış job'ları işle. |
 
 `help`, her kayıtlı komutu tek satırlık `about`'uyla listeler; böylece belirli bir derlemenin neyi
 desteklediğini görmenin en hızlı yolu onu çalıştırmaktır:
@@ -108,9 +108,9 @@ fn run<'a>(&'a self, ctx: &'a AppContext, args: Vec<String>) -> CommandFuture<'a
 ### Tam bağlam
 
 Bir komut aynı `App::builder()` aracılığıyla çalıştığı için, tam bağlama sahiptir — veritabanı,
-önbellek, mailer, servislerin — tam olarak bir istek handler'ının sahip olduğu gibi. Provider'lar
+cache, mailer, servislerin — tam olarak bir request handler'ının sahip olduğu gibi. Provider'lar
 komuttan önce çalışır; böylece kaydettikleri her şey `ctx` aracılığıyla kullanılabilir. Bir
-handler'dan tek farkı giriş noktasıdır: HTTP isteği yoktur, yalnızca `ctx` ve `args`.
+handler'dan tek farkı giriş noktasıdır: HTTP request'i yoktur, yalnızca `ctx` ve `args`.
 
 ## İskeletleme
 

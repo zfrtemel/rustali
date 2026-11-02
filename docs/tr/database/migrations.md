@@ -1,6 +1,6 @@
 # Migration'lar (Code-First)
 
-Rustali'nin öne çıkan veritabanı özelliği: bir varlığı değiştir, `migrate:diff` çalıştır ve gözden
+Rustali'nin öne çıkan veritabanı özelliği: bir entity'yi değiştir, `migrate:diff` çalıştır ve gözden
 geçirilmiş bir migration al. Her migration'a yine sen sahipsin ve okursun; diff yalnızca değişenden
 ilk taslağı yazar.
 
@@ -8,10 +8,10 @@ ilk taslağı yazar.
 
 Üç şey yer alır:
 
-1. **Varlıkların** — `#[derive(Entity)]`, her birinin şemasını derleme zamanında kaydeder.
+1. **Entity'lerin** — `#[derive(Entity)]`, her birinin şemasını derleme zamanında kaydeder.
 2. **Bir anlık görüntü** — `db/schema.snapshot.json`, şemayı en son uygulandığı hâliyle kaydeder.
    Sürüm kontrolüne commit'lenir.
-3. **`migrate:diff`** — varlıkları anlık görüntüye karşı karşılaştırır, fark için bir migration
+3. **`migrate:diff`** — entity'leri anlık görüntüye karşı karşılaştırır, fark için bir migration
    yazar ve anlık görüntüyü günceller.
 
 ## Migration'ları etkinleştirmek
@@ -56,14 +56,14 @@ Onları uygulama binary'n aracılığıyla çalıştır:
 | `cargo run -- migrate:fresh` | Tüm tabloları bırak ve her şeyi yeniden uygula. |
 | `cargo run -- migrate:refresh` | Hepsini geri al, sonra yeniden uygula. |
 | `cargo run -- migrate:reset` | Her şeyi geri al. |
-| `cargo run -- migrate:diff "name"` | Varlık değişikliklerinden bir migration üret. |
+| `cargo run -- migrate:diff "name"` | Entity değişikliklerinden bir migration üret. |
 
 `fresh`, `refresh` ve `reset` yıkıcıdır; `RUSTALI_FORCE=1` ayarlamadıkça `APP_ENV=production`
 altında çalışmayı reddederler.
 
 ## Code-first döngüsü
 
-Bir varlıkta bir alanı değiştir:
+Bir entity'de bir alanı değiştir:
 
 ```rust
 #[derive(Entity, Clone)]
@@ -105,12 +105,12 @@ async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
 }
 ```
 
-Boş bir anlık görüntüden, ilk diff her varlık için tam `create_table` migration'ları yayar — yani
-yeni bir projeyi önyüklemek şudur: varlıklarını tanımla, bir `migrate:diff "initial schema"`
+Boş bir anlık görüntüden, ilk diff her entity için tam `create_table` migration'ları yayar — yani
+yeni bir projeyi önyüklemek şudur: entity'lerini tanımla, bir `migrate:diff "initial schema"`
 çalıştır, gözden geçir ve `migrate`.
 
 Her üretilen migration'ın eşleşen bir `down`'ı vardır; böylece değişiklik geri alınabilir.
-Yukarıdaki kolon için, `down` onu yeniden bırakır:
+Yukarıdaki column için, `down` onu yeniden bırakır:
 
 ```rust
 // "add published to posts" için üretilen down
@@ -132,7 +132,7 @@ async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
 
 Migration'lar bağlandıktan sonraki günlük ritim:
 
-1. Bir varlığı düzenle (bir alan ekle, bir tip değiştir).
+1. Bir entity'yi düzenle (bir alan ekle, bir tip değiştir).
 2. `cargo run -- migrate:diff "describe the change"` — bir migration yazar ve anlık görüntüyü
    günceller.
 3. **Üretilen dosyayı oku.** Diff'in tahmini tam kastettiğin şey değilse onu ayarla (bir varsayılan
@@ -147,7 +147,7 @@ geliştirme zamanı yazma adımıdır; uygulama, bir üretim veritabanına dokun
 
 ## Yıkıcı değişiklikler
 
-Bir kolonu ya da tabloyu bırakmak, bir tip değiştirmek ya da `NULL`→`NOT NULL` sıkılaştırmak veri
+Bir column'ı ya da tabloyu bırakmak, bir tip değiştirmek ya da `NULL`→`NOT NULL` sıkılaştırmak veri
 kaybettirebilir; bu yüzden `migrate:diff` onları varsayılan olarak **reddeder**:
 
 ```text
@@ -177,24 +177,24 @@ kullanılabilir.
 
 ## Diff'in bugün anladığı şey
 
-Tablolar ve kolonlar (ekle/bırak), kolon tipi değişiklikleri, null olabilirlik, benzersizlik ve
+Tablolar ve column'lar (ekle/bırak), column tipi değişiklikleri, null olabilirlik, benzersizlik ve
 dize uzunluğu. Bilinmeyen Rust tipleri, sessizce bırakılmak yerine bir `FIXME` yorumuyla bir `TEXT`
-kolonu olur; böylece bir diff asla sürpriz bir şekilde kayıplı olmaz. Struct'taki ilişkiler (düz
-bir `*_id` kolonunun ötesindeki yabancı anahtarlar) gelecekteki bir iyileştirmedir.
+column'ı olur; böylece bir diff asla sürpriz bir şekilde kayıplı olmaz. Struct'taki relation'lar (düz
+bir `*_id` column'ının ötesindeki yabancı anahtarlar) gelecekteki bir iyileştirmedir.
 
 ### Yeniden adlandırmalar bir insana ihtiyaç duyar
 
 Diff'in bir yeniden adlandırmayı bir sil-ve-oluştur'dan ayırt etme yolu yoktur: `title`'ı
 `heading`'e yeniden adlandırmak ona *`title`'ı bırak, `heading` ekle* gibi görünür — ki bu eski
-veriyi atar. Bu yüzden bir kolonu yeniden adlandırdığında, üretilen bırak/ekle'ye güvenme. Ya
+veriyi atar. Bu yüzden bir column'ı yeniden adlandırdığında, üretilen bırak/ekle'ye güvenme. Ya
 üretilen migration'ı gerçek bir `rename_column`'a düzenle ya da o migration'ı elle yaz. Diff'in,
 otomatik bir uygulama değil, *gözden geçirdiğin bir taslak* olmasının tam nedeni budur: çıkaramadığı
 tek değişiklik, veriyi sessizce kaybettirecek olandır.
 
-### Soft delete yalnızca bir kolondur
+### Soft delete yalnızca bir column'dur
 
-İskeletlenmiş modellerin taşıdığı `deleted_at` kolonu, diff'e göre sıradan, null olabilen bir zaman
-damgasıdır — diğer herhangi bir kolon gibi migrate edilir. Soft-delete *davranışı* (`delete`'te onu
-damgalamak, çöpe atılmış satırları gizlemek), migration'ın ya da şemanın bildiği bir şey değil,
-çalışma zamanı bir ayardır, `.env`'deki `SOFT_DELETE`. [Temel Varlık & Soft Delete](base-entity)'e
+İskeletlenmiş modellerin taşıdığı `deleted_at` column'ı, diff'e göre sıradan, null olabilen bir zaman
+damgasıdır — diğer herhangi bir column gibi migrate edilir. Soft-delete *davranışı* (`delete`'te onu
+damgalamak, çöpe atılmış row'ları gizlemek), migration'ın ya da şemanın bildiği bir şey değil,
+çalışma zamanı bir ayardır, `.env`'deki `SOFT_DELETE`. [Temel Entity & Soft Delete](base-entity)'e
 bak.

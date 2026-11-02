@@ -1,13 +1,13 @@
 # Model Metotları
 
-`#[derive(Entity)]`, her modele yaygın veritabanı işlemleri için bir dizi metot verir — satırları
+`#[derive(Entity)]`, her modele yaygın veritabanı işlemleri için bir dizi metot verir — row'ları
 okumak, oluşturmak, güncellemek ve silmek. Bu sayfa her birini tek tek gezer: ne aldığı, ne
 döndürdüğü ve ne zaman ona başvuracağın.
 
 Her metot, ilk argümanı olarak (ya da örnek metotlar için örtük `self` artı bir) bir veritabanı
 bağlantısı alır. Bir handler'da o bağlantı [`Db`](queries#db-extractor-ı) extractor'ıdır; başka
 yerlerde `&*ctx.db()?`'dir. Hepsi `async`'tir ve
-[`Result`](../basics/responses#hatalar-değerdir) döndürür; bu yüzden onları `.await?`'larsın.
+[`Result`](../basics/responses#hatalar-degerdir) döndürür; bu yüzden onları `.await?`'larsın.
 
 Aşağıdaki örnekler bu modeli kullanır:
 
@@ -35,7 +35,7 @@ pub struct Todo {
 Todo::find(&db, id) -> Result<Option<Todo>>
 ```
 
-Birincil anahtara göre bir satır getir. O anahtara sahip hiçbir satır olmadığında `None` döndürür
+Primary key'e göre bir row getir. O anahtara sahip hiçbir row olmadığında `None` döndürür
 — bir hata değil; bu yüzden bir eksikliğin ne anlama geldiğine sen karar verirsin:
 
 ```rust
@@ -52,7 +52,7 @@ Todo::find_or_404(&db, id) -> Result<Todo>
 ```
 
 `find` gibi, ama bir eksiklik `None` yerine `Err(Error::NotFound)`'dur. Bir handler'da `?` bunu
-doğrudan bir 404 yanıtına çevirir — ki bu, bir "bu kaydı göster" route'u için tam istediğin şey:
+doğrudan bir 404 response'una çevirir — ki bu, bir "bu kaydı göster" route'u için tam istediğin şey:
 
 ```rust
 #[get("/{id}")]
@@ -67,7 +67,7 @@ async fn show(db: Db, Path(id): Path<i64>) -> Result<Json<Todo>> {
 Todo::all(&db) -> Result<Vec<Todo>>
 ```
 
-Birincil anahtara göre sıralı her satır. Küçük tablolar için iyi; büyüyebilen herhangi bir şey
+Primary key'e göre sıralı her row. Küçük tablolar için iyi; büyüyebilen herhangi bir şey
 için, tüm tabloyu belleğe yüklemek yerine [`query`](#query) ile filtrele ya da sayfala.
 
 ```rust
@@ -81,7 +81,7 @@ println!("{} todos", todos.len());
 Todo::count(&db) -> Result<u64>
 ```
 
-Tablodaki satır sayısı, veritabanı tarafından sayılır — hiçbir satır yüklemez.
+Tablodaki row sayısı, veritabanı tarafından sayılır — hiçbir row yüklemez.
 
 ```rust
 if Todo::count(&db).await? == 0 {
@@ -95,8 +95,8 @@ if Todo::count(&db).await? == 0 {
 Todo::query() -> Query<Todo>
 ```
 
-Filtreleme, sıralama, limit ya da sayfalamaya ihtiyacın olduğunda — "id'ye göre" ya da "tümü"nün
-ötesindeki her şey — tipli bir [sorgu builder'ı](queries) başlat. Senkrondur (sorguyu kurar);
+Filtreleme, sıralama, limit ya da pagination'a ihtiyacın olduğunda — "id'ye göre" ya da "tümü"nün
+ötesindeki her şey — tipli bir [query builder'ı](queries) başlat. Senkrondur (query'yi kurar);
 onu çalıştıran terminal metot `async` olandır:
 
 ```rust
@@ -108,7 +108,7 @@ let open = Todo::query()
     .await?;
 ```
 
-Tam builder için [Sorgular & Sayfalama](queries)'ya bak.
+Tam builder için [Query'ler & Pagination](queries)'a bak.
 
 ## Modelleri oluşturmak
 
@@ -118,7 +118,7 @@ Tam builder için [Sorgular & Sayfalama](queries)'ya bak.
 todo.insert(&db) -> Result<Todo>
 ```
 
-Değeri yeni bir satır olarak ekle ve **saklanan** satırı döndür. Döndürülen değerin gerçek
+Değeri yeni bir row olarak ekle ve **saklanan** row'u döndür. Döndürülen değerin gerçek
 üretilen anahtarı ve zaman damgaları doldurulmuştur; bu yüzden geçirdiğin değeri değil, `insert`'in
 geri verdiğini kullan:
 
@@ -134,7 +134,7 @@ let todo = todo.insert(&db).await?;     // todo.id ve zaman damgaları artık ge
 ```
 
 Otomatik artan bir anahtar ve `created_at` / `updated_at` alanları senin için yönetilir
-([Varlıklar → Zaman damgaları](entities#zaman-damgaları)'na bak); yukarıdaki yer tutucu
+([Entity'ler → Zaman damgaları](entities#zaman-damgaları)'na bak); yukarıdaki yer tutucu
 değerlerinin önemsiz olmasının nedeni budur.
 
 ## Modelleri güncellemek
@@ -145,7 +145,7 @@ değerlerinin önemsiz olmasının nedeni budur.
 todo.update(&db) -> Result<Todo>
 ```
 
-Değerin her kolonunu satırına geri yaz (birincil anahtara göre eşleştirilir) ve saklanan satırı
+Değerin her column'ını row'una geri yaz (primary key'e göre eşleştirilir) ve saklanan row'u
 döndür. `updated_at` otomatik olarak yenilenir. Olağan şekil yükle, alanları değiştir, kaydet'tir:
 
 ```rust
@@ -154,8 +154,8 @@ todo.done = true;
 let todo = todo.update(&db).await?;     // updated_at artırıldı
 ```
 
-`update`, yalnızca değiştirdiklerini değil, **tüm** kolonları yazar — bu bir tam satır
-güncellemesidir; bu yüzden kaydettiğin değer tam, güncel bir satır olmalıdır (önce yüklediysen,
+`update`, yalnızca değiştirdiklerini değil, **tüm** column'ları yazar — bu bir tam row
+güncellemesidir; bu yüzden kaydettiğin değer tam, güncel bir row olmalıdır (önce yüklediysen,
 öyledir).
 
 ## Modelleri silmek
@@ -166,7 +166,7 @@ güncellemesidir; bu yüzden kaydettiğin değer tam, güncel bir satır olmalı
 todo.delete(&db) -> Result<()>
 ```
 
-Satırı sil (birincil anahtara göre eşleştirilir). Artık hiçbir şeye atıfta bulunmadığından değeri
+Row'u sil (primary key'e göre eşleştirilir). Artık hiçbir şeye atıfta bulunmadığından değeri
 tüketir:
 
 ```rust
@@ -174,25 +174,25 @@ let todo = Todo::find_or_404(&db, id).await?;
 todo.delete(&db).await?;
 ```
 
-Önce yüklemeden silmek için, bir silmeyi [sorgu builder'ı](queries) aracılığıyla çalıştır ya da
-SeaORM'e in — buradaki `delete`, "satır zaten bende" yoludur.
+Önce yüklemeden silmek için, bir silmeyi [query builder'ı](queries) aracılığıyla çalıştır ya da
+SeaORM'e in — buradaki `delete`, "row zaten bende" yoludur.
 
-## İlişkiler
+## Relation'lar
 
-İlişkili satırlar, kendi üretilen metotlarıyla yüklenir — `todo.comments(&db)` ve istekli (eager)
-`Todo::with_comments(todos, &db)` — bildirdiğin her ilişki için bir tane. Bunlar
-[İlişkiler](relations/) altında tam olarak ele alınmıştır.
+İlişkili row'lar, kendi üretilen metotlarıyla yüklenir — `todo.comments(&db)` ve istekli (eager)
+`Todo::with_comments(todos, &db)` — bildirdiğin her relation için bir tane. Bunlar
+[Relation'lar](relations/) altında tam olarak ele alınmıştır.
 
-## Tipli kolon tutamaçları
+## Tipli column handle'ları
 
-Metotların yanı sıra, derive kolon başına bir sabit üretir — `Todo::ID`, `Todo::TITLE`,
-`Todo::DONE`, … — sorgularda kullanmak için (`Todo::DONE.eq(false)`). Bir sorgunun bir kolona bir
+Metotların yanı sıra, derive column başına bir sabit üretir — `Todo::ID`, `Todo::TITLE`,
+`Todo::DONE`, … — query'lerde kullanmak için (`Todo::DONE.eq(false)`). Bir query'nin bir column'a bir
 dize yerine denetlenmiş bir adla atıfta bulunma yolu bunlardır.
-[Sorgular](queries#bir-sorgu-oluşturmak)'a bak.
+[Query'ler](queries#bir-query-olusturmak)'e bak.
 
 ## SeaORM'e inmek
 
 Bu metotlar gündelik durumları kapsar. Kapsamadıkları her şey için — toplu güncellemeler,
-upsert'ler, özel join'ler — [`Query::into_select()`](queries#seaorm-e-kaçmak) sana ham SeaORM
+upsert'ler, özel join'ler — [`Query::into_select()`](queries#seaorm-e-kacmak) sana ham SeaORM
 `Select`'ini verir ve `rustali::orm::sea_orm` tüm SeaORM API'sini yeniden dışa aktarır.
-Öğrenilecek ikinci bir sorgu dili yoktur.
+Öğrenilecek ikinci bir query dili yoktur.

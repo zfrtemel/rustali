@@ -2,7 +2,7 @@
 
 Rustali, süreç içi bir test istemcisi getirir. Gerçek uygulamanı sürer — `main` ile aynı
 provider'lar, route'lar ve middleware — bir soket bağlamadan; böylece testler hızlı ve
-deterministiktir. Hata pazarlığı, oturumlar ve CSRF'in hepsi tam olarak üretimdeki gibi davranır.
+deterministiktir. Hata pazarlığı, session'lar ve CSRF'in hepsi tam olarak üretimdeki gibi davranır.
 
 ## Kurulum
 
@@ -19,7 +19,7 @@ builder'ı göster ([Proje Yapısı](../getting-started/structure)'na bak).
 
 ## Bir test yazmak
 
-Uygulamayı kur, router'ını bir `TestClient`'a sar ve yanıtlar üzerinde iddiada bulun:
+Uygulamayı kur, router'ını bir `TestClient`'a sar ve response'lar üzerinde iddiada bulun:
 
 ```rust
 use rustali::test::{TestClient, test_config};
@@ -69,8 +69,8 @@ bir dosyaya yönlendir.
 ## İstemci
 
 Bir `TestClient`, kurulan bir `Router`'ı sarar ve çağrılar arasında bir **çerez kavanozu** tutar:
-her istek şimdiye kadar saklanan çerezleri gönderir ve yanıttaki herhangi bir `Set-Cookie`'yi
-yakalar. Yani bir istekteki bir giriş, sonraki tarafından görülür — oturumlar, flash mesajları ve
+her request şimdiye kadar saklanan çerezleri gönderir ve response'taki herhangi bir `Set-Cookie`'yi
+yakalar. Yani bir request'teki bir giriş, sonraki tarafından görülür — session'lar, flash mesajları ve
 CSRF'in hepsi, tam olarak bir tarayıcının süreceği gibi bir çağrı dizisi boyunca çalışır. (İstemci
 bilinçli olarak `Clone` değildir: kavanoz, bir istemciye kapsamlanmış paylaşılan durumdur.)
 
@@ -79,13 +79,13 @@ bilinçli olarak `Clone` değildir: kavanoz, bir istemciye kapsamlanmış payla�
 | `get(path)` / `delete(path)` | bir GET / DELETE |
 | `post_json(path, &body)` / `patch_json(path, &body)` | bir JSON gövdesi |
 | `post_form(path, &[(k, v)])` | bir URL kodlu form |
-| `send(method, path, body, headers)` | rastgele bir istek |
+| `send(method, path, body, headers)` | rastgele bir request |
 
-Her istek metodu bir `TestResponse` döndürür.
+Her request metodu bir `TestResponse` döndürür.
 
 ## İddialar
 
-Her `assert_*` yanıtı döndürür; böylece zincirlenirler:
+Her `assert_*` response'u döndürür; böylece zincirlenirler:
 
 | İddia | Kontrol ettiği |
 |---|---|
@@ -104,7 +104,7 @@ Bir iddia yerine ham değerlere ihtiyacın olduğunda, `TestResponse` onları do
 
 ## Örnek: bir form akışı
 
-Bu, blog'un entegrasyon testini yansıtır — tüm SSR yolunu, CSRF ve doğrulama dahil, süreç içinde
+Bu, blog'un entegrasyon testini yansıtır — tüm SSR yolunu, CSRF ve validation dahil, süreç içinde
 sürer:
 
 ```rust
@@ -127,14 +127,14 @@ client.post_form("/posts", &[("title", "x"), ("body", "y")])
     .assert_status(rustali::http::StatusCode::FORBIDDEN);
 ```
 
-Tüm yığını çalıştırdığı için, böyle bir test yönlendirmeyi, ORM'i, doğrulamayı, oturumları ve
-CSRF'i birlikte egzersiz eder.
+Tüm stack'i çalıştırdığı için, böyle bir test routing'i, ORM'i, validation'ı, session'ları ve
+CSRF'i birlikte test eder.
 
 ## Kimliği doğrulanmış route'ları test etmek
 
 Bir `acting_as` kısayolu yok — ve nadiren birine ihtiyacın var, çünkü çerez kavanozu bir kullanıcının
-yaptığı gibi giriş yapmana izin verir. Giriş route'una post yap, sonra oturum çerezi korunan bir
-route'a sonraki istekte binsin:
+yaptığı gibi giriş yapmana izin verir. Giriş route'una post yap, sonra session çerezi korunan bir
+route'a sonraki request'te binsin:
 
 ```rust
 let client = TestClient::new(router);
@@ -150,6 +150,6 @@ client.get("/dashboard").await.assert_ok().assert_see("Welcome back");
 ```
 
 Bu, kimliği doğrulanmış bir durumu taklit etmek yerine gerçek giriş yolunu test eder — parola
-kontrolü, oturum oluşturma, korunan route'taki guard.
+kontrolü, session oluşturma, korunan route'taki guard.
 
 > `rustali make:test <name>`, bir test oluşturur.

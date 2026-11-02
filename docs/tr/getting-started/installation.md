@@ -19,7 +19,7 @@ cargo run               # http://127.0.0.1:8000 üzerinde sun
 ```
 
 `rustali new` konvansiyonel bir proje iskeleti oluşturur; ne ürettiğinin turu için
-[İlk Uygulaman](first-app) sayfasına bak. Görünüm katmanı olmadan yalnızca JSON üreten bir
+[İlk Uygulaman](first-app) sayfasına bak. View katmanı olmadan yalnızca JSON üreten bir
 proje için `--preset api` ekle.
 
 ## Mevcut bir crate'e
@@ -54,22 +54,22 @@ full-stack uygulamayı kapsar; daha hafif bir derleme için bunları kırp.
 |---|---|---|
 | `macros` | ✅ | `#[controller]`, `#[derive(Entity)]`, `#[derive(Validate)]` |
 | `orm` | ✅ | ORM, migration'lar, `Db` extractor'ı |
-| `sqlite` | ✅ | SQLite sürücüsü |
-| `postgres` | | PostgreSQL sürücüsü |
-| `mysql` | | MySQL sürücüsü |
-| `views` | ✅ | `View<T>`, Askama arka ucu |
-| `tera` | | Tera (çalışma zamanı) görünüm arka ucu |
-| `sessions` | ✅ | Çerez oturumları, flash, CSRF |
-| `validation` | ✅ | Doğrulama kuralları ve `Validated<T>` |
+| `sqlite` | ✅ | SQLite driver'ı |
+| `postgres` | | PostgreSQL driver'ı |
+| `mysql` | | MySQL driver'ı |
+| `views` | ✅ | `View<T>`, Askama backend'i |
+| `tera` | | Tera (çalışma zamanı) view backend'i |
+| `sessions` | ✅ | Çerez session'ları, flash, CSRF |
+| `validation` | ✅ | Validation kuralları ve `Validated<T>` |
 | `auth` | ✅ | Parola özetleme, guard'lar, `Auth`/`Login` (`sessions`'ı gerektirir) |
 | `cache` | ✅ | `Cache` trait'i ve bellek deposu |
-| `redis` | | Redis destekli önbellek deposu |
+| `redis` | | Redis destekli cache deposu |
 | `mail` | ✅ | `Mailable` ve taşıyıcılar |
 | `queue` | ✅ | Arka plan işleri ve bir worker |
 | `test` | | Süreç içi `TestClient` (`dev-dependencies`'e koy) |
 
 Özellikleri kırpmak için `default-features = false` ile varsayılanları kapat ve yalnızca
-ihtiyacın olanı listele. Örneğin, görünümsüz, Postgres üzerinde bir JSON API:
+ihtiyacın olanı listele. Örneğin, view'süz, Postgres üzerinde bir JSON API:
 
 ```toml
 [dependencies]
@@ -78,15 +78,15 @@ rustali = { version = "0.1", default-features = false, features = ["macros", "or
 
 Kırparken akılda tutulacak birkaç şey:
 
-- Bir veritabanı sürücüsü `orm`'den ayrıdır: `orm`'i **ve** `sqlite` / `postgres` / `mysql`
-  sürücülerinden birini tut. `orm`'i sürücüsüz açmak sana ORM tiplerini verir ama bağlanacak
+- Bir veritabanı driver'ı `orm`'den ayrıdır: `orm`'i **ve** `sqlite` / `postgres` / `mysql`
+  driver'larından birini tut. `orm`'i driver'sız açmak sana ORM tiplerini verir ama bağlanacak
   bir şey vermez.
-- `auth`, `sessions`'ı gerektirir; bu yüzden API ağırlıklı bir derlemede bile çerez oturumları
+- `auth`, `sessions`'ı gerektirir; bu yüzden API ağırlıklı bir derlemede bile çerez session'ları
   ve CSRF elde edersin — gerçekten ikisini de istemiyorsan `auth`'u da çıkar.
 - `redis` ve `tera`, `cache` ve `views`'in isteğe bağlı eklentileridir; temel özellik de açık
   olmadıkça hiçbir şey yapmazlar.
 
-`rustali new --preset api` bu daha hafif şekli senin için oluşturur: görünüm katmanı dışarıda
+`rustali new --preset api` bu daha hafif şekli senin için oluşturur: view katmanı dışarıda
 bırakılmış, yalnızca JSON üreten bir proje.
 
 ## Editör kurulumu

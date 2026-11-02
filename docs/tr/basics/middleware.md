@@ -1,6 +1,6 @@
 # Middleware & Filtreler
 
-Middleware, bir isteği girişte ve yanıtı çıkışta sarar. Rustali'de middleware yalnızca bir
+Middleware, bir request'i girişte ve response'u çıkışta sarar. Rustali'de middleware yalnızca bir
 [tower] `Layer`'dır ve onu üç düzeyde iliştirirsin — global, controller başına ya da route
 başına — böylece enine kesen kaygılar (hız sınırlama, CORS, auth, loglama) handler'larının
 dışında kalır. Bu, framework'ün tasarımındaki katmanlı filtre hattıdır.
@@ -12,10 +12,10 @@ dışında kalır. Bu, framework'ün tasarımındaki katmanlı filtre hattıdır
 Her uygulama, en dıştan içe doğru bir varsayılan yığınla sarılır:
 
 1. **Request ID** — bir `x-request-id` (bir UUID) atar ve yayar.
-2. **Tracing** — `tracing` aracılığıyla yapılandırılmış istek/yanıt loglaması.
+2. **Tracing** — `tracing` aracılığıyla yapılandırılmış request/response loglaması.
 3. **Catch-panic** — panikleyen bir handler, bağlantıyı düşürmek yerine bir `500` olur.
 4. **Bağlam enjeksiyonu** — düz tower katmanlarının servislere erişebilmesi için `AppContext`'i
-   istek uzantılarına koyar.
+   request uzantılarına koyar.
 5. **Hata pazarlığı** — bir framework [`Error`](responses)'ını, istemciye bağlı olarak JSON'a ya
    da bir HTML sayfasına çevirir ("istisna filtresi").
 6. **Senin katmanların** — aşağıya eklediğin her şey.
@@ -39,6 +39,7 @@ App::builder()
 
 Global katmanların varsayılan yığının *içinde* durur; bu yüzden request id'yi hâlâ görürler ve
 hataları hâlâ tutarlı bir şekilde render edilir.
+
 
 ### CORS
 
@@ -85,7 +86,7 @@ katmanı, `axum::middleware::from_fn(my_fn)` gibi bir axum yardımcısı ya da k
 ## Hız sınırlama
 
 `Throttle`, sabit pencereli, bellek içi bir sınırlayıcıdır. Bir `x-ratelimit-remaining`
-başlığı ekler ve sınıra ulaşıldığında `Retry-After` ile `429 Too Many Requests` yanıtı verir.
+başlığı ekler ve sınıra ulaşıldığında `Retry-After` ile `429 Too Many Requests` response'u verir.
 
 ```rust
 Throttle::per_minute(60)             // 60 istek / dakika
@@ -119,8 +120,8 @@ App::builder().layer(from_fn(timing))
 
 ### Kısa devre yapmak
 
-Bir middleware'in `next.run(...)`'ı çağırması gerekmez. Ondan önce bir yanıt döndür, handler
-asla çalışmaz — bir gate'in, bir bakım anahtarının ya da bir başlık kontrolünün bir isteği
+Bir middleware'in `next.run(...)`'ı çağırması gerekmez. Ondan önce bir response döndür, handler
+asla çalışmaz — bir gate'in, bir bakım anahtarının ya da bir başlık kontrolünün bir request'i
 erkenden reddetme yolu budur:
 
 ```rust
@@ -136,14 +137,14 @@ async fn require_api_key(request: Request, next: Next) -> Response {
 }
 ```
 
-Bir middleware'in yapabileceği iki şey — `next.run`'dan önce istek üzerinde hareket etmek ve
-sonrasında yanıt üzerinde hareket etmek — tüm yüzeyi kapsar: kimlik doğrulama, zamanlama,
-başlık enjekte etme, yanıtları yeniden yazma ve bir isteği doğrudan reddetme.
+Bir middleware'in yapabileceği iki şey — `next.run`'dan önce request üzerinde hareket etmek ve
+sonrasında response üzerinde hareket etmek — tüm yüzeyi kapsar: kimlik doğrulama, zamanlama,
+başlık enjekte etme, response'ları yeniden yazma ve bir request'i doğrudan reddetme.
 
 ### Düzeyler nasıl iç içe geçer
 
 Üç iliştirme noktası, dıştan içe doğru iç içe geçer: **global → controller → route → handler**.
-Dıştaki bir katman isteği ilk, yanıtı son görür. Yani global bir zamanlama katmanı içindeki her
+Dıştaki bir katman request'i ilk, response'u son görür. Yani global bir zamanlama katmanı içindeki her
 şeyi ölçer, bir controller `Throttle`'ı bir route'un kendi daha katı `Throttle`'ından önce
 sayar ve bir route `#[authorize]`'u handler'a en yakın çalışır. İşi yapan en dar düzeye başvur:
 gerçekten enine kesen kaygılar için global, paylaşılan bir politika için controller, bir
@@ -153,7 +154,7 @@ seferlik için route.
 
 `#[authorize("ability")]` (ya da `#[authorize(role = "admin")]`), handler'dan önce çalışan,
 mevcut kullanıcıyı uygulamanın `Gate`'ine karşı kontrol eden ve `401` (giriş yapılmamış) ya da
-`403` (reddedildi) yanıtı veren bir filtredir. [Yetkilendirme](../security/authorization)'de
+`403` (reddedildi) response'u veren bir filtredir. [Yetkilendirme](../security/authorization)'de
 ele alınmıştır.
 
 ```rust
@@ -165,7 +166,7 @@ async fn store(/* ... */) -> Result<Redirect> { /* ... */ }
 ## Hata render'ını geçersiz kılmak
 
 Hata pazarlığı katmanı istisna filtresidir; çıktısını `App::builder().on_error(...)` ile
-değiştir. Closure, hatayı ve bazı istek bilgilerini alır ve devralmak için `Some(response)` ya
+değiştir. Closure, hatayı ve bazı request bilgilerini alır ve devralmak için `Some(response)` ya
 da varsayılan JSON/HTML'e geri dönmek için `None` döndürür:
 
 ```rust
@@ -183,9 +184,10 @@ App::builder().on_error(|error, request| {
 `debug`). İstemciye göre dallanmak için `wants_json`'ı kullan — varsayılan pazarlığın kullandığı
 sinyalin aynısı.
 
+
 ## Yapılandırma gerektiren katmanlar
 
-Bazı katmanlar (oturumlar, CSRF) yalnızca uygulama kurulduktan sonra var olan yapılandırma
+Bazı katmanlar (session'lar, CSRF) yalnızca uygulama kurulduktan sonra var olan yapılandırma
 değerlerine ihtiyaç duyar. Bunları, bağlam mevcutken çalışan `configure` içine ekle:
 
 ```rust
@@ -197,4 +199,4 @@ App::builder()
     .await
 ```
 
-[CSRF & Oturumlar](../security/csrf)'a bak.
+[CSRF & Session'lar](../security/csrf)'a bak.

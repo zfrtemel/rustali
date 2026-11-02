@@ -1,7 +1,7 @@
 # Servis Konteyneri & Provider'lar
 
 Rustali'nin açık, tip-indeksli bir servis konteyneri vardır. Servisler başlangıçta **tipe** göre
-kaydedilir ve istek anında tipe göre aranır. Dize bağlama ve otomatik-bağlama sihri yoktur.
+kaydedilir ve request anında tipe göre aranır. Dize bağlama ve otomatik-bağlama sihri yoktur.
 
 ## Bir servis kaydetmek
 
@@ -40,7 +40,7 @@ provider sessizce değil, yüksek sesle başarısız olur.
 
 Kaydedilen her değer bir `Arc`'a sarılır ve paylaşılan referansla verilir: `Inject<T>` bir
 `Arc<T>` tutar ve `T`'ye deref olur; `ctx.service::<T>()`, `Arc<T>`'yi doğrudan döndürür. Yani bir
-servis **bir kez kaydedilir ve** her istek tarafından **paylaşılır** — istek başına bir kopya değil,
+servis **bir kez kaydedilir ve** her request tarafından **paylaşılır** — request başına bir kopya değil,
 bir `Clock`, bir veritabanı havuzu, bir HTTP istemcisi vardır. İki sonuç:
 
 - Bir servis `Send + Sync + 'static` olmalıdır (aynı anda birçok task'tan dokunulur).
@@ -96,7 +96,7 @@ fn register<'a>(&'a self, registry: &'a mut Registry<'_>) -> RegisterFuture<'a> 
 
 `require`, bağımlılık eksikse hata verir; böylece sırasız bir kayıt, daha sonra kafa karıştırıcı
 bir `None` değil, net bir başlangıç başarısızlığıdır. `register` async'tir çünkü kurulum genellikle
-bağlanmak anlamına gelir — bir veritabanı havuzu, bir önbellek, bir e-posta taşıyıcısı.
+bağlanmak anlamına gelir — bir veritabanı havuzu, bir cache, bir e-posta taşıyıcısı.
 
 ### Yapılandırma bölümü
 
@@ -106,21 +106,21 @@ Konvansiyon, provider başına bir yapılandırma bölümüdür, `section_or_def
 let config: PaymentsConfig = registry.config().section_or_default("payments")?;
 ```
 
-`section_or_default`, `payments` bölümü yoksa `PaymentsConfig::default()`'a geri döner; böylece bir
+`section_or_default`, `payments` bölümü yoksa `PaymentsConfig::default()`'a fallback yapar; böylece bir
 provider kutudan çıktığı gibi çalışır ve yalnızca gerektiğinde yapılandırılır. Yapılandırma tipi
 sıradan bir `#[derive(Deserialize, Default)]` struct'tır. Bunun gibi özel bir bölüm, `.env`'den
 `APP__PAYMENTS__*` anahtarlarıyla doldurulur
-([Yapılandırma](../getting-started/configuration#özel-ayarlar)'ya bak).
+([Yapılandırma](../getting-started/configuration#ozel-ayarlar)'ya bak).
 
 ### Komut kaydetmek
 
 Bir provider ayrıca `registry.command(...)` ile konsol komutları da kaydedebilir — `migrate` ve
 `queue:work`'ün provider'ları tarafından eklenme şekli budur. [Konsol Komutları](console)'na bak.
 
-## İstek kapsamlı veri
+## Request kapsamlı veri
 
-Konteyner, paylaşılan, uzun ömürlü servisleri tutar. İstek başına değerler için, middleware
-aracılığıyla istek uzantılarını kullan ya da veriyi handler'dan aşağıya geçir — konteyner, istek
+Konteyner, paylaşılan, uzun ömürlü servisleri tutar. Request başına değerler için, middleware
+aracılığıyla request uzantılarını kullan ya da veriyi handler'dan aşağıya geçir — konteyner, request
 başına durum için değil, havuzlar ve istemciler gibi şeyler içindir.
 
 ## Neden açık
