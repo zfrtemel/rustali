@@ -83,11 +83,11 @@ hiding trashed rows from queries — is driven by config, described next.
 
 ## Soft delete behaviour
 
-Soft delete is a project-wide policy, off by default. Turn it on in `config/database.toml`:
+Soft delete is a project-wide policy, off by default. Turn it on in `.env`:
 
-```toml
-# config/database.toml
-soft_delete = true
+```bash
+# .env
+SOFT_DELETE=true
 ```
 
 With it on, for any model that has a `deleted_at` column:

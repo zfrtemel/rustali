@@ -1,102 +1,73 @@
 # Configuration
 
-Configuration lives in the `config/` directory as TOML, **one file per section**. Values
-are layered so you can keep defaults in files and override per environment or from the
-environment.
+All configuration lives in a single **`.env`** file (or the real process environment), as
+flat, readable keys. There are no per-section config files — one place for everything.
 
-## Layout
+```bash
+# .env
+APP_NAME=My App
+APP_ENV=development        # development | test | production
+APP_DEBUG=true            # verbose error detail in responses — turn off for production
+APP_KEY=a-long-dev-secret-change-me
 
-```text
-config/
-├── app.toml          # [app]      name, env, debug, key
-├── server.toml       # [server]   host, port
-├── log.toml          # [log]      level, json
-├── database.toml     # [database] url, pool settings   (read by the ORM)
-└── production/       # overrides merged when APP_ENV=production
-    └── app.toml
+DATABASE_URL=sqlite://db/app.db?mode=rwc
 ```
-
-The file name **is** the section — `server.toml` populates the `server` section; the file
-does not repeat a `[server]` header.
 
 ## Precedence
 
 From lowest to highest, each layer overrides the one before:
 
-1. Compiled defaults (every field has one — e.g. `server.port` is `8000`).
-2. `config/<section>.toml`.
-3. `config/<APP_ENV>/<section>.toml` — the active profile (`APP_ENV`, default
-   `development`).
-4. A `.env` file (optional; never overrides real environment variables).
-5. Process environment variables prefixed `APP__`, with `__` separating nesting.
+1. Compiled defaults (every field has one — e.g. the port is `8000`).
+2. The `.env` file.
+3. Real process environment variables.
 
-So `APP__SERVER__PORT=9000` sets `server.port`, and a value in
-`config/production/app.toml` beats the one in `config/app.toml` when `APP_ENV=production`.
+So setting `PORT` in your deploy platform's environment overrides the `PORT` in `.env`, which
+overrides the built-in default. A `.env` file is a developer convenience; production values
+come from the real environment and win.
 
-### Per-environment overrides
+## The keys
 
-The profile directory is how you change behaviour between environments without editing the
-base files. For example, keep `debug = true` in `config/app.toml` for development, and turn it
-off (plus any production-only setting) in the profile:
+Each setting is a clean, flat key. The common ones:
 
-```toml
-# config/production/app.toml  — merged only when APP_ENV=production
-debug = false
-```
+| Key | Sets |
+|---|---|
+| `APP_NAME` | application name (logs, default page titles) |
+| `APP_ENV` | `development` \| `test` \| `production` |
+| `APP_DEBUG` | verbose error detail in responses (turn off for production) |
+| `APP_KEY` | secret that signs cookies and JWTs (≥ 16 chars) |
+| `HOST` / `PORT` | the address to bind (`127.0.0.1` / `8000`) |
+| `LOG_LEVEL` / `LOG_JSON` | tracing filter; one JSON object per line when `true` |
+| `DATABASE_URL` | database connection string |
+| `DATABASE_MAX_CONNECTIONS` / `DATABASE_LOGGING` | pool size; log every statement |
+| `SOFT_DELETE` | stamp `deleted_at` instead of deleting ([details](../database/base-entity)) |
+| `CACHE_DRIVER` / `CACHE_URL` | cache backend ([details](../deeper/cache)) |
+| `MAIL_TRANSPORT` / `MAIL_FROM` / `MAIL_URL` | mail backend ([details](../deeper/mail)) |
+| `QUEUE_CAPACITY` | in-process queue size ([details](../deeper/queues)) |
+| `SESSION_COOKIE` / `SESSION_LIFETIME_MINUTES` / `SESSION_CSRF` | sessions ([details](../security/csrf)) |
+| `OPENAPI_TITLE` / `OPENAPI_VERSION` | OpenAPI document info |
 
-`debug` is **not** forced off automatically in production; set it here. With `debug` on, error
-responses include internal detail (stack messages, database errors), which you do not want to
-expose to real users — so turning it off is part of going to production.
+Values parse to the most specific type — `PORT=8000` is an integer, `APP_DEBUG=false` a bool —
+so a wrong type (e.g. `PORT=abc`) is a clear error at startup, not a silent default.
 
-### Files vs environment variables
+## Per-environment settings
 
-Use `config/` files for non-secret defaults you commit, and environment variables (or `.env`
-locally) for secrets and per-deploy values. A real environment variable always wins over
-`.env`, so a `.env` file is a developer convenience that never silently overrides what your
-deploy platform sets.
+There are no profile files; set per-environment values in each environment itself. Commit a
+dev-friendly `.env`, and in production set the real values (secrets, `APP_ENV=production`,
+`APP_DEBUG=false`) through the deploy platform's environment, where they override `.env`.
 
-## The built-in sections
+`APP_DEBUG` is **not** forced off automatically in production — set `APP_DEBUG=false` there.
+With debug on, error responses include internal detail (stack messages, database errors) you
+do not want to expose to real users.
 
-```toml
-# config/app.toml
-name = "My App"       # shown in logs and default page titles
-env = "development"   # development | test | production
-debug = true          # verbose error detail in responses — turn off for production
-key = "..."           # ≥16-char secret: signs cookies and JWTs
-```
+## The key
 
-```toml
-# config/server.toml
-host = "127.0.0.1"
-port = 8000
-```
-
-```toml
-# config/log.toml
-level = "info,tower_http=debug"   # a tracing filter; RUST_LOG overrides it
-json = false                       # one JSON object per line when true
-```
-
-```toml
-# config/database.toml
-url = "sqlite://db/app.db?mode=rwc"
-max_connections = 10
-soft_delete = false   # when true, delete() stamps deleted_at and queries hide trashed rows
-```
-
-`database.toml` is documented with the [ORM](../database/entities); `soft_delete` is covered
-in [Base Entity & Soft Delete](../database/base-entity). Packages like cache, mail, queue and
-sessions each read their own section (`cache`, `mail`, `queue`, `session`).
-
-## The `key`
-
-`app.key` signs session cookies and JWTs and must be at least 16 characters. In
-development the scaffold ships a throwaway key; in production set a real secret from the
-environment and never commit it:
+`APP_KEY` signs session cookies and JWTs and must be at least 16 characters. In development the
+scaffold ships a throwaway key; in production set a real secret from the environment and never
+commit it:
 
 ```bash
-# .env (git-ignored) or your deploy environment
-APP__APP__KEY=a-long-random-secret-at-least-32-characters
+# your deploy platform's environment (not the committed .env)
+APP_KEY=a-long-random-secret-at-least-32-characters
 ```
 
 ## Reading configuration
@@ -109,12 +80,13 @@ async fn home(ctx: Ctx) -> String {
 }
 ```
 
-`ctx.config().is_production()` is a convenience for `app.env == "production"`.
+`ctx.config().is_production()` is a convenience for `APP_ENV == "production"`.
 
-## Custom sections
+## Custom settings
 
-Add your own section file and deserialise it into your own type. Define a struct, then
-read it with `Config::section`:
+Package and application settings beyond the built-in keys are read as typed sections with
+`Config::section`. For a custom section, set its values with the `APP__SECTION__FIELD` escape
+hatch (double underscore separates nesting):
 
 ```rust
 use serde::Deserialize;
@@ -125,14 +97,13 @@ struct Payments {
     retries: u32,
 }
 
-// config/payments.toml  ->  provider = "stripe"\n  retries = 3
+// .env:  APP__PAYMENTS__PROVIDER=stripe   APP__PAYMENTS__RETRIES=3
 let payments: Option<Payments> = ctx.config().section("payments")?;
 ```
 
-Use `section_or_default::<T>("name")` when the type implements `Default` and the file may
-be absent. Environment overrides work for custom sections too
-(`APP__PAYMENTS__RETRIES=5`).
+Use `section_or_default::<T>("name")` when the type implements `Default` and the values may be
+absent.
 
-> A package that needs configuration (database, cache, mail, ...) reads its section this
-> way inside its [provider](../deeper/providers), so there is one consistent mechanism
-> for framework and application config alike.
+> A package that needs configuration (database, cache, mail, …) reads its section this way
+> inside its [provider](../deeper/providers), so there is one consistent mechanism for
+> framework and application config alike.

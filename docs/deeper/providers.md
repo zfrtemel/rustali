@@ -69,7 +69,7 @@ impl Provider for PaymentsProvider {
 
     fn register<'a>(&'a self, registry: &'a mut Registry<'_>) -> RegisterFuture<'a> {
         Box::pin(async move {
-            // read config/payments.toml, build a client, register it
+            // read the `payments` config section, build a client, register it
             let config: PaymentsConfig = registry.config().section_or_default("payments")?;
             registry.insert(PaymentsClient::connect(&config).await?);
             Ok(())
@@ -102,16 +102,17 @@ connecting — a database pool, a cache, a mail transport.
 
 ### Config section
 
-The convention is one TOML section per provider, read with `section_or_default`:
+The convention is one config section per provider, read with `section_or_default`:
 
 ```rust
 let config: PaymentsConfig = registry.config().section_or_default("payments")?;
 ```
 
-`section_or_default` falls back to `PaymentsConfig::default()` when `config/payments.toml`
-(or the `[payments]` section) is absent, so a provider works out of the box and is
-configured only when needed. The config type is an ordinary
-`#[derive(Deserialize, Default)]` struct.
+`section_or_default` falls back to `PaymentsConfig::default()` when the `payments` section is
+absent, so a provider works out of the box and is configured only when needed. The config
+type is an ordinary `#[derive(Deserialize, Default)]` struct. A custom section like this is
+populated from `.env` with the `APP__PAYMENTS__*` keys (see
+[Configuration](../getting-started/configuration#custom-settings)).
 
 ### Registering commands
 

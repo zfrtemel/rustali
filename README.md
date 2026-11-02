@@ -54,7 +54,7 @@ Five things set it apart from existing Rust frameworks:
 | | |
 |---|---|
 | **Attribute routing** | `#[controller("/posts")]` + `#[get("/{id}")]` — routes live on the handler, no separate route file; `rustali routes` lists them all. |
-| **POCO entities** | One plain struct with `#[derive(Entity)]`; the macro generates the SeaORM plumbing you never see. |
+| **Plain-struct entities** | One plain struct with `#[derive(Entity)]`; the macro generates the SeaORM plumbing you never see. |
 | **Code-first migrations** | Change the struct, run `rustali migrate:diff`, review the generated migration. |
 | **Layered filter pipeline** | Global → controller → action middleware, `#[authorize]`, exception filters — all tower layers, all explicit. |
 | **Type-safe views** | Askama templates checked at compile time by default; Tera available when you want runtime flexibility. |

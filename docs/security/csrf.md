@@ -18,13 +18,14 @@ App::builder()
     .await
 ```
 
-Configure them in `config/session.toml`:
+Configure them in `.env`:
 
-```toml
-cookie = "rustali_session"
-lifetime_minutes = 120     # inactivity expiry
-same_site = "lax"          # lax | strict | none
-csrf = true                # CSRF protection on/off
+```bash
+# .env
+SESSION_COOKIE=rustali_session
+SESSION_LIFETIME_MINUTES=120     # inactivity expiry
+SESSION_SAME_SITE=lax            # lax | strict | none
+SESSION_CSRF=true                # CSRF protection on/off
 ```
 
 Cookies are `HttpOnly`, `SameSite` as configured, signed with `app.key`, and `Secure` in

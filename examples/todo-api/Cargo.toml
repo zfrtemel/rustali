@@ -1,6 +1,6 @@
 [package]
 name = "todo-api"
-description = "JSON API with a SQLite database, migrations and a POCO entity"
+description = "JSON API with a SQLite database, migrations and a plain-struct entity"
 version = "0.0.0"
 edition = "2024"
 publish = false

@@ -26,10 +26,7 @@ API from one controller.
 ```text
 blog/
 ├── Cargo.toml
-├── .env
-├── config/
-│   ├── app.toml          # name, env, debug, key
-│   └── database.toml     # connection URL (SQLite by default)
+├── .env                  # all configuration: name, env, debug, key, DATABASE_URL, …
 ├── db/                   # SQLite file + migrations + schema snapshot
 ├── src/
 │   ├── main.rs           # App::builder()...run()  (≈ 8 lines)

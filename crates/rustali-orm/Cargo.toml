@@ -1,6 +1,6 @@
 [package]
 name = "rustali-orm"
-description = "Data layer for the Rustali web framework: POCO entities over SeaORM, query helpers, pagination"
+description = "Data layer for the Rustali web framework: plain-struct entities over SeaORM, query helpers, pagination"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

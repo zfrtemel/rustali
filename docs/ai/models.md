@@ -12,11 +12,11 @@ Local models are opt-in. Enable the `candle` feature and select the backend in c
 rustali-ai = { git = "https://github.com/zfrtemel/rustali-ai", features = ["candle"] }
 ```
 
-```toml
-# config/ai.toml
-backend = "candle"
-model = "sentence-transformers/all-MiniLM-L6-v2"
-model_path = ""
+```bash
+# .env
+APP__AI__BACKEND=candle
+APP__AI__MODEL=sentence-transformers/all-MiniLM-L6-v2
+APP__AI__MODEL_PATH=
 ```
 
 The first build with `candle` is slow — it compiles Candle and its dependencies — but only
@@ -37,10 +37,10 @@ ways:
 `model_path` wins when both are set. The model loads **once**, at startup, and is kept in
 memory for the life of the process — inference reuses it, it is never reloaded per request.
 
-```toml
-# fully offline: point at files you shipped with the app
-backend = "candle"
-model_path = "models/all-MiniLM-L6-v2"
+```bash
+# .env — fully offline: point at files you shipped with the app
+APP__AI__BACKEND=candle
+APP__AI__MODEL_PATH=models/all-MiniLM-L6-v2
 ```
 
 The repo id must be `owner/name` (e.g. `sentence-transformers/all-MiniLM-L6-v2`).

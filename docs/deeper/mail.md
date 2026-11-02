@@ -5,17 +5,17 @@ Three transports cover development, tests and production.
 
 ## Setup
 
-Add `MailProvider`; configure in `config/mail.toml`:
+Add `MailProvider`; configure it in `.env`:
 
 ```rust
 App::builder().provider(MailProvider).controllers().run().await
 ```
 
-```toml
-# config/mail.toml
-transport = "log"                 # log | memory | smtp
-from = "no-reply@example.com"
-url = "smtp://localhost:1025"     # used when transport = "smtp"
+```bash
+# .env
+MAIL_TRANSPORT=log                 # log | memory | smtp
+MAIL_FROM=no-reply@example.com
+MAIL_URL=smtp://localhost:1025     # used when MAIL_TRANSPORT=smtp
 ```
 
 - **log** (default) — writes each message to `tracing` instead of sending. See what would go

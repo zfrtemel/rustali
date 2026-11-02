@@ -27,9 +27,9 @@ the CLI.
    with `Cargo.toml` + `src/`) and writes under `src/` (controllers/, models/,
    migrations/, jobs/, ...). Files are never overwritten without `--force`.
 5. **`new` scaffolds the convention:** `Cargo.toml` (depends on `rustali` + the `test`
-   feature in dev-deps), `config/{app,database}.toml`, `.env`, `src/main.rs`,
+   feature in dev-deps), a single `.env` (all configuration), `src/main.rs`,
    `src/controllers.rs` (a home controller with an SSR route and a JSON `/api/ping`), a
-   `templates/home.html` (omitted with `--api`), and `db/`. The generated `main.rs` is
+   `templates/home.html` (omitted for the `api` preset), and `db/`. The generated `main.rs` is
    the 8-line `App::builder().provider(DatabaseProvider).controllers().run()`.
 
 ## Consequences

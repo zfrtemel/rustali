@@ -198,7 +198,7 @@ async fn index(views: Inject<TeraView>) -> Result<Html<String>> {
 }
 ```
 
-Tera reads `views/**/*` by default (configurable in `config/view.toml`). Use Askama when
+Tera reads `views/**/*` by default (configurable via the `view` section). Use Askama when
 you want compile-time safety; reach for Tera when designers need to edit templates without
 a recompile.
 

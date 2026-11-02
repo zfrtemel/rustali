@@ -196,6 +196,6 @@ would lose data silently.
 
 The `deleted_at` column that scaffolded models carry is, to the diff, an ordinary nullable
 timestamp — it is migrated like any other column. The soft-delete *behaviour* (stamping it on
-`delete`, hiding trashed rows) is a runtime setting, `soft_delete` in `config/database.toml`,
+`delete`, hiding trashed rows) is a runtime setting, `SOFT_DELETE` in `.env`,
 not something the migration or schema knows about. See
 [Base Entity & Soft Delete](base-entity).

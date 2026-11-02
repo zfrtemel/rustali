@@ -9,30 +9,26 @@ lets the generators and `App::builder().controllers()` find your code.
 ```text
 blog/
 ├── Cargo.toml
-├── .env                  # local environment (git-ignored)
-├── config/
-│   ├── app.toml          # name, env, debug, key
-│   └── database.toml     # connection URL (SQLite by default)
+├── .env                  # all configuration (one file)
 ├── db/
 │   └── .gitkeep          # the SQLite file, migrations and snapshot live here
 ├── src/
 │   ├── main.rs           # App::builder()...run()
 │   └── controllers.rs    # a home controller: "/" and "/api/ping"
 └── templates/
-    └── home.html         # omitted with `rustali new --api`
+    └── home.html         # omitted for the `api` preset
 ```
 
 What each top-level piece is for:
 
-- **`config/`** — one TOML file per subsystem (`app`, `database`, and later `session`,
-  `mail`, …). Each provider reads its own section; see [Configuration](configuration).
-- **`.env`** — local, git-ignored overrides (secrets, a local database URL). Values here win
-  over `config/`.
+- **`.env`** — all configuration in one file: `APP_*`, `DATABASE_URL`, and a line per optional
+  package. See [Configuration](configuration). Real secrets come from the environment in
+  production, overriding `.env`.
 - **`db/`** — the SQLite file (in development), your migrations, and the schema snapshot that
   drives `migrate:diff`.
 - **`src/`** — your code. `main.rs` boots the app; everything else is the controllers,
   models and so on that the generators create.
-- **`templates/`** — Askama templates, compiled into the binary (absent in an `--api`
+- **`templates/`** — Askama templates, compiled into the binary (absent in an `api`-preset
   project).
 
 ## `main.rs`

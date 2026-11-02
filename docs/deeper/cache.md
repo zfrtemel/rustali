@@ -19,16 +19,16 @@ bytes correctly; every typed helper comes for free.
 
 ## Setup
 
-Add `CacheProvider`; configure in `config/cache.toml`:
+Add `CacheProvider`; configure it in `.env`:
 
 ```rust
 App::builder().provider(CacheProvider).controllers().run().await
 ```
 
-```toml
-# config/cache.toml
-driver = "memory"                 # memory | redis
-url = "redis://127.0.0.1:6379"    # used when driver = "redis"
+```bash
+# .env
+CACHE_DRIVER=memory                 # memory | redis
+CACHE_URL=redis://127.0.0.1:6379    # used when CACHE_DRIVER=redis
 ```
 
 The `redis` driver needs the `redis` Cargo feature. Without it, asking for `driver =

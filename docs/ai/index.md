@@ -53,12 +53,14 @@ async fn similar(ctx: Ctx) -> Result<String> {
 }
 ```
 
-Configure it in `config/ai.toml`:
+Configure it in `.env`. Because `rustali-ai` is a separate package, its settings use the
+`APP__AI__*` escape hatch (the `ai` section) rather than built-in keys:
 
-```toml
-backend = "mock"                                    # mock | candle
-model = "sentence-transformers/all-MiniLM-L6-v2"    # HF repo id (candle backend)
-model_path = ""                                     # local dir; wins over `model` when set
+```bash
+# .env
+APP__AI__BACKEND=mock                                     # mock | candle
+APP__AI__MODEL=sentence-transformers/all-MiniLM-L6-v2     # HF repo id (candle backend)
+APP__AI__MODEL_PATH=                                      # local dir; wins over model when set
 ```
 
 ## The backends
