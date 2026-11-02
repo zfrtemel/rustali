@@ -26,6 +26,7 @@ validation = ["dep:rustali-validate"]
 auth = ["dep:rustali-auth", "sessions"]
 cache = ["dep:rustali-cache"]
 mail = ["dep:rustali-mail"]
+openapi = ["dep:rustali-openapi"]
 queue = ["dep:rustali-queue"]
 test = ["dep:rustali-test"]
 tera = ["rustali-view?/tera"]
@@ -45,6 +46,7 @@ rustali-validate = { workspace = true, optional = true }
 rustali-auth = { workspace = true, optional = true }
 rustali-cache = { workspace = true, optional = true }
 rustali-mail = { workspace = true, optional = true }
+rustali-openapi = { workspace = true, optional = true }
 rustali-queue = { workspace = true, optional = true }
 rustali-test = { workspace = true, optional = true }
 axum = { workspace = true }

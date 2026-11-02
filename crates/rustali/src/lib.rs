@@ -60,6 +60,12 @@ pub mod mail {
     pub use rustali_mail::*;
 }
 
+/// OpenAPI + Swagger UI generated from the route registry.
+#[cfg(feature = "openapi")]
+pub mod openapi {
+    pub use rustali_openapi::*;
+}
+
 /// Background jobs: the `Job` trait, dispatch, retries and a worker.
 #[cfg(feature = "queue")]
 pub mod queue {
@@ -135,6 +141,9 @@ pub mod prelude {
 
     #[cfg(feature = "mail")]
     pub use crate::mail::{MailProvider, Mailable, MailerExt};
+
+    #[cfg(feature = "openapi")]
+    pub use crate::openapi::openapi_router;
 
     #[cfg(feature = "queue")]
     pub use crate::queue::{Job, QueueExt, QueueProvider, Worker, async_trait};

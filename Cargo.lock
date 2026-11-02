@@ -2739,6 +2739,7 @@ dependencies = [
  "rustali-macros",
  "rustali-mail",
  "rustali-migrate",
+ "rustali-openapi",
  "rustali-orm",
  "rustali-queue",
  "rustali-session",
@@ -2851,6 +2852,19 @@ dependencies = [
  "rustali-core",
  "rustali-orm",
  "sea-orm-migration",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "rustali-openapi"
+version = "0.1.0-alpha.0"
+dependencies = [
+ "axum",
+ "rustali-core",
+ "rustali-test",
+ "serde",
  "serde_json",
  "tokio",
  "tracing",

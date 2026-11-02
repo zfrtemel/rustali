@@ -29,6 +29,7 @@ rustali-view = { path = "crates/rustali-view", version = "0.1.0-alpha.0" }
 rustali-auth = { path = "crates/rustali-auth", version = "0.1.0-alpha.0" }
 rustali-cache = { path = "crates/rustali-cache", version = "0.1.0-alpha.0" }
 rustali-mail = { path = "crates/rustali-mail", version = "0.1.0-alpha.0" }
+rustali-openapi = { path = "crates/rustali-openapi", version = "0.1.0-alpha.0" }
 rustali-queue = { path = "crates/rustali-queue", version = "0.1.0-alpha.0" }
 rustali-test = { path = "crates/rustali-test", version = "0.1.0-alpha.0" }
 rustali-cli = { path = "crates/rustali-cli", version = "0.1.0-alpha.0" }
