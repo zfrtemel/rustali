@@ -15,11 +15,11 @@ use serde::Serialize;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // The example lives inside the workspace, so locate its config directory from
-    // the crate root rather than the current working directory.
-    let config = Config::load_from(concat!(env!("CARGO_MANIFEST_DIR"), "/config"))?;
+    // The example lives inside the workspace; run from its own directory so the `.env`
+    // beside it is loaded, as it would be for a real app.
+    std::env::set_current_dir(env!("CARGO_MANIFEST_DIR"))?;
 
-    App::builder().config(config).routes(routes()).serve().await
+    App::builder().routes(routes()).serve().await
 }
 
 fn routes() -> Router<AppContext> {

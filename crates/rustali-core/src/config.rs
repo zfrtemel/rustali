@@ -180,6 +180,7 @@ pub const ENV_KEYS: &[(&str, &str)] = &[
     // database (rustali-orm)
     ("DATABASE_URL", "database.url"),
     ("DATABASE_MAX_CONNECTIONS", "database.max_connections"),
+    ("DATABASE_LOGGING", "database.logging"),
     ("SOFT_DELETE", "database.soft_delete"),
     // cache
     ("CACHE_DRIVER", "cache.driver"),

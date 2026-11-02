@@ -1,1 +1,0 @@
-url = "sqlite://db/blog.db?mode=rwc"
