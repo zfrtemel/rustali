@@ -2,9 +2,11 @@
 //!
 //! `rustali new <name>` scaffolds a fresh application; `rustali make:<thing> <Name>`
 //! generates a source file from a template (the `make:*` convention, colon and
-//! all). Everything else (serve, migrate, routes, queue:work, ...) is provided by the
-//! application binary — run those with `cargo run -- <command>` inside a project.
+//! all). Application commands (serve, migrate, routes, queue:work, ...) are provided by
+//! the application binary; `rustali <command>` forwards them to `cargo run -- <command>`
+//! from the project root, so you don't have to type `cargo run --` yourself.
 
+mod forward;
 mod generate;
 mod make;
 mod new;
@@ -43,11 +45,11 @@ fn run(args: &[String]) -> anyhow::Result<()> {
             Ok(())
         }
         other if other.starts_with("make:") => make::run(other.trim_start_matches("make:"), rest),
+        other if forward::is_app_command(other) => forward::run(other, rest),
         other => {
             anyhow::bail!(
-                "unknown command `{other}`.\n       In a project, app commands like \
-                 serve/migrate/routes run via `cargo run -- {other}`.\n       \
-                 See `rustali help` for scaffolding commands."
+                "unknown command `{other}`.\n       \
+                 See `rustali help` for scaffolding and application commands."
             )
         }
     }
@@ -65,8 +67,12 @@ fn print_help() {
          rustali make:middleware <Name>   Generate a tower middleware\n  \
          rustali make:policy <Name>       Generate an authorization policy\n  \
          rustali make:test <name>         Generate an integration test\n\n\
-         {}\n  Inside a project, run the app's own commands with cargo:\n    \
-         cargo run -- serve | migrate | migrate:diff \"msg\" | routes | queue:work",
+         {}\n  Run these from inside a project; they are forwarded to the app binary:\n    \
+         rustali serve                    Serve the application\n    \
+         rustali migrate                  Apply pending migrations\n    \
+         rustali migrate:diff \"msg\"        Generate a migration from entity changes\n    \
+         rustali routes                   List every route\n    \
+         rustali queue:work               Run the background job worker",
         style("The Rustali web framework CLI").bold(),
         style("Scaffolding:").bold(),
         style("App commands:").bold(),
