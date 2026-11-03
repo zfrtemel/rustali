@@ -14,13 +14,23 @@ blog/
 │   └── .gitkeep          # SQLite dosyası, migration'lar ve anlık görüntü burada yaşar
 ├── src/
 │   ├── main.rs           # App::builder()...run()
-│   └── controllers.rs    # bir home controller: "/" ve "/api/ping"
+│   ├── controllers/
+│   │   ├── mod.rs        # her controller'ı bağlar
+│   │   └── home.rs       # bir home controller: "/" ve "/api/ping"
+│   ├── models/           # yalnızca auth paketinde
+│   │   ├── mod.rs
+│   │   └── user.rs
+│   └── migrations/       # yalnızca auth paketinde
+│       ├── mod.rs        # Migrator
+│       └── m..._create_users.rs
 └── templates/
     └── home.html         # yalnızca fullstack preset'inde
 ```
 
-`templates/` ve `home.html` yalnızca `fullstack` preset'inde üretilir; `src/models.rs` ve
-`src/migrations.rs` ise yalnızca `auth` paketi seçildiğinde (ki `fullstack` bunu önceden
+Her kod türü kendi klasöründe yaşar; içindeki dosyaları bağlayan bir `mod.rs` ile. Böylece
+`rustali make:model Post`, bir çakışma olmadan diğerlerinin yanına bir `src/models/post.rs`
+bırakabilir. `templates/` ve `home.html` yalnızca `fullstack` preset'inde üretilir; `src/models/`
+ve `src/migrations/` ise yalnızca `auth` paketi seçildiğinde (ki `fullstack` bunu önceden
 işaretler) ortaya çıkar.
 
 Her üst düzey parçanın görevi şöyle:
@@ -74,9 +84,11 @@ komutu çalıştırır. [Konsol Komutları](../deeper/console) sayfasına bak.
 | `make:policy` | `src/policies/` |
 | `make:test` | `tests/` |
 
-Bir üreteç, `--force` vermedikçe mevcut bir dosyanın üzerine asla yazmaz.
-`make:controller Post`'tan sonra, dosyanın derlemeye girmesi için modülü bildir (`mod controllers;`
-içine `pub mod post;` ekle); controller bundan sonra `controllers()` ile otomatik bağlanır.
+Bir üreteç, `--force` vermedikçe mevcut bir dosyanın üzerine asla yazmaz. Ayrıca `mod <ad>;`
+satırını o klasörün `mod.rs`'ine senin yerine ekler (path ile referanslanan türlerde —
+modeller gibi — yeniden export de eder). Yepyeni bir tür klasörünü ilk kez kullandığında,
+`src/main.rs`'e bir kez `mod <tür>;` eklersin — sonrasında üretilen dosyalar doğrudan derlenir
+(controller'lar `controllers()` ile otomatik bağlanır).
 
 ## Tek dosyanın ötesine büyümek
 

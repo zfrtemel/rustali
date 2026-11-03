@@ -14,14 +14,24 @@ blog/
 │   └── .gitkeep          # the SQLite file, migrations and snapshot live here
 ├── src/
 │   ├── main.rs           # App::builder()...run()
-│   └── controllers.rs    # a home controller: "/" and "/api/ping"
+│   ├── controllers/
+│   │   ├── mod.rs        # links each controller
+│   │   └── home.rs       # a home controller: "/" and "/api/ping"
+│   ├── models/           # auth package only
+│   │   ├── mod.rs
+│   │   └── user.rs
+│   └── migrations/       # auth package only
+│       ├── mod.rs        # the Migrator
+│       └── m..._create_users.rs
 └── templates/
     └── home.html         # fullstack preset only
 ```
 
-`templates/` and `home.html` are generated only by the `fullstack` preset, and
-`src/models.rs` + `src/migrations.rs` appear only when the `auth` package is selected
-(which `fullstack` pre-checks).
+Each kind of code lives in its own folder with a `mod.rs` that links the files in it, so
+`rustali make:model Post` can drop a `src/models/post.rs` beside the others without
+clashing. `templates/` and `home.html` are generated only by the `fullstack` preset, and
+`src/models/` + `src/migrations/` appear only when the `auth` package is selected (which
+`fullstack` pre-checks).
 
 What each top-level piece is for:
 
@@ -74,9 +84,11 @@ async fn main() -> Result<()> {
 | `make:policy` | `src/policies/` |
 | `make:test` | `tests/` |
 
-A generator never overwrites an existing file unless you pass `--force`. After
-`make:controller Post`, declare the module (`mod controllers;` with `pub mod post;`) so
-it compiles; the controller then auto-mounts through `controllers()`.
+A generator never overwrites an existing file unless you pass `--force`. It also adds the
+`mod <name>;` line to that folder's `mod.rs` for you (re-exporting it where it is referred
+to by path, like models). The first time you use a brand-new kind of folder, add
+`mod <kind>;` to `src/main.rs` once — after that, generated files compile straight away
+(controllers auto-mount through `controllers()`).
 
 ## Growing beyond one file
 
