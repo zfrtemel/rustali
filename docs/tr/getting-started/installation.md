@@ -55,13 +55,42 @@ modelini/migration'ını, session bağlantılarını ve çalışmaya hazır bir 
 üretir (view'li preset'te SSR + view'ler, view yoksa JSON + JWT). Bir preset, ima ettiği paketi
 önceden işaretler (`api` → `openapi`, `fullstack` → `auth`).
 
+### Veritabanı
+
+`rustali new` ayrıca hangi veritabanını kullanacağını sorar. Varsayılan **SQLite**'tır ve hiçbir
+şey kurmanı gerektirmez; PostgreSQL ve MySQL de sunulur. Seçim senin için iki şeyi ayarlar:
+`rustali` üzerindeki driver Cargo feature'ı ve `.env`'deki aktif `DATABASE_URL`.
+
+| Veritabanı | `DATABASE_URL` | Cargo feature |
+|---|---|---|
+| `sqlite` (varsayılan) | `sqlite://db/app.db?mode=rwc` | `sqlite` (varsayılan bir feature) |
+| `postgres` | `postgres://postgres:postgres@localhost:5432/app` | `postgres` |
+| `mysql` | `mysql://root:root@localhost:3306/app` | `mysql` |
+
+Etkileşimli olarak **Database** seçicisinden seç ya da etkileşimsiz olarak
+`--database <sqlite|postgres|mysql>` ver. SQLite crate'in varsayılan feature'larıyla gelir, bu
+yüzden `Cargo.toml`'u `rustali = { version = "0.1" }` olarak kalır. Başka bir driver ise
+varsayılanları kapatır ve her şeyi açıkça listeler, böylece yalnız o driver derlenir:
+
+```toml
+rustali = { version = "0.1", default-features = false, features = ["macros", "orm", "postgres", "views", "sessions", "validation", "auth", "cache", "mail", "queue"] }
+```
+
+Hangisini seçersen seç, üretilen `.env` diğer ikisini yorum satırı örnekleri olarak tutar — her
+biri gereken tek satırlık Cargo değişikliğiyle — böylece sonradan geçiş iki satırlık bir düzenleme
+olur (`DATABASE_URL` ve driver feature'ı). Postgres ve MySQL çalışan bir sunucuyla konuşur; bu
+yüzden `rustali migrate`'ten önce sunucuyu başlat ve `DATABASE_URL`'i ona yönlendir.
+
 ### Etkileşimli ve bayraklar
 
 - **Etkileşimli** (ilgili bayrak yoksa): önce bir **Project type** `Select`'i, sonra preset'in
-  paketi önceden işaretli bir **Extra packages** `MultiSelect`'i.
+  paketi önceden işaretli bir **Extra packages** `MultiSelect`'i, ardından bir **Database**
+  `Select`'i.
 - **Etkileşimsiz** (script/CI): tipi seçmek için `--preset <api|fullstack|minimal>`, paketleri
-  seçmek için `--with pkg1,pkg2` ver ve/veya kalan soruyu atlamak için `--no-prompt` kullan.
-  `--api`, `--no-prompt`'u ima eder.
+  seçmek için `--with pkg1,pkg2`, veritabanını seçmek için
+  `--database <sqlite|postgres|mysql>` ver ve/veya kalan soruyu atlamak için `--no-prompt`
+  kullan. `--api`, `--no-prompt`'u ima eder; `--no-prompt` ile (ve `--database` olmadan)
+  veritabanı SQLite'a ayarlanır.
 
 ```bash
 rustali new blog                                 # etkileşimli: önce proje tipi, sonra paketler
@@ -69,7 +98,8 @@ rustali new api --preset api                     # api preset'i; ek paketleri yi
 rustali new api --api                            # aynı preset, ama paket sorusunu atlar
 rustali new shop --preset fullstack              # SSR view'lar + session'lar + auth
 rustali new svc --preset minimal --with cache,queue  # çıplak çekirdek, artı cache ve queue
-rustali new svc --preset minimal --no-prompt     # çıplak çekirdek, hiç soru yok
+rustali new shop --preset fullstack --database postgres  # PostgreSQL üzerinde SSR uygulama
+rustali new svc --preset minimal --no-prompt     # çıplak çekirdek, SQLite, hiç soru yok
 rustali new blog --force                         # mevcut bir dizinin üzerine yaz
 ```
 

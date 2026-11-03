@@ -55,13 +55,40 @@ the user model/migration, the session wiring, and a ready-to-run `src/controller
 (SSR with views, or JSON + JWT when the preset has no views). A preset pre-checks the package it
 implies (`api` → `openapi`, `fullstack` → `auth`).
 
+### Database
+
+`rustali new` also asks which database to use. The default is **SQLite**, which needs nothing
+installed; PostgreSQL and MySQL are also offered. The choice sets two things for you: the driver
+Cargo feature on `rustali` and the active `DATABASE_URL` in `.env`.
+
+| Database | `DATABASE_URL` | Cargo feature |
+|---|---|---|
+| `sqlite` (default) | `sqlite://db/app.db?mode=rwc` | `sqlite` (a default feature) |
+| `postgres` | `postgres://postgres:postgres@localhost:5432/app` | `postgres` |
+| `mysql` | `mysql://root:root@localhost:3306/app` | `mysql` |
+
+Pick it interactively from the **Database** selector, or non-interactively with
+`--database <sqlite|postgres|mysql>`. SQLite rides the crate's default features, so its
+`Cargo.toml` stays `rustali = { version = "0.1" }`. Any other driver turns the defaults off and
+lists everything explicitly, so only that one driver compiles:
+
+```toml
+rustali = { version = "0.1", default-features = false, features = ["macros", "orm", "postgres", "views", "sessions", "validation", "auth", "cache", "mail", "queue"] }
+```
+
+Whichever you choose, the generated `.env` keeps the other two as commented examples — each with
+the one-line Cargo change — so switching later is a two-line edit (the `DATABASE_URL` and the
+driver feature). Postgres and MySQL talk to a running server, so start it and point
+`DATABASE_URL` at it before `rustali migrate`.
+
 ### Interactive vs. flags
 
-- **Interactive** (no relevant flags): a **Project type** `Select`, then an **Extra packages**
-  `MultiSelect` with the preset's package pre-checked.
+- **Interactive** (no relevant flags): a **Project type** `Select`, an **Extra packages**
+  `MultiSelect` with the preset's package pre-checked, then a **Database** `Select`.
 - **Non-interactive** (scripting/CI): pass `--preset <api|fullstack|minimal>` to pick the type,
-  `--with pkg1,pkg2` to choose packages, and/or `--no-prompt` to skip any remaining prompt.
-  `--api` implies `--no-prompt`.
+  `--with pkg1,pkg2` to choose packages, `--database <sqlite|postgres|mysql>` to pick the
+  database, and/or `--no-prompt` to skip any remaining prompt. `--api` implies `--no-prompt`;
+  with `--no-prompt` (and no `--database`) the database defaults to SQLite.
 
 ```bash
 rustali new blog                                 # interactive: asks project type, then packages
@@ -69,7 +96,8 @@ rustali new api --preset api                     # api preset; still prompts for
 rustali new api --api                            # same preset, but skips the package prompt
 rustali new shop --preset fullstack              # SSR views + sessions + auth
 rustali new svc --preset minimal --with cache,queue  # bare core plus cache and queue
-rustali new svc --preset minimal --no-prompt     # bare core, no prompts at all
+rustali new shop --preset fullstack --database postgres  # SSR app on PostgreSQL
+rustali new svc --preset minimal --no-prompt     # bare core, SQLite, no prompts at all
 rustali new blog --force                         # overwrite an existing directory
 ```
 
