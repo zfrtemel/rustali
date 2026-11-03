@@ -99,6 +99,8 @@ struct ScaffoldPlan {
     files: Vec<(&'static str, &'static str)>,
     /// Whether to emit `templates/home.html` + the askama dependency.
     views: bool,
+    /// Whether auth is active (controls the auth controller + `mod auth;`).
+    auth: bool,
 }
 
 /// Compute the scaffold for a preset plus the chosen optional packages.
@@ -118,8 +120,9 @@ fn plan(preset: Preset, pkgs: &[Pkg]) -> ScaffoldPlan {
     let auth = has(Pkg::Auth) || preset == Preset::Fullstack;
     let openapi = has(Pkg::Openapi) || preset == Preset::Api;
     p.views = preset == Preset::Fullstack;
+    p.auth = auth;
 
-    // --- auth (+ sessions, models, migration) ---
+    // --- auth (+ sessions, models, migration, a working register/login flow) ---
     if auth {
         p.features.push("auth");
         p.modules.push("mod models;");
@@ -134,6 +137,22 @@ fn plan(preset: Preset, pkgs: &[Pkg]) -> ScaffoldPlan {
             "src/migrations/m20260101_000001_create_users.rs",
             CREATE_USERS_RS,
         ));
+        // A ready-to-run auth flow: SSR (views) when the preset has views, otherwise a
+        // JSON API that returns a JWT bearer token.
+        if p.views {
+            p.files
+                .push(("src/controllers/auth.rs", AUTH_CONTROLLER_SSR));
+            p.files.push(("templates/layout.html", AUTH_LAYOUT_HTML));
+            p.files
+                .push(("templates/register.html", AUTH_REGISTER_HTML));
+            p.files.push(("templates/login.html", AUTH_LOGIN_HTML));
+            p.files
+                .push(("templates/dashboard.html", AUTH_DASHBOARD_HTML));
+            p.files.push(("askama.toml", ASKAMA_TOML));
+        } else {
+            p.files
+                .push(("src/controllers/auth.rs", AUTH_CONTROLLER_API));
+        }
     }
 
     // --- simple providers ---
@@ -227,7 +246,12 @@ pub(crate) fn run(args: &[String]) -> Result<()> {
     write_file(&dir.join("db/.gitkeep"), "", force)?;
     // Controllers live in a folder so `make:controller` can add siblings without colliding
     // with a flat `controllers.rs` (Rust forbids both for the same module).
-    write_file(&dir.join("src/controllers/mod.rs"), CONTROLLERS_MOD, force)?;
+    let controllers_mod = if scaffold.auth {
+        CONTROLLERS_MOD_WITH_AUTH
+    } else {
+        CONTROLLERS_MOD
+    };
+    write_file(&dir.join("src/controllers/mod.rs"), controllers_mod, force)?;
     write_file(&dir.join("src/controllers/home.rs"), CONTROLLERS_RS, force)?;
 
     if scaffold.views {
@@ -391,6 +415,9 @@ DATABASE_URL=sqlite://db/app.db?mode=rwc
 /// The controllers aggregator: links each controller sub-module so its `#[controller]`
 /// auto-registers. No `pub use` needed — controllers are collected via inventory, not by name.
 const CONTROLLERS_MOD: &str = "mod home;\n";
+
+/// The controllers aggregator when auth is scaffolded: also links `auth.rs`.
+const CONTROLLERS_MOD_WITH_AUTH: &str = "mod home;\nmod auth;\n";
 
 /// The models aggregator: links and re-exports each entity so `models::User` resolves from
 /// `main.rs` (auth wiring refers to `models::Users` by path).
@@ -581,6 +608,378 @@ enum Users {
 }
 "#;
 
+/// `askama.toml` — tells Askama where templates live (compile-time embedding).
+const ASKAMA_TOML: &str = "[general]\ndirs = [\"templates\"]\n";
+
+/// Server-rendered auth: register / login / logout / dashboard with views, CSRF, flash and
+/// validation. Adapted from the `auth-app` example (its `/` home action is dropped so it does
+/// not clash with `HomeController`).
+const AUTH_CONTROLLER_SSR: &str = r#"//! Register, login, logout and a protected dashboard.
+
+use askama::Template;
+use rustali::{http::StatusCode, prelude::*};
+use serde::Deserialize;
+
+use crate::models::User;
+
+#[derive(Template)]
+#[template(path = "register.html")]
+struct RegisterPage {
+    app_name: String,
+    csrf_field: String,
+    old_name: String,
+    old_email: String,
+    name_error: Option<String>,
+    email_error: Option<String>,
+    password_error: Option<String>,
+}
+
+#[derive(Template)]
+#[template(path = "login.html")]
+struct LoginPage {
+    app_name: String,
+    csrf_field: String,
+    flash: Vec<rustali::session::Message>,
+    error: Option<String>,
+}
+
+#[derive(Template)]
+#[template(path = "dashboard.html")]
+struct DashboardPage {
+    app_name: String,
+    user_name: String,
+    user_email: String,
+    csrf_field: String,
+}
+
+#[derive(Deserialize, Validate)]
+struct RegisterForm {
+    #[rule(required, length(min = 2, max = 50))]
+    name: String,
+    #[rule(required, email)]
+    email: String,
+    #[rule(required, length(min = 8), confirmed)]
+    password: String,
+    #[serde(default)]
+    password_confirmation: String,
+    #[serde(default, rename = "_token")]
+    _token: String,
+}
+
+#[derive(Deserialize)]
+struct LoginForm {
+    email: String,
+    password: String,
+    #[serde(default, rename = "_token")]
+    _token: String,
+}
+
+pub struct AuthController;
+
+#[controller("/")]
+impl AuthController {
+    #[get("/register", name = "register")]
+    async fn register_form(ctx: Ctx, csrf: Csrf, flash: Flash) -> Result<View<RegisterPage>> {
+        let errors = flash.errors().await;
+        let page = RegisterPage {
+            app_name: ctx.config().app.name.clone(),
+            csrf_field: csrf.field().await,
+            old_name: flash.old("name").await.unwrap_or_default(),
+            old_email: flash.old("email").await.unwrap_or_default(),
+            name_error: errors.first("name").map(str::to_owned),
+            email_error: errors.first("email").map(str::to_owned),
+            password_error: errors.first("password").map(str::to_owned),
+        };
+        flash.clear_old().await;
+        Ok(View::new(page))
+    }
+
+    #[post("/register", name = "register.store")]
+    async fn register(
+        db: Db,
+        flash: Flash,
+        login: Login<User>,
+        Validated(Form(input)): Validated<Form<RegisterForm>>,
+    ) -> Result<Redirect> {
+        if User::query()
+            .filter(User::EMAIL.eq(&input.email))
+            .exists(&db)
+            .await?
+        {
+            flash.error("That email is already registered.").await;
+            return Ok(Redirect::to("/register"));
+        }
+        let hash = password::hash(&input.password)?;
+        let user = User::new(input.name.trim(), input.email.trim(), hash)
+            .insert(&db)
+            .await?;
+        login.login(&user).await?;
+        flash.success("Welcome!").await;
+        Ok(Redirect::to("/dashboard"))
+    }
+
+    #[get("/login", name = "login")]
+    async fn login_form(ctx: Ctx, csrf: Csrf, flash: Flash) -> Result<View<LoginPage>> {
+        Ok(View::new(LoginPage {
+            app_name: ctx.config().app.name.clone(),
+            csrf_field: csrf.field().await,
+            flash: flash.take().await,
+            error: None,
+        }))
+    }
+
+    #[post("/login", name = "login.store")]
+    async fn login(
+        ctx: Ctx,
+        db: Db,
+        csrf: Csrf,
+        login: Login<User>,
+        Form(input): Form<LoginForm>,
+    ) -> Result<rustali::http::response::Response> {
+        use rustali::http::response::IntoResponse;
+        let user = User::query()
+            .filter(User::EMAIL.eq(&input.email))
+            .fetch_one(&db)
+            .await?;
+        let ok = match &user {
+            Some(user) => login.attempt(user, &input.password).await?,
+            None => false,
+        };
+        if ok {
+            return Ok(Redirect::to("/dashboard").into_response());
+        }
+        Ok(View::new(LoginPage {
+            app_name: ctx.config().app.name.clone(),
+            csrf_field: csrf.field().await,
+            flash: Vec::new(),
+            error: Some("Those credentials do not match our records.".to_owned()),
+        })
+        .with_status(StatusCode::UNPROCESSABLE_ENTITY)
+        .into_response())
+    }
+
+    #[post("/logout", name = "logout")]
+    async fn logout(login: Login<User>, flash: Flash) -> Result<Redirect> {
+        login.logout().await?;
+        flash.success("Signed out.").await;
+        Ok(Redirect::to("/login"))
+    }
+
+    #[get("/dashboard", name = "dashboard")]
+    async fn dashboard(ctx: Ctx, csrf: Csrf, Auth(user): Auth<User>) -> Result<View<DashboardPage>> {
+        Ok(View::new(DashboardPage {
+            app_name: ctx.config().app.name.clone(),
+            user_name: user.name,
+            user_email: user.email,
+            csrf_field: csrf.field().await,
+        }))
+    }
+}
+"#;
+
+/// JSON auth for APIs: register / login return a JWT bearer token; `/api/me` reads it back.
+///
+/// JWT is stateless, so there is no server-side logout — a client logs out by discarding its
+/// token.
+const AUTH_CONTROLLER_API: &str = r#"//! JSON auth: register and login return a JWT bearer token.
+//!
+//! JWT is stateless, so there is no logout endpoint — a client logs out by discarding the
+//! token. Send it back as `Authorization: Bearer <token>` to reach protected routes.
+
+use rustali::{auth_kit::jwt, prelude::*};
+use serde::{Deserialize, Serialize};
+
+use crate::models::User;
+
+/// How long an issued token stays valid (24 hours).
+const TOKEN_TTL_SECS: i64 = 60 * 60 * 24;
+
+#[derive(Deserialize, Validate)]
+struct RegisterForm {
+    #[rule(required, length(min = 2, max = 50))]
+    name: String,
+    #[rule(required, email)]
+    email: String,
+    #[rule(required, length(min = 8))]
+    password: String,
+}
+
+#[derive(Deserialize)]
+struct LoginForm {
+    email: String,
+    password: String,
+}
+
+#[derive(Serialize)]
+struct UserDto {
+    id: i64,
+    name: String,
+    email: String,
+}
+
+#[derive(Serialize)]
+struct TokenResponse {
+    token: String,
+    user: UserDto,
+}
+
+pub struct AuthController;
+
+#[controller("/api")]
+impl AuthController {
+    #[post("/register", name = "api.register")]
+    async fn register(
+        ctx: Ctx,
+        db: Db,
+        Validated(Json(input)): Validated<Json<RegisterForm>>,
+    ) -> Result<Json<TokenResponse>> {
+        if User::query()
+            .filter(User::EMAIL.eq(&input.email))
+            .exists(&db)
+            .await?
+        {
+            return Err(Error::bad_request("That email is already registered."));
+        }
+        let hash = password::hash(&input.password)?;
+        let user = User::new(input.name.trim(), input.email.trim(), hash)
+            .insert(&db)
+            .await?;
+        let token = jwt::issue(&ctx, &user.auth_id(), TOKEN_TTL_SECS)?;
+        Ok(Json(TokenResponse {
+            token,
+            user: UserDto {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+            },
+        }))
+    }
+
+    #[post("/login", name = "api.login")]
+    async fn login(
+        ctx: Ctx,
+        db: Db,
+        Json(input): Json<LoginForm>,
+    ) -> Result<Json<TokenResponse>> {
+        let user = User::query()
+            .filter(User::EMAIL.eq(&input.email))
+            .fetch_one(&db)
+            .await?;
+        let ok = match &user {
+            Some(u) => password::verify(&input.password, u.password_hash())?,
+            None => false,
+        };
+        let Some(user) = user.filter(|_| ok) else {
+            return Err(Error::Unauthorized);
+        };
+        let token = jwt::issue(&ctx, &user.auth_id(), TOKEN_TTL_SECS)?;
+        Ok(Json(TokenResponse {
+            token,
+            user: UserDto {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+            },
+        }))
+    }
+
+    #[get("/me", name = "api.me")]
+    async fn me(Auth(user): Auth<User>) -> Json<UserDto> {
+        Json(UserDto {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+        })
+    }
+}
+"#;
+
+const AUTH_LAYOUT_HTML: &str = r#"<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ app_name }}{% endblock %}</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 26rem; margin: 3rem auto; padding: 0 1rem; }
+    .field { margin: .75rem 0; } label { display:block; font-weight:600; }
+    input { width:100%; padding:.4rem; box-sizing:border-box; }
+    .error { color:#c0392b; font-size:.9rem; } a { color:#b7410e; }
+    .flash { background:#e6f4ea; padding:.5rem 1rem; border-radius:.4rem; }
+  </style>
+</head>
+<body>
+  <h1>{{ app_name }}</h1>
+  {% block content %}{% endblock %}
+</body>
+</html>
+"#;
+
+const AUTH_REGISTER_HTML: &str = r#"{% extends "layout.html" %}
+{% block title %}Register · {{ app_name }}{% endblock %}
+{% block content %}
+<h2>Create an account</h2>
+<form method="post" action="/register">
+  {{ csrf_field|safe }}
+  <div class="field">
+    <label for="name">Name</label>
+    <input id="name" name="name" value="{{ old_name }}">
+    {% if let Some(e) = name_error %}<p class="error">{{ e }}</p>{% endif %}
+  </div>
+  <div class="field">
+    <label for="email">Email</label>
+    <input id="email" name="email" type="email" value="{{ old_email }}">
+    {% if let Some(e) = email_error %}<p class="error">{{ e }}</p>{% endif %}
+  </div>
+  <div class="field">
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password">
+    {% if let Some(e) = password_error %}<p class="error">{{ e }}</p>{% endif %}
+  </div>
+  <div class="field">
+    <label for="password_confirmation">Confirm password</label>
+    <input id="password_confirmation" name="password_confirmation" type="password">
+  </div>
+  <button type="submit">Register</button>
+</form>
+<p>Already have an account? <a href="/login">Sign in</a>.</p>
+{% endblock %}
+"#;
+
+const AUTH_LOGIN_HTML: &str = r#"{% extends "layout.html" %}
+{% block title %}Sign in · {{ app_name }}{% endblock %}
+{% block content %}
+<h2>Sign in</h2>
+{% for message in flash %}<div class="flash">{{ message.text }}</div>{% endfor %}
+{% if let Some(e) = error %}<p class="error">{{ e }}</p>{% endif %}
+<form method="post" action="/login">
+  {{ csrf_field|safe }}
+  <div class="field">
+    <label for="email">Email</label>
+    <input id="email" name="email" type="email">
+  </div>
+  <div class="field">
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password">
+  </div>
+  <button type="submit">Sign in</button>
+</form>
+<p>Need an account? <a href="/register">Register</a>.</p>
+{% endblock %}
+"#;
+
+const AUTH_DASHBOARD_HTML: &str = r#"{% extends "layout.html" %}
+{% block title %}Dashboard · {{ app_name }}{% endblock %}
+{% block content %}
+<h2>Welcome, {{ user_name }}</h2>
+<p>You are signed in as {{ user_email }}.</p>
+<form method="post" action="/logout">
+  {{ csrf_field|safe }}
+  <button type="submit">Sign out</button>
+</form>
+{% endblock %}
+"#;
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
@@ -623,6 +1022,62 @@ mod tests {
             p.files
                 .iter()
                 .any(|(path, _)| path.contains("create_users"))
+        );
+    }
+
+    #[test]
+    fn fullstack_auth_writes_ssr_controller_and_templates() {
+        let p = plan(Preset::Fullstack, &[]);
+        assert!(p.auth);
+        let (_, body) = p
+            .files
+            .iter()
+            .find(|(path, _)| *path == "src/controllers/auth.rs")
+            .expect("auth controller");
+        assert!(body.contains("View<"), "SSR controller returns View");
+        assert!(!body.contains("jwt::issue"), "SSR controller has no JWT");
+        for t in [
+            "templates/layout.html",
+            "templates/register.html",
+            "templates/login.html",
+            "templates/dashboard.html",
+            "askama.toml",
+        ] {
+            assert!(p.files.iter().any(|(path, _)| *path == t), "missing {t}");
+        }
+    }
+
+    #[test]
+    fn api_auth_writes_jwt_controller_no_templates() {
+        let p = plan(Preset::Api, &[Pkg::Auth]);
+        assert!(p.auth);
+        let (_, body) = p
+            .files
+            .iter()
+            .find(|(path, _)| *path == "src/controllers/auth.rs")
+            .expect("auth controller");
+        assert!(body.contains("jwt::issue"), "API controller issues a JWT");
+        assert!(body.contains("Json"));
+        assert!(!body.contains("View<"), "API controller has no views");
+        assert!(
+            !p.files
+                .iter()
+                .any(|(path, _)| path.starts_with("templates/")),
+            "API preset writes no templates"
+        );
+    }
+
+    #[test]
+    fn minimal_auth_uses_api_controller() {
+        let p = plan(Preset::Minimal, &[Pkg::Auth]);
+        let (_, body) = p
+            .files
+            .iter()
+            .find(|(path, _)| *path == "src/controllers/auth.rs")
+            .expect("auth controller");
+        assert!(
+            body.contains("jwt::issue"),
+            "no-views auth → JWT API controller"
         );
     }
 
