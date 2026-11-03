@@ -73,7 +73,9 @@ tera = { version = "1", default-features = false }
 
 # --- auth & security ---
 argon2 = "0.5"
-jsonwebtoken = "10"
+# `rust_crypto` provides the HS256 signer (jsonwebtoken 10 ships no crypto provider by
+# default); pure-Rust, so no C toolchain is needed.
+jsonwebtoken = { version = "10", features = ["rust_crypto"] }
 tower-sessions = { version = "0.15", default-features = false, features = ["axum-core", "memory-store", "signed"] }
 rand = "0.9"
 subtle = "2"
