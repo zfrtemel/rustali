@@ -16,8 +16,12 @@ blog/
 │   ├── main.rs           # App::builder()...run()
 │   └── controllers.rs    # a home controller: "/" and "/api/ping"
 └── templates/
-    └── home.html         # omitted for the `api` preset
+    └── home.html         # fullstack preset only
 ```
+
+`templates/` and `home.html` are generated only by the `fullstack` preset, and
+`src/models.rs` + `src/migrations.rs` appear only when the `auth` package is selected
+(which `fullstack` pre-checks).
 
 What each top-level piece is for:
 
@@ -28,8 +32,8 @@ What each top-level piece is for:
   drives `migrate:diff`.
 - **`src/`** — your code. `main.rs` boots the app; everything else is the controllers,
   models and so on that the generators create.
-- **`templates/`** — Askama templates, compiled into the binary (absent in an `api`-preset
-  project).
+- **`templates/`** — Askama templates, compiled into the binary (present only in the
+  `fullstack` preset).
 
 ## `main.rs`
 

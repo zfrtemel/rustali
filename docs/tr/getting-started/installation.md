@@ -18,9 +18,78 @@ cargo run -- migrate    # SQLite şemasını oluştur
 cargo run               # http://127.0.0.1:8000 üzerinde sun
 ```
 
-`rustali new`, konvansiyona uygun bir proje iskeleti oluşturur; neler ürettiğini gezmek için
-[İlk Uygulaman](first-app) sayfasına bak. View katmanı olmadan yalnızca JSON döndüren bir
-proje istiyorsan `--preset api` ekle.
+`rustali new <ad>` sana iki soru sorar — bir **proje tipi (preset)** ve isteğe bağlı bir
+**paket** kümesi — ve ardından projeyi iskeletler. Hiç bayrak vermezsen seni etkileşimli olarak
+yönlendirir; bayraklar ise script veya CI için bu soruları atlamanı sağlar. Yeni bir projenin
+neler içerdiğini gezmek için [İlk Uygulaman](first-app) sayfasına bak.
+
+### Proje tipi (preset)
+
+| Preset | Sana verdiği | Notlar |
+|---|---|---|
+| `api` | Swagger'lı JSON API; `openapi` açık, view yok. Controller metin bir `/` ve JSON bir `/api/ping` sunar. | `.routes(openapi_router())` bağlar. `openapi` paketini önceden işaretler. |
+| `fullstack` | SSR view'lar + session'lar + `auth`; `templates/home.html` ile Askama view'ları. | `auth` varsayılan olarak açık → users modeli + `create_users` migration'ı + session bağlantıları. `auth` paketini önceden işaretler. |
+| `minimal` | Çıplak çekirdek: ORM ve tek bir controller. | View yok, önceden işaretli ek paket yok. |
+
+`--preset` vermezsen `rustali new`, yukarıdaki üç preset'i sunan etkileşimli bir **Project type**
+seçicisi gösterir. `--api`, `--preset api`'nin kısa yazılışıdır ve ayrıca paket sorusunu da
+atlar (`--no-prompt` vermiş gibi).
+
+### Paketler
+
+Bir preset'in üzerine isteğe bağlı paketler ekleyebilirsin. Ne `--with` ne `--no-prompt` (ne de
+`--api`) verirsen, `rustali new`, preset'in ima ettiği paket önceden işaretli olacak şekilde
+etkileşimli bir **Extra packages** çoklu seçim listesi gösterir.
+
+| Paket | Eklediği | `.env` |
+|---|---|---|
+| `cache` | Bellek içi cache deposu + provider | `CACHE_DRIVER=memory` |
+| `mail` | Mail taşıyıcısı + provider | `MAIL_TRANSPORT=log`, `MAIL_FROM=no-reply@example.com` |
+| `queue` | Arka plan queue'su + worker | `QUEUE_CAPACITY=1024` |
+| `auth` | Session'lar + auth; `src/models.rs`, `src/migrations.rs`, bir `create_users` migration'ı, `.migrations::<Migrator>()` ve `.configure(session_layers)` | `SESSION_CSRF=true` |
+| `openapi` | OpenAPI/Swagger router'ı | `OPENAPI_TITLE=API` |
+
+Her paket, `rustali` bağımlılığında bir Cargo feature'ı açar, `main.rs`'e bir `.provider(...)`
+ya da `.routes(...)` satırı ekler ve kendi `.env` satır(lar)ını yazar. `auth` ek olarak
+yukarıda gösterilen modelleri/migration'ları ve session bağlantılarını da üretir. Bir preset,
+ima ettiği paketi önceden işaretler (`api` → `openapi`, `fullstack` → `auth`).
+
+### Etkileşimli ve bayraklar
+
+- **Etkileşimli** (ilgili bayrak yoksa): önce bir **Project type** `Select`'i, sonra preset'in
+  paketi önceden işaretli bir **Extra packages** `MultiSelect`'i.
+- **Etkileşimsiz** (script/CI): tipi seçmek için `--preset <api|fullstack|minimal>`, paketleri
+  seçmek için `--with pkg1,pkg2` ver ve/veya kalan soruyu atlamak için `--no-prompt` kullan.
+  `--api`, `--no-prompt`'u ima eder.
+
+```bash
+rustali new blog                                 # etkileşimli: önce proje tipi, sonra paketler
+rustali new api --preset api                     # api preset'i; ek paketleri yine de sorar
+rustali new api --api                            # aynı preset, ama paket sorusunu atlar
+rustali new shop --preset fullstack              # SSR view'lar + session'lar + auth
+rustali new svc --preset minimal --with cache,queue  # çıplak çekirdek, artı cache ve queue
+rustali new svc --preset minimal --no-prompt     # çıplak çekirdek, hiç soru yok
+rustali new blog --force                         # mevcut bir dizinin üzerine yaz
+```
+
+### Her preset ne üretir
+
+Preset ne olursa olsun her proje aynı tabanla gelir: bir `.provider(DatabaseProvider)`, bir
+`controllers.rs`, tek bir `.env` (`config/*.toml` değil) ve `DATABASE_URL=sqlite://db/app.db?mode=rwc`
+ile SQLite.
+
+Bu tabanın üzerine:
+
+- **`api`**, `openapi` paketini ekler: `.routes(openapi_router())` ile bağlanan bir Swagger
+  router'ı ve metin bir `/` ile JSON bir `/api/ping` sunan bir controller. View katmanı yok.
+- **`fullstack`**, `auth` paketini ekler: `templates/home.html` ile Askama view'ları, bir users
+  modeli ve `create_users` migration'ı, ayrıca session bağlantıları.
+- **`minimal`**, tabanın ötesine hiçbir şey eklemez — yalnızca ORM ve tek bir controller.
+
+Üretilen `main.rs`, sabit bir sırayla kurulur: `DatabaseProvider` → `auth` varsa
+(`SessionProvider`, `AuthProvider`) → cache/mail/queue provider'ları → `auth` varsa
+`.migrations::<Migrator>()` → `.controllers()` → `openapi` varsa `.routes(openapi_router())` →
+`auth` varsa `.configure(session_layers)` → `.run().await`.
 
 ## Mevcut bir crate'e
 
@@ -87,8 +156,9 @@ Kırparken birkaç noktayı aklında tut:
 - `redis` ve `tera`, sırasıyla `cache` ve `views` için isteğe bağlı eklentilerdir; temel özellik
   açık olmadıkça tek başlarına bir işe yaramazlar.
 
-`rustali new --preset api`, bu daha hafif biçimi senin yerine kurar: view katmanı dışarıda
-bırakılmış, yalnızca JSON döndüren bir proje.
+`api` preset'i, bu daha hafif biçimi senin yerine kurar: view katmanı dışarıda bırakılmış,
+yalnızca JSON döndüren bir proje. Yukarıdaki [Proje tipi (preset)](#proje-tipi-preset) bölümüne
+bak.
 
 ## Editör kurulumu
 

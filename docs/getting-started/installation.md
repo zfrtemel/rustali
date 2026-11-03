@@ -18,8 +18,78 @@ cargo run -- migrate    # create the SQLite schema
 cargo run               # serve on http://127.0.0.1:8000
 ```
 
-`rustali new` scaffolds a conventional project; see [Your First App](first-app) for a
-tour of what it generates. Add `--api` for a JSON-only project without the view layer.
+`rustali new <name>` asks two questions — a **project type (preset)** and an optional set of
+**packages** — and then scaffolds the project. With no flags it prompts you interactively;
+flags let you skip the prompts for scripting or CI. See [Your First App](first-app) for a tour
+of what a fresh project contains.
+
+### Project type (preset)
+
+| Preset | Gives you | Notes |
+|---|---|---|
+| `api` | JSON API with Swagger; `openapi` on, no views. Controller serves a text `/` and a JSON `/api/ping`. | Mounts `.routes(openapi_router())`. Pre-checks the `openapi` package. |
+| `fullstack` | SSR views + sessions + `auth`; Askama views with `templates/home.html`. | `auth` is on by default → users model + `create_users` migration + session wiring. Pre-checks the `auth` package. |
+| `minimal` | Bare core: the ORM and a single controller. | No views, no extra packages pre-checked. |
+
+With no `--preset`, `rustali new` shows an interactive **Project type** selector offering the
+three presets above. `--api` is shorthand for `--preset api`, and it also skips the package
+prompt (as if you had passed `--no-prompt`).
+
+### Packages
+
+On top of a preset you can add optional packages. With neither `--with` nor `--no-prompt`
+(nor `--api`), `rustali new` shows an interactive **Extra packages** multi-select with the
+preset's implied package pre-checked.
+
+| Package | Adds | `.env` |
+|---|---|---|
+| `cache` | In-memory cache store + provider | `CACHE_DRIVER=memory` |
+| `mail` | Mail transport + provider | `MAIL_TRANSPORT=log`, `MAIL_FROM=no-reply@example.com` |
+| `queue` | Background queue + worker | `QUEUE_CAPACITY=1024` |
+| `auth` | Sessions + auth; `src/models.rs`, `src/migrations.rs`, a `create_users` migration, `.migrations::<Migrator>()` and `.configure(session_layers)` | `SESSION_CSRF=true` |
+| `openapi` | OpenAPI/Swagger router | `OPENAPI_TITLE=API` |
+
+Each package turns on a Cargo feature on the `rustali` dependency, adds a `.provider(...)` or
+`.routes(...)` line in `main.rs`, and writes its `.env` line(s). `auth` additionally generates
+the models/migrations and the session wiring shown above. A preset pre-checks the package it
+implies (`api` → `openapi`, `fullstack` → `auth`).
+
+### Interactive vs. flags
+
+- **Interactive** (no relevant flags): a **Project type** `Select`, then an **Extra packages**
+  `MultiSelect` with the preset's package pre-checked.
+- **Non-interactive** (scripting/CI): pass `--preset <api|fullstack|minimal>` to pick the type,
+  `--with pkg1,pkg2` to choose packages, and/or `--no-prompt` to skip any remaining prompt.
+  `--api` implies `--no-prompt`.
+
+```bash
+rustali new blog                                 # interactive: asks project type, then packages
+rustali new api --preset api                     # api preset; still prompts for extra packages
+rustali new api --api                            # same preset, but skips the package prompt
+rustali new shop --preset fullstack              # SSR views + sessions + auth
+rustali new svc --preset minimal --with cache,queue  # bare core plus cache and queue
+rustali new svc --preset minimal --no-prompt     # bare core, no prompts at all
+rustali new blog --force                         # overwrite an existing directory
+```
+
+### What each preset generates
+
+Every project gets the same base regardless of preset: a `.provider(DatabaseProvider)`, a
+`controllers.rs`, a single `.env` (not `config/*.toml`), and SQLite with
+`DATABASE_URL=sqlite://db/app.db?mode=rwc`.
+
+On top of that base:
+
+- **`api`** adds the `openapi` package: a Swagger router mounted with `.routes(openapi_router())`,
+  and a controller that serves a text `/` plus a JSON `/api/ping`. No view layer.
+- **`fullstack`** adds the `auth` package: Askama views with `templates/home.html`, a users
+  model and `create_users` migration, and session wiring.
+- **`minimal`** adds nothing beyond the base — just the ORM and one controller.
+
+The generated `main.rs` builds in a fixed order: `DatabaseProvider` → (`SessionProvider`,
+`AuthProvider`) if `auth` → cache/mail/queue providers → `.migrations::<Migrator>()` if `auth`
+→ `.controllers()` → `.routes(openapi_router())` if `openapi` → `.configure(session_layers)`
+if `auth` → `.run().await`.
 
 ## Into an existing crate
 
@@ -85,8 +155,8 @@ A few things to keep in mind when trimming:
 - `redis` and `tera` are opt-in extensions of `cache` and `views`; they do nothing unless the
   base feature is also on.
 
-`rustali new --api` scaffolds this leaner shape for you: a JSON-only project with the view
-layer left out.
+The `api` preset scaffolds this leaner shape for you: a JSON-only project with the view layer
+left out. See [Project type (preset)](#project-type-preset) above.
 
 ## Editor setup
 

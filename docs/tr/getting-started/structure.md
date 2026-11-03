@@ -16,8 +16,12 @@ blog/
 │   ├── main.rs           # App::builder()...run()
 │   └── controllers.rs    # bir home controller: "/" ve "/api/ping"
 └── templates/
-    └── home.html         # `api` preset'inde atlanır
+    └── home.html         # yalnızca fullstack preset'inde
 ```
+
+`templates/` ve `home.html` yalnızca `fullstack` preset'inde üretilir; `src/models.rs` ve
+`src/migrations.rs` ise yalnızca `auth` paketi seçildiğinde (ki `fullstack` bunu önceden
+işaretler) ortaya çıkar.
 
 Her üst düzey parçanın görevi şöyle:
 
@@ -28,8 +32,8 @@ Her üst düzey parçanın görevi şöyle:
   eden şema anlık görüntüsü.
 - **`src/`** — kodun. `main.rs` uygulamayı önyükler; geri kalanı ise üreteçlerin oluşturduğu
   controller'lar, modeller ve benzeridir.
-- **`templates/`** — binary'ye derlenen Askama template'leri (`api` preset'iyle açılan bir
-  projede bulunmaz).
+- **`templates/`** — binary'ye derlenen Askama template'leri (yalnızca `fullstack`
+  preset'inde bulunur).
 
 ## `main.rs`
 
