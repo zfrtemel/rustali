@@ -109,6 +109,9 @@ fn plan(preset: Preset, pkgs: &[Pkg]) -> ScaffoldPlan {
     let mut p = ScaffoldPlan::default();
     // Every app uses the ORM + a database.
     p.builder.push(".provider(DatabaseProvider)".to_owned());
+    // Every app has a controllers module (written as a folder in `run`); declare it so the
+    // binary actually compiles `src/controllers/` and its #[controller]s auto-register.
+    p.modules.push("mod controllers;");
 
     let has = |pkg: Pkg| pkgs.contains(&pkg);
     // Auth is a package, but the fullstack preset turns it on by default.
@@ -124,8 +127,9 @@ fn plan(preset: Preset, pkgs: &[Pkg]) -> ScaffoldPlan {
         p.builder.push(".provider(SessionProvider)".to_owned());
         p.builder
             .push(".provider(AuthProvider::new(models::Users))".to_owned());
-        p.files.push(("src/models.rs", MODELS_RS));
-        p.files.push(("src/migrations.rs", MIGRATIONS_RS));
+        p.files.push(("src/models/user.rs", MODELS_RS));
+        p.files.push(("src/models/mod.rs", MODELS_MOD));
+        p.files.push(("src/migrations/mod.rs", MIGRATIONS_RS));
         p.files.push((
             "src/migrations/m20260101_000001_create_users.rs",
             CREATE_USERS_RS,
@@ -221,7 +225,10 @@ pub(crate) fn run(args: &[String]) -> Result<()> {
     let env_ctx = context! { name => name, extra => scaffold.env_lines.join("\n") };
     write_rendered(&dir.join(".env"), ENV, &env_ctx, force)?;
     write_file(&dir.join("db/.gitkeep"), "", force)?;
-    write_file(&dir.join("src/controllers.rs"), CONTROLLERS_RS, force)?;
+    // Controllers live in a folder so `make:controller` can add siblings without colliding
+    // with a flat `controllers.rs` (Rust forbids both for the same module).
+    write_file(&dir.join("src/controllers/mod.rs"), CONTROLLERS_MOD, force)?;
+    write_file(&dir.join("src/controllers/home.rs"), CONTROLLERS_RS, force)?;
 
     if scaffold.views {
         write_file(&dir.join("templates/home.html"), HOME_HTML, force)?;
@@ -380,6 +387,14 @@ DATABASE_URL=sqlite://db/app.db?mode=rwc
 {% if extra %}
 {{ extra }}
 {% endif %}"#;
+
+/// The controllers aggregator: links each controller sub-module so its `#[controller]`
+/// auto-registers. No `pub use` needed — controllers are collected via inventory, not by name.
+const CONTROLLERS_MOD: &str = "mod home;\n";
+
+/// The models aggregator: links and re-exports each entity so `models::User` resolves from
+/// `main.rs` (auth wiring refers to `models::Users` by path).
+const MODELS_MOD: &str = "mod user;\npub use user::*;\n";
 
 const CONTROLLERS_RS: &str = r#"use rustali::prelude::*;
 use serde::Serialize;
@@ -593,12 +608,33 @@ mod tests {
         assert!(builder_text(&p).contains(".provider(AuthProvider::new(models::Users))"));
         assert!(builder_text(&p).contains(".migrations::<migrations::Migrator>()"));
         assert!(builder_text(&p).contains(".configure(session_layers)"));
-        assert!(p.files.iter().any(|(path, _)| *path == "src/models.rs"));
+        assert!(
+            p.files
+                .iter()
+                .any(|(path, _)| *path == "src/models/user.rs")
+        );
+        assert!(p.files.iter().any(|(path, _)| *path == "src/models/mod.rs"));
+        assert!(
+            p.files
+                .iter()
+                .any(|(path, _)| *path == "src/migrations/mod.rs")
+        );
         assert!(
             p.files
                 .iter()
                 .any(|(path, _)| path.contains("create_users"))
         );
+    }
+
+    #[test]
+    fn every_preset_declares_controllers_module() {
+        for preset in Preset::ALL {
+            let p = plan(preset, &[]);
+            assert!(
+                p.modules.contains(&"mod controllers;"),
+                "{preset:?} must declare `mod controllers;` so controllers compile"
+            );
+        }
     }
 
     #[test]
