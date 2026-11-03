@@ -58,7 +58,7 @@ fn print_help() {
         "{}\n\n\
          {}\n  rustali new <name> [--preset api|fullstack|minimal] [--with cache,mail]\n  \
          rustali make:controller <Name>  Generate a controller\n  \
-         rustali make:model <Name>        Generate a #[derive(Entity)] model\n  \
+         rustali make:model <Name>        Generate an #[entity] model\n  \
          rustali make:migration <name>    Generate an empty migration\n  \
          rustali make:job <Name>          Generate a background job\n  \
          rustali make:mail <Name>         Generate a mailable\n  \
