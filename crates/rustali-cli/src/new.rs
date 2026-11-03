@@ -1,6 +1,7 @@
 //! `rustali new <name>` — scaffold a fresh application from a preset + optional packages.
 #![allow(clippy::needless_raw_string_hashes)]
 
+use std::fmt::Write as _;
 use std::path::Path;
 
 use anyhow::{Result, bail};
@@ -37,6 +38,58 @@ impl Preset {
             "api" => Some(Self::Api),
             "fullstack" | "full" => Some(Self::Fullstack),
             "minimal" | "min" => Some(Self::Minimal),
+            _ => None,
+        }
+    }
+}
+
+/// The database driver the app connects with. SQLite needs nothing installed; the other two
+/// talk to a running server. Each one maps to a Cargo feature on `rustali` and a `DATABASE_URL`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+enum Db {
+    /// File-backed SQLite — the default, needs nothing installed.
+    #[default]
+    Sqlite,
+    /// PostgreSQL server.
+    Postgres,
+    /// `MySQL` / `MariaDB` server.
+    Mysql,
+}
+
+impl Db {
+    const ALL: [Self; 3] = [Self::Sqlite, Self::Postgres, Self::Mysql];
+
+    const fn label(self) -> &'static str {
+        match self {
+            Self::Sqlite => "sqlite     — file, nothing to install (default)",
+            Self::Postgres => "postgres   — PostgreSQL server",
+            Self::Mysql => "mysql      — MySQL / MariaDB server",
+        }
+    }
+
+    /// The Cargo feature that pulls in this driver.
+    const fn feature(self) -> &'static str {
+        match self {
+            Self::Sqlite => "sqlite",
+            Self::Postgres => "postgres",
+            Self::Mysql => "mysql",
+        }
+    }
+
+    /// A ready-to-edit `DATABASE_URL` for this driver.
+    const fn url(self) -> &'static str {
+        match self {
+            Self::Sqlite => "sqlite://db/app.db?mode=rwc",
+            Self::Postgres => "postgres://postgres:postgres@localhost:5432/app",
+            Self::Mysql => "mysql://root:root@localhost:3306/app",
+        }
+    }
+
+    fn parse(s: &str) -> Option<Self> {
+        match s {
+            "sqlite" => Some(Self::Sqlite),
+            "postgres" | "postgresql" | "pg" => Some(Self::Postgres),
+            "mysql" | "mariadb" => Some(Self::Mysql),
             _ => None,
         }
     }
@@ -101,16 +154,19 @@ struct ScaffoldPlan {
     views: bool,
     /// Whether auth is active (controls the auth controller + `mod auth;`).
     auth: bool,
+    /// The chosen database driver (controls the Cargo driver feature + `DATABASE_URL`).
+    db: Db,
 }
 
 /// Compute the scaffold for a preset plus the chosen optional packages.
 ///
 /// Pure and deterministic — the unit tests exercise it directly, since the generated project
 /// can't be compiled here (`rustali` is unpublished).
-fn plan(preset: Preset, pkgs: &[Pkg]) -> ScaffoldPlan {
+fn plan(preset: Preset, pkgs: &[Pkg], db: Db) -> ScaffoldPlan {
     let mut p = ScaffoldPlan::default();
     // Every app uses the ORM + a database.
     p.builder.push(".provider(DatabaseProvider)".to_owned());
+    p.db = db;
     // Every app has a controllers module (written as a folder in `run`); declare it so the
     // binary actually compiles `src/controllers/` and its #[controller]s auto-register.
     p.modules.push("mod controllers;");
@@ -200,19 +256,48 @@ fn plan(preset: Preset, pkgs: &[Pkg]) -> ScaffoldPlan {
     p
 }
 
+/// The `rustali` dependency line's feature config for the chosen driver.
+///
+/// SQLite is a default feature, so the common case just appends the package features to the
+/// defaults. Any other driver means turning the defaults off (`default-features = false`) and
+/// listing every feature explicitly — otherwise SQLite would compile in alongside the real
+/// driver. Returns `(default_features, features)`: the feature list to render, which already
+/// includes the driver and (for non-sqlite) the core features the defaults would have given.
+fn driver_features(db: Db, pkg_features: &[&'static str]) -> (bool, Vec<&'static str>) {
+    if db == Db::Sqlite {
+        // Defaults already include sqlite; just add the package features on top.
+        return (true, pkg_features.to_vec());
+    }
+    // Non-sqlite: reproduce the default feature set, swap sqlite for the chosen driver, then
+    // add the package features (deduped later by `render_feature_list`).
+    let mut out = vec![
+        "macros",
+        "orm",
+        db.feature(),
+        "views",
+        "sessions",
+        "validation",
+        "auth",
+        "cache",
+        "mail",
+        "queue",
+    ];
+    out.extend_from_slice(pkg_features);
+    (false, out)
+}
+
 /// Scaffold a new project. `args` is everything after `new`.
 pub(crate) fn run(args: &[String]) -> Result<()> {
     let force = args.iter().any(|a| a == "--force");
-    let name = args
-        .iter()
-        .find(|a| !a.starts_with('-'))
-        .cloned()
-        .ok_or_else(|| {
-            anyhow::anyhow!("usage: rustali new <name> [--preset api|fullstack|minimal]")
-        })?;
+    let name = project_name(args).ok_or_else(|| {
+        anyhow::anyhow!(
+            "usage: rustali new <name> [--preset api|fullstack|minimal] [--database sqlite|postgres|mysql]"
+        )
+    })?;
 
     let preset = resolve_preset(args)?;
     let pkgs = resolve_packages(args, preset)?;
+    let db = resolve_database(args)?;
 
     let dir = Path::new(&name);
     if dir.exists() && !force {
@@ -220,12 +305,14 @@ pub(crate) fn run(args: &[String]) -> Result<()> {
     }
 
     let crate_name = name.replace(['-', ' '], "_");
-    let scaffold = plan(preset, &pkgs);
+    let scaffold = plan(preset, &pkgs, db);
 
     println!("{} {name}", style("Creating").green().bold());
 
-    // Cargo.toml — the rustali feature list (empty = default features).
-    let features = render_feature_list(&scaffold.features);
+    // Cargo.toml — the rustali dependency line. SQLite rides the default features; any other
+    // driver turns the defaults off and lists everything (including the driver) explicitly.
+    let (default_features, feature_list) = driver_features(scaffold.db, &scaffold.features);
+    let features = render_feature_list(default_features, &feature_list);
     let cargo_ctx =
         context! { crate_name => crate_name, features => features, views => scaffold.views };
     write_rendered(&dir.join("Cargo.toml"), CARGO_TOML, &cargo_ctx, force)?;
@@ -240,8 +327,14 @@ pub(crate) fn run(args: &[String]) -> Result<()> {
 
     // Fixed files.
     write_file(&dir.join(".gitignore"), GITIGNORE, force)?;
-    // The single .env: base settings plus whatever the packages contributed.
-    let env_ctx = context! { name => name, extra => scaffold.env_lines.join("\n") };
+    // The single .env: base settings plus whatever the packages contributed. The chosen driver's
+    // URL is active; the other two are shown commented, each with the one-line Cargo change.
+    let env_ctx = context! {
+        name => name,
+        database_url => scaffold.db.url(),
+        database_hints => database_env_hints(scaffold.db),
+        extra => scaffold.env_lines.join("\n"),
+    };
     write_rendered(&dir.join(".env"), ENV, &env_ctx, force)?;
     write_file(&dir.join("db/.gitkeep"), "", force)?;
     // Controllers live in a folder so `make:controller` can add siblings without colliding
@@ -261,7 +354,7 @@ pub(crate) fn run(args: &[String]) -> Result<()> {
         write_file(&dir.join(path), contents, force)?;
     }
 
-    print_next_steps(&name, preset);
+    print_next_steps(&name, preset, scaffold.db);
     Ok(())
 }
 
@@ -319,6 +412,49 @@ fn resolve_packages(args: &[String], preset: Preset) -> Result<Vec<Pkg>> {
     Ok(chosen.into_iter().map(|i| Pkg::ALL[i]).collect())
 }
 
+/// Pick the database driver from `--database <name>`, else prompt interactively (unless a
+/// non-interactive flag is set, in which case SQLite — the zero-install default — is used).
+fn resolve_database(args: &[String]) -> Result<Db> {
+    if let Some(value) = flag_value(args, "--database").or_else(|| flag_value(args, "--db")) {
+        return Db::parse(&value)
+            .ok_or_else(|| anyhow::anyhow!("unknown database `{value}` (sqlite|postgres|mysql)"));
+    }
+    // Fully non-interactive runs keep the zero-install default rather than blocking on a prompt.
+    if args.iter().any(|a| a == "--no-prompt" || a == "--api") {
+        return Ok(Db::default());
+    }
+
+    let labels: Vec<&str> = Db::ALL.iter().map(|d| d.label()).collect();
+    let choice = Select::with_theme(&ColorfulTheme::default())
+        .with_prompt("Database")
+        .items(&labels)
+        .default(0)
+        .interact()?;
+    Ok(Db::ALL[choice])
+}
+
+/// Flags that take a value (`--preset api`); their following arg is consumed, not the name.
+const VALUE_FLAGS: [&str; 4] = ["--preset", "--with", "--database", "--db"];
+
+/// The project name: the first positional arg, skipping flags and the values they consume.
+/// This keeps `rustali new --database postgres blog` from mistaking `postgres` for the name.
+fn project_name(args: &[String]) -> Option<String> {
+    let mut i = 0;
+    while i < args.len() {
+        let arg = &args[i];
+        if VALUE_FLAGS.contains(&arg.as_str()) {
+            i += 2; // skip the flag and its value
+            continue;
+        }
+        if arg.starts_with('-') {
+            i += 1; // a boolean flag like --force / --no-prompt
+            continue;
+        }
+        return Some(arg.clone());
+    }
+    None
+}
+
 /// The value following `flag` in `args`, if present (`--preset api`).
 fn flag_value(args: &[String], flag: &str) -> Option<String> {
     args.iter()
@@ -327,23 +463,56 @@ fn flag_value(args: &[String], flag: &str) -> Option<String> {
         .cloned()
 }
 
-/// Render the Cargo `features = [...]` list, or empty string for default features.
-fn render_feature_list(features: &[&str]) -> String {
-    if features.is_empty() {
-        return String::new();
+/// Commented `.env` lines for the drivers *not* chosen, so switching later is a one-line edit.
+/// Each names the Cargo feature it needs, since a driver is a feature on `rustali`.
+fn database_env_hints(active: Db) -> String {
+    let mut out = String::new();
+    for db in Db::ALL {
+        if db == active {
+            continue;
+        }
+        let name = match db {
+            Db::Sqlite => "SQLite",
+            Db::Postgres => "PostgreSQL",
+            Db::Mysql => "MySQL / MariaDB",
+        };
+        let _ = write!(
+            out,
+            "# {name} — set `features = [\"{feat}\"]` on rustali in Cargo.toml, then:\n# DATABASE_URL={url}\n",
+            feat = db.feature(),
+            url = db.url(),
+        );
     }
+    // Trim the trailing newline; the template adds its own spacing.
+    out.truncate(out.trim_end().len());
+    out
+}
+
+/// Render the extra text inside the `rustali = { version = "0.1"<here> }` dependency line.
+///
+/// With default features and no extras this is empty. `default_features = false` (a non-sqlite
+/// driver) prepends `default-features = false`, and any features are deduped and listed.
+fn render_feature_list(default_features: bool, features: &[&str]) -> String {
     let mut unique: Vec<&str> = Vec::new();
     for f in features {
         if !unique.contains(f) {
             unique.push(f);
         }
     }
-    let joined = unique
-        .iter()
-        .map(|f| format!("\"{f}\""))
-        .collect::<Vec<_>>()
-        .join(", ");
-    format!(", features = [{joined}]")
+
+    let mut out = String::new();
+    if !default_features {
+        out.push_str(", default-features = false");
+    }
+    if !unique.is_empty() {
+        let joined = unique
+            .iter()
+            .map(|f| format!("\"{f}\""))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let _ = write!(out, ", features = [{joined}]");
+    }
+    out
 }
 
 /// Render the builder method chain, indented under `App::builder()`.
@@ -355,7 +524,7 @@ fn render_builder(lines: &[String]) -> String {
         .join("\n")
 }
 
-fn print_next_steps(name: &str, preset: Preset) {
+fn print_next_steps(name: &str, preset: Preset, db: Db) {
     let serve_note = match preset {
         Preset::Api => "# serve the JSON API — Swagger at /swagger",
         _ => "# serve on http://127.0.0.1:8000",
@@ -366,6 +535,17 @@ fn print_next_steps(name: &str, preset: Preset) {
         style("# create the database schema").dim(),
         style(serve_note).dim(),
     );
+    if db != Db::Sqlite {
+        let server = if db == Db::Postgres {
+            "Postgres"
+        } else {
+            "MySQL"
+        };
+        println!(
+            "{} {server} must be running and DATABASE_URL in .env must point at it before `migrate`.\n",
+            style("note:").yellow().bold(),
+        );
+    }
 }
 
 // --- templates ---------------------------------------------------------------
@@ -407,7 +587,9 @@ APP_DEBUG=true
 # Set a real secret (>= 16 chars) from the environment in production.
 APP_KEY=dev-only-insecure-key-change-me-0123456789
 
-DATABASE_URL=sqlite://db/app.db?mode=rwc
+# Switch databases by editing DATABASE_URL (and the matching feature in Cargo.toml).
+DATABASE_URL={{ database_url }}
+{{ database_hints }}
 {% if extra %}
 {{ extra }}
 {% endif %}"#;
@@ -989,9 +1171,14 @@ mod tests {
         plan.builder.join("\n")
     }
 
+    /// Most tests don't care about the driver; default to SQLite.
+    fn scaffold(preset: Preset, pkgs: &[Pkg]) -> ScaffoldPlan {
+        plan(preset, pkgs, Db::Sqlite)
+    }
+
     #[test]
     fn api_preset_adds_openapi() {
-        let p = plan(Preset::Api, &[]);
+        let p = scaffold(Preset::Api, &[]);
         assert!(p.features.contains(&"openapi"));
         assert!(builder_text(&p).contains(".routes(openapi_router())"));
         assert!(builder_text(&p).contains(".controllers()"));
@@ -1000,7 +1187,7 @@ mod tests {
 
     #[test]
     fn fullstack_preset_has_auth_and_views() {
-        let p = plan(Preset::Fullstack, &[]);
+        let p = scaffold(Preset::Fullstack, &[]);
         assert!(p.features.contains(&"auth"));
         assert!(p.views);
         assert!(builder_text(&p).contains(".provider(SessionProvider)"));
@@ -1027,7 +1214,7 @@ mod tests {
 
     #[test]
     fn fullstack_auth_writes_ssr_controller_and_templates() {
-        let p = plan(Preset::Fullstack, &[]);
+        let p = scaffold(Preset::Fullstack, &[]);
         assert!(p.auth);
         let (_, body) = p
             .files
@@ -1049,7 +1236,7 @@ mod tests {
 
     #[test]
     fn api_auth_writes_jwt_controller_no_templates() {
-        let p = plan(Preset::Api, &[Pkg::Auth]);
+        let p = scaffold(Preset::Api, &[Pkg::Auth]);
         assert!(p.auth);
         let (_, body) = p
             .files
@@ -1069,7 +1256,7 @@ mod tests {
 
     #[test]
     fn minimal_auth_uses_api_controller() {
-        let p = plan(Preset::Minimal, &[Pkg::Auth]);
+        let p = scaffold(Preset::Minimal, &[Pkg::Auth]);
         let (_, body) = p
             .files
             .iter()
@@ -1084,7 +1271,7 @@ mod tests {
     #[test]
     fn every_preset_declares_controllers_module() {
         for preset in Preset::ALL {
-            let p = plan(preset, &[]);
+            let p = scaffold(preset, &[]);
             assert!(
                 p.modules.contains(&"mod controllers;"),
                 "{preset:?} must declare `mod controllers;` so controllers compile"
@@ -1094,7 +1281,7 @@ mod tests {
 
     #[test]
     fn minimal_preset_is_bare() {
-        let p = plan(Preset::Minimal, &[]);
+        let p = scaffold(Preset::Minimal, &[]);
         assert_eq!(p.features, Vec::<&str>::new(), "no extra features");
         assert!(!p.views);
         assert_eq!(p.files.len(), 0);
@@ -1103,7 +1290,7 @@ mod tests {
 
     #[test]
     fn minimal_plus_cache_and_mail() {
-        let p = plan(Preset::Minimal, &[Pkg::Cache, Pkg::Mail]);
+        let p = scaffold(Preset::Minimal, &[Pkg::Cache, Pkg::Mail]);
         assert!(p.features.contains(&"cache"));
         assert!(p.features.contains(&"mail"));
         assert!(builder_text(&p).contains(".provider(CacheProvider)"));
@@ -1114,7 +1301,7 @@ mod tests {
 
     #[test]
     fn api_plus_auth_wires_everything() {
-        let p = plan(Preset::Api, &[Pkg::Auth]);
+        let p = scaffold(Preset::Api, &[Pkg::Auth]);
         assert!(p.features.contains(&"auth"));
         assert!(p.features.contains(&"openapi"));
         assert!(builder_text(&p).contains(".provider(AuthProvider::new(models::Users))"));
@@ -1124,14 +1311,14 @@ mod tests {
 
     #[test]
     fn queue_adds_worker_preamble() {
-        let p = plan(Preset::Minimal, &[Pkg::Queue]);
+        let p = scaffold(Preset::Minimal, &[Pkg::Queue]);
         assert!(p.preamble.iter().any(|l| l.contains("Worker::builder()")));
         assert!(builder_text(&p).contains(".provider(QueueProvider::new(worker))"));
     }
 
     #[test]
     fn builder_order_is_correct() {
-        let p = plan(Preset::Fullstack, &[]);
+        let p = scaffold(Preset::Fullstack, &[]);
         let text = builder_text(&p);
         let db = text.find("DatabaseProvider").unwrap();
         let controllers = text.find(".controllers()").unwrap();
@@ -1146,15 +1333,94 @@ mod tests {
 
     #[test]
     fn feature_list_rendering() {
-        assert_eq!(render_feature_list(&[]), "");
+        // Default features, no extras → nothing added to the dependency line.
+        assert_eq!(render_feature_list(true, &[]), "");
         assert_eq!(
-            render_feature_list(&["auth", "openapi"]),
+            render_feature_list(true, &["auth", "openapi"]),
             ", features = [\"auth\", \"openapi\"]"
         );
         // dedups
         assert_eq!(
-            render_feature_list(&["cache", "cache"]),
+            render_feature_list(true, &["cache", "cache"]),
             ", features = [\"cache\"]"
         );
+        // Non-sqlite driver → defaults off, full list rendered.
+        assert_eq!(
+            render_feature_list(false, &["orm", "postgres"]),
+            ", default-features = false, features = [\"orm\", \"postgres\"]"
+        );
+    }
+
+    #[test]
+    fn sqlite_rides_default_features() {
+        let (default_features, features) = driver_features(Db::Sqlite, &["auth", "openapi"]);
+        assert!(default_features, "sqlite keeps the crate defaults");
+        assert_eq!(
+            features,
+            vec!["auth", "openapi"],
+            "only the package features"
+        );
+        assert!(
+            !features.contains(&"sqlite"),
+            "sqlite comes from defaults, not listed"
+        );
+    }
+
+    #[test]
+    fn postgres_turns_off_defaults_and_lists_driver() {
+        let (default_features, features) = driver_features(Db::Postgres, &["cache"]);
+        assert!(!default_features, "non-sqlite turns defaults off");
+        assert!(features.contains(&"postgres"), "lists the chosen driver");
+        assert!(
+            !features.contains(&"sqlite"),
+            "no sqlite alongside postgres"
+        );
+        // The defaults it replaces are all present so nothing is silently dropped.
+        for core in [
+            "macros",
+            "orm",
+            "views",
+            "sessions",
+            "validation",
+            "auth",
+            "mail",
+            "queue",
+        ] {
+            assert!(features.contains(&core), "default feature {core} preserved");
+        }
+        assert!(features.contains(&"cache"), "package feature kept");
+    }
+
+    #[test]
+    fn env_hints_cover_the_other_drivers() {
+        let hints = database_env_hints(Db::Postgres);
+        // The active driver is not repeated in the hints.
+        assert!(!hints.contains("postgres://"), "active driver not in hints");
+        assert!(hints.contains("sqlite://"), "sqlite shown as an option");
+        assert!(hints.contains("mysql://"), "mysql shown as an option");
+        assert!(hints.contains("features = [\"sqlite\"]"));
+        assert!(hints.contains("features = [\"mysql\"]"));
+    }
+
+    #[test]
+    fn project_name_skips_flag_values() {
+        let args = vec![
+            "--database".to_owned(),
+            "postgres".to_owned(),
+            "blog".to_owned(),
+        ];
+        assert_eq!(project_name(&args).as_deref(), Some("blog"));
+        // Name-first form still works.
+        let args2 = vec!["blog".to_owned(), "--preset".to_owned(), "api".to_owned()];
+        assert_eq!(project_name(&args2).as_deref(), Some("blog"));
+    }
+
+    #[test]
+    fn database_parse_accepts_aliases() {
+        assert_eq!(Db::parse("pg"), Some(Db::Postgres));
+        assert_eq!(Db::parse("postgresql"), Some(Db::Postgres));
+        assert_eq!(Db::parse("mariadb"), Some(Db::Mysql));
+        assert_eq!(Db::parse("sqlite"), Some(Db::Sqlite));
+        assert_eq!(Db::parse("oracle"), None);
     }
 }

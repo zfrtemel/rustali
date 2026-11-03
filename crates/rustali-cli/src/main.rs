@@ -58,7 +58,7 @@ fn run(args: &[String]) -> anyhow::Result<()> {
 fn print_help() {
     println!(
         "{}\n\n\
-         {}\n  rustali new <name> [--preset api|fullstack|minimal] [--with cache,mail]\n  \
+         {}\n  rustali new <name> [--preset api|fullstack|minimal] [--with cache,mail] [--database sqlite|postgres|mysql]\n  \
          rustali make:controller <Name>  Generate a controller\n  \
          rustali make:model <Name>        Generate an #[entity] model\n  \
          rustali make:migration <name>    Generate an empty migration\n  \
