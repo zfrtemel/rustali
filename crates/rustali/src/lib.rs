@@ -22,7 +22,12 @@ pub use rustali_core::{
 };
 
 #[cfg(feature = "macros")]
-pub use rustali_macros::{Entity, Validate, controller};
+pub use rustali_macros::{Entity, Validate, controller, entity};
+
+/// Serde, re-exported so `#[entity]` can derive `Serialize` without the application
+/// depending on serde directly. Generated code refers to it as `::rustali::serde`.
+#[doc(hidden)]
+pub use serde;
 
 /// View layer: the `View` response type and Askama/Tera backends.
 #[cfg(feature = "views")]
@@ -111,7 +116,7 @@ pub mod prelude {
     };
 
     #[cfg(feature = "macros")]
-    pub use crate::{Entity, Validate, controller};
+    pub use crate::{Entity, Validate, controller, entity};
 
     #[cfg(feature = "orm")]
     pub use crate::{

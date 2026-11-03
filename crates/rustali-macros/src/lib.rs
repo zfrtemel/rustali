@@ -7,11 +7,16 @@
 
 mod controller;
 mod entity;
+mod entity_attr;
 mod validate;
 
 use proc_macro::TokenStream;
 
 /// Turn a plain struct into a Rustali entity backed by a generated SeaORM entity.
+///
+/// Most code should prefer the [`macro@entity`] attribute, which adds this derive plus
+/// `Debug`, `Clone` and `Serialize` in one word. Use `#[derive(Entity)]` directly when
+/// you want to pick the companion derives yourself.
 ///
 /// ```ignore
 /// use rustali::prelude::*;
@@ -69,6 +74,34 @@ use proc_macro::TokenStream;
 )]
 pub fn derive_entity(input: TokenStream) -> TokenStream {
     entity::expand(input.into())
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+/// Declare a Rustali entity with no derive boilerplate.
+///
+/// ```ignore
+/// use rustali::prelude::*;
+///
+/// #[entity]
+/// #[table("posts")]
+/// pub struct Post {
+///     pub id: i64,
+///     pub title: String,
+///     pub body: String,
+/// }
+/// ```
+///
+/// Expands to `#[derive(Entity, Debug, Clone, Serialize)]` — so you never import `serde`
+/// yourself, and `cargo expand` shows exactly what it stands for. Every
+/// [`macro@Entity`] container and field attribute (`#[table]`, `#[key]`, `#[column]`,
+/// `#[skip]`, the relation attributes) works unchanged.
+///
+/// Advanced: `#[entity(crate = "path")]` points generated code at a renamed `rustali`
+/// dependency (the same escape hatch the other macros offer).
+#[proc_macro_attribute]
+pub fn entity(attr: TokenStream, item: TokenStream) -> TokenStream {
+    entity_attr::expand(attr.into(), item.into())
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }

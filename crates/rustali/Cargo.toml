@@ -51,6 +51,9 @@ rustali-queue = { workspace = true, optional = true }
 rustali-test = { workspace = true, optional = true }
 axum = { workspace = true }
 tokio = { workspace = true }
+# Re-exported as `rustali::serde` so `#[entity]` can derive `Serialize` without the
+# application depending on serde directly.
+serde = { workspace = true }
 
 [dev-dependencies]
 http-body-util = { workspace = true }
