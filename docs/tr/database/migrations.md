@@ -8,7 +8,7 @@ diff sadece değişen şeye bakıp ilk taslağı senin için yazar.
 
 İşin içinde üç şey vardır:
 
-1. **Entity'lerin** — `#[derive(Entity)]`, her birinin şemasını derleme zamanında kaydeder.
+1. **Entity'lerin** — `#[entity]`, her birinin şemasını derleme zamanında kaydeder.
 2. **Bir anlık görüntü** — `db/schema.snapshot.json`, şemayı en son uygulandığı hâliyle saklar ve
    sürüm kontrolüne commit'lenir.
 3. **`migrate:diff`** — entity'leri anlık görüntüyle karşılaştırır, aradaki fark için bir migration
@@ -66,7 +66,7 @@ Bu komutları uygulama binary'n üzerinden çalıştırırsın:
 Bir entity'de bir alanı değiştir:
 
 ```rust
-#[derive(Entity, Clone)]
+#[entity]
 #[table("posts")]
 pub struct Post {
     pub id: i64,

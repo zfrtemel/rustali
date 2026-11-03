@@ -11,7 +11,7 @@ instead of a `Vec`.
 ## Declaring it
 
 ```rust
-#[derive(Entity, Clone)]
+#[entity]
 #[table("authors")]
 #[has_one(Profile, to = author_id)]
 pub struct Author {
@@ -19,7 +19,7 @@ pub struct Author {
     pub name: String,
 }
 
-#[derive(Entity, Clone)]
+#[entity]
 #[table("profiles")]
 #[belongs_to(Author, from = author_id)]
 pub struct Profile {

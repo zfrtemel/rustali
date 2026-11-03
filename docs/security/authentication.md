@@ -12,13 +12,13 @@ request so `Auth<User>` just works.
 
 ## 1. Your user
 
-Any type can be a user; usually it is a `#[derive(Entity)]` model. Implement
+Any type can be a user; usually it is an `#[entity]` model. Implement
 `Authenticatable`:
 
 ```rust
 use rustali::prelude::*;
 
-#[derive(Entity, Debug, Clone, Serialize)]
+#[entity]
 #[table("users")]
 pub struct User {
     pub id: i64,

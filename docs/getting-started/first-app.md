@@ -35,6 +35,10 @@ blog/
     └── home.html
 ```
 
+This tour follows the default, minimal shape; choosing a different
+[project type (preset)](installation#project-type-preset) or extra packages adds or removes
+pieces (for example, the `api` preset drops `templates/`).
+
 `src/main.rs` is the whole bootstrap — a builder, the database provider, and the controllers
 auto-mounted:
 
@@ -72,7 +76,7 @@ impl HomeController {
 ## Add a resource
 
 ```bash
-rustali make:model Post          # src/models/post.rs  (#[derive(Entity)])
+rustali make:model Post          # src/models/post.rs  (#[entity])
 rustali make:controller Post     # src/controllers/post.rs
 rustali make:migration create_posts
 ```
@@ -82,9 +86,8 @@ Edit the model's columns to describe your table:
 ```rust
 // src/models/post.rs
 use rustali::{orm::chrono::{DateTime, Utc}, prelude::*};
-use serde::Serialize;
 
-#[derive(Entity, Debug, Clone, Serialize)]
+#[entity]
 #[table("posts")]
 pub struct Post {
     pub id: i64,

@@ -17,7 +17,7 @@ Bunların her biri bir alana değil, doğrudan **struct**'a yazılır — çünk
 column değil, tablolar arasındaki bir bağlantıdır:
 
 ```rust
-#[derive(Entity, Clone)]
+#[entity]
 #[table("posts")]
 #[belongs_to(User, from = user_id, as = author)]
 #[has_many(Comment, to = post_id)]

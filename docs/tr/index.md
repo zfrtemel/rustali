@@ -17,7 +17,7 @@ features:
   - title: Attribute routing
     details: Route'lar handler'ın üzerinde yaşar; `cargo run -- routes` hepsini listeler. Ayrı bir route dosyası yok.
   - title: Düz struct entity'ler
-    details: #[derive(Entity)] ile tek bir düz struct. SeaORM boilerplate'i üretilir ve gizlenir.
+    details: #[entity] ile tek bir düz struct. SeaORM boilerplate'i üretilir ve gizlenir.
   - title: Code-first migration
     details: Struct'ı değiştir, migrate:diff çalıştır, üretilen migration'ı gözden geçir. Kontrol hep sende.
   - title: Katmanlı filter pipeline

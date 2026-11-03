@@ -1,6 +1,6 @@
 # Model Metotları
 
-`#[derive(Entity)]`, her modele yaygın veritabanı işlemleri için bir dizi metot kazandırır —
+`#[entity]`, her modele yaygın veritabanı işlemleri için bir dizi metot kazandırır —
 row'ları okumak, oluşturmak, güncellemek ve silmek. Bu sayfa her birini tek tek ele alır: ne aldığı,
 ne döndürdüğü ve ne zaman kullanacağın.
 
@@ -14,9 +14,8 @@ Aşağıdaki örnekler şu modeli kullanır:
 
 ```rust
 use rustali::{orm::chrono::{DateTime, Utc}, prelude::*};
-use serde::Serialize;
 
-#[derive(Entity, Debug, Clone, Serialize)]
+#[entity]
 #[table("todos")]
 pub struct Todo {
     pub id: i64,

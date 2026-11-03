@@ -7,7 +7,7 @@ yabancı anahtarı *tutmayan* taraf.
 ## Bildirmek
 
 ```rust
-#[derive(Entity, Clone)]
+#[entity]
 #[table("posts")]
 #[has_many(Comment, to = post_id)]
 pub struct Post {
@@ -15,7 +15,7 @@ pub struct Post {
     pub title: String,
 }
 
-#[derive(Entity, Clone)]
+#[entity]
 #[table("comments")]
 pub struct Comment {
     pub id: i64,
@@ -82,7 +82,7 @@ query'de yükler ve onları önceden gruplanmış hâlde geri verir.
 kullanılır; böylece bağlantıda her iki yöne de gidebilirsin:
 
 ```rust
-#[derive(Entity, Clone)]
+#[entity]
 #[table("comments")]
 #[belongs_to(Post, from = post_id)]
 pub struct Comment {

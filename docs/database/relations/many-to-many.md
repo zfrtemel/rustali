@@ -10,7 +10,7 @@ The junction is an ordinary entity with a foreign key to each side. For `Post â†
 `post_tags`:
 
 ```rust
-#[derive(Entity, Clone)]
+#[entity]
 #[table("post_tags")]
 #[belongs_to(Post, from = post_id)]
 #[belongs_to(Tag, from = tag_id)]
@@ -30,7 +30,7 @@ join. (You can also load junction rows directly, and add extra columns to it â€”
 On each side, point at the other through the junction with `#[many_to_many(...)]`:
 
 ```rust
-#[derive(Entity, Clone)]
+#[entity]
 #[table("posts")]
 #[many_to_many(Tag, via = PostTag, from = post_id, to = tag_id)]
 pub struct Post {
@@ -38,7 +38,7 @@ pub struct Post {
     pub title: String,
 }
 
-#[derive(Entity, Clone)]
+#[entity]
 #[table("tags")]
 #[many_to_many(Post, via = PostTag, from = tag_id, to = post_id)]
 pub struct Tag {

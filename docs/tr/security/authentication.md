@@ -12,13 +12,13 @@ için bearer JWT). Böylece `Auth<User>` hiç uğraşmadan çalışır.
 
 ## 1. Kullanıcın
 
-Herhangi bir tip kullanıcı olabilir; çoğunlukla bir `#[derive(Entity)]` modelidir.
+Herhangi bir tip kullanıcı olabilir; çoğunlukla bir `#[entity]` modelidir.
 `Authenticatable`'ı uygula:
 
 ```rust
 use rustali::prelude::*;
 
-#[derive(Entity, Debug, Clone, Serialize)]
+#[entity]
 #[table("users")]
 pub struct User {
     pub id: i64,

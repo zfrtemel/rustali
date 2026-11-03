@@ -17,7 +17,7 @@ Each one is written on the **struct**, not a field — a relation is a link betw
 not a stored column:
 
 ```rust
-#[derive(Entity, Clone)]
+#[entity]
 #[table("posts")]
 #[belongs_to(User, from = user_id, as = author)]
 #[has_many(Comment, to = post_id)]

@@ -17,7 +17,7 @@ features:
   - title: Attribute routing
     details: Routes live on the handler; `cargo run -- routes` lists them all. No separate route file.
   - title: Plain-struct entities
-    details: One plain struct with #[derive(Entity)]. The SeaORM plumbing is generated and hidden.
+    details: One plain struct with #[entity]. The SeaORM plumbing is generated and hidden.
   - title: Code-first migrations
     details: Change the struct, run migrate:diff, review the generated migration.
   - title: Layered filter pipeline

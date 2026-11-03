@@ -8,7 +8,7 @@ draft from what changed.
 
 Three things take part:
 
-1. **Your entities** — `#[derive(Entity)]` registers each one's schema at compile time.
+1. **Your entities** — `#[entity]` registers each one's schema at compile time.
 2. **A snapshot** — `db/schema.snapshot.json` records the schema as it was last applied.
    It is committed to version control.
 3. **`migrate:diff`** — compares the entities against the snapshot, writes a migration for
@@ -66,7 +66,7 @@ Run them through your app binary:
 Change a field on an entity:
 
 ```rust
-#[derive(Entity, Clone)]
+#[entity]
 #[table("posts")]
 pub struct Post {
     pub id: i64,

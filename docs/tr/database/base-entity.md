@@ -13,9 +13,8 @@ türeteceğin bu yapı, Rust'ta kalıtım olmadığı için trait olarak ifade e
 
 ```rust
 use rustali::{orm::chrono::{DateTime, Utc}, prelude::*};
-use serde::Serialize;
 
-#[derive(Entity, Debug, Clone, Serialize)]
+#[entity]
 #[table("posts")]
 pub struct Post {
     pub id: i64,
@@ -38,7 +37,7 @@ impl SoftDelete for Post {
 ```
 
 Kendi column'larını anahtarla zaman damgalarının arasına eklersin. Zaman damgaları
-`#[derive(Entity)]`'nin konvansiyonlarıyla yönetilir (`created_at` eklemede, `updated_at` her
+`#[entity]`'nin konvansiyonlarıyla yönetilir (`created_at` eklemede, `updated_at` her
 kaydetmede — [Entity'ler → Zaman damgaları](entities#zaman-damgaları)'na bak); bu yüzden onları hiç
 elle ayarlamazsın.
 

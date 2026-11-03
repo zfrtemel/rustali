@@ -54,7 +54,7 @@ Five things set it apart from existing Rust frameworks:
 | | |
 |---|---|
 | **Attribute routing** | `#[controller("/posts")]` + `#[get("/{id}")]` — routes live on the handler, no separate route file; `rustali routes` lists them all. |
-| **Plain-struct entities** | One plain struct with `#[derive(Entity)]`; the macro generates the SeaORM plumbing you never see. |
+| **Plain-struct entities** | One plain struct with `#[entity]`; the macro generates the SeaORM plumbing you never see. |
 | **Code-first migrations** | Change the struct, run `rustali migrate:diff`, review the generated migration. |
 | **Layered filter pipeline** | Global → controller → action middleware, `#[authorize]`, exception filters — all tower layers, all explicit. |
 | **Type-safe views** | Askama templates checked at compile time by default; Tera available when you want runtime flexibility. |
@@ -74,7 +74,7 @@ What works today (run from a checkout):
 ```bash
 cargo run -p hello                        # SSR page + JSON endpoint, negotiated errors
 cargo run -p todo-api -- migrate          # SQLite schema via sea-orm-migration
-cargo run -p todo-api                     # CRUD JSON API on a #[derive(Entity)] struct
+cargo run -p todo-api                     # CRUD JSON API on an #[entity] struct
 cargo run -p todo-api -- routes           # list every controller route
 cargo run -p blog -- migrate && cargo run -p blog
 #                                           server-rendered CRUD: Askama views,

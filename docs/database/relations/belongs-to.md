@@ -7,7 +7,7 @@ This is the side that *holds* the foreign-key column.
 ## Declaring it
 
 ```rust
-#[derive(Entity, Clone)]
+#[entity]
 #[table("comments")]
 #[belongs_to(Post, from = post_id)]
 pub struct Comment {
@@ -51,7 +51,7 @@ When the relation reads better under a different name — or when a table has tw
 keys to the same target — use `as`:
 
 ```rust
-#[derive(Entity, Clone)]
+#[entity]
 #[table("posts")]
 #[belongs_to(User, from = user_id, as = author)]
 pub struct Post {

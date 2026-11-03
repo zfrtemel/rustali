@@ -7,7 +7,7 @@ Yani burada söz konusu olan, yabancı-anahtar column'unu *tutan* taraftır.
 ## Bildirmek
 
 ```rust
-#[derive(Entity, Clone)]
+#[entity]
 #[table("comments")]
 #[belongs_to(Post, from = post_id)]
 pub struct Comment {
@@ -51,7 +51,7 @@ Relation farklı bir adla daha anlaşılır okunuyorsa — ya da bir tablonun ay
 anahtarı varsa — `as` kullan:
 
 ```rust
-#[derive(Entity, Clone)]
+#[entity]
 #[table("posts")]
 #[belongs_to(User, from = user_id, as = author)]
 pub struct Post {

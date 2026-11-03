@@ -7,7 +7,7 @@ hold the foreign key.
 ## Declaring it
 
 ```rust
-#[derive(Entity, Clone)]
+#[entity]
 #[table("posts")]
 #[has_many(Comment, to = post_id)]
 pub struct Post {
@@ -15,7 +15,7 @@ pub struct Post {
     pub title: String,
 }
 
-#[derive(Entity, Clone)]
+#[entity]
 #[table("comments")]
 pub struct Comment {
     pub id: i64,
@@ -82,7 +82,7 @@ query and hands them back already grouped.
 can go both ways:
 
 ```rust
-#[derive(Entity, Clone)]
+#[entity]
 #[table("comments")]
 #[belongs_to(Post, from = post_id)]
 pub struct Comment {

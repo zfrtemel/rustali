@@ -1,6 +1,7 @@
 # Entities
 
-An entity is a **plain struct** you annotate with `#[derive(Entity)]`. The struct is what
+An entity is a **plain struct** you annotate with `#[entity]` (which expands to
+`#[derive(Entity, Debug, Clone, Serialize)]`). The struct is what
 you pass around, serialise and render; the derive generates the [SeaORM] plumbing
 (`Model`, `ActiveModel`, columns, primary key) into a hidden module you never touch — one
 readable type, no visible ORM boilerplate.
@@ -11,9 +12,8 @@ readable type, no visible ORM boilerplate.
 
 ```rust
 use rustali::{orm::chrono::{DateTime, Utc}, prelude::*};
-use serde::Serialize;
 
-#[derive(Entity, Debug, Clone, Serialize)]
+#[entity]
 #[table("todos")]
 pub struct Todo {
     pub id: i64,
@@ -64,7 +64,7 @@ The derive leans on conventions so the common case needs no attributes:
 | `#[skip]` | Not stored; must implement `Default` (filled on load). |
 
 ```rust
-#[derive(Entity, Clone)]
+#[entity]
 #[table("users")]
 pub struct User {
     pub id: i64,

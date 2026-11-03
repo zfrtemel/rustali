@@ -1,6 +1,6 @@
 # Entity'ler (Entity)
 
-Bir entity, `#[derive(Entity)]` ile işaretlediğin **düz bir struct**'tan ibarettir. Etrafta
+Bir entity, `#[entity]` ile işaretlediğin **düz bir struct**'tan ibarettir. Etrafta
 dolaştırdığın, serileştirdiğin ve render ettiğin şey bu struct'tır; derive ise [SeaORM] altyapısını
 (`Model`, `ActiveModel`, column'lar, primary key) hiç dokunmadığın gizli bir modülde üretir —
 geriye okunması kolay tek bir tip kalır, ortalıkta ORM standart kodu görünmez.
@@ -11,9 +11,8 @@ geriye okunması kolay tek bir tip kalır, ortalıkta ORM standart kodu görünm
 
 ```rust
 use rustali::{orm::chrono::{DateTime, Utc}, prelude::*};
-use serde::Serialize;
 
-#[derive(Entity, Debug, Clone, Serialize)]
+#[entity]
 #[table("todos")]
 pub struct Todo {
     pub id: i64,
@@ -25,8 +24,8 @@ pub struct Todo {
 }
 ```
 
-Modelin tamamı bu kadar. `#[derive(Entity)]` ayrıca modeli şema kayıt defterine bağlar; böylece
-[`migrate:diff`](migrations) onu görebilir.
+Modelin tamamı bu kadar. `#[entity]` (`#[derive(Entity, Debug, Clone, Serialize)]`'e genişler)
+ayrıca modeli şema kayıt defterine bağlar; böylece [`migrate:diff`](migrations) onu görebilir.
 
 ## Konvansiyonlar
 
@@ -64,7 +63,7 @@ Derive konvansiyonlara dayanır; böylece en yaygın durumda hiçbir attribute y
 | `#[skip]` | Saklanmaz; `Default` uygulaması gerektirir (yüklemede doldurulur). |
 
 ```rust
-#[derive(Entity, Clone)]
+#[entity]
 #[table("users")]
 pub struct User {
     pub id: i64,
@@ -78,7 +77,7 @@ pub struct User {
 
 ## Üretilen metotlar
 
-`#[derive(Entity)]`, struct'a bir CRUD arayüzü ve tipli column sabitleri kazandırır. Hepsi bir
+`#[entity]`, struct'a bir CRUD arayüzü ve tipli column sabitleri kazandırır. Hepsi bir
 bağlantı alır — [`Db`](queries#db-extractor-ı) extractor'ı ya da `&*ctx.db()?`.
 
 | Metot | Yaptığı |

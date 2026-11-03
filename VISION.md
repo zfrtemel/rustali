@@ -224,7 +224,7 @@ pub struct Model { #[sea_orm(primary_key)] pub id: i32, pub name: String }
 
 **Hedefimiz — tek-struct sadeliği + Rust tip güvenliği (SeaORM üstüne bizim makro):**
 ```rust
-#[derive(Entity)]
+#[entity]
 #[table("users")]
 struct User {
     #[key]
@@ -237,7 +237,8 @@ struct User {
 }
 ```
 
-- **Teknik:** `#[derive(Entity)]` proc-makromuz, tek sade struct'ı alır, altta
+- **Teknik:** `#[entity]` (kısayol; `#[derive(Entity, Debug, Clone, Serialize)]`'e genişler)
+  proc-makromuz, tek sade struct'ı alır, altta
   SeaORM'in gürültülü yapısına (Model/ActiveModel/Relation) **otomatik çevirir.**
   Kullanıcı sade struct'ı yazar, SeaORM'i hiç görmez.
 - **Bu, "üstüne geliştireceğimiz ORM" dileğinin tam karşılığı:** motor SeaORM,

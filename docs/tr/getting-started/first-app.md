@@ -35,6 +35,10 @@ blog/
     └── home.html
 ```
 
+Bu tur varsayılan, minimal biçimi takip eder; farklı bir
+[proje tipi (preset)](installation#proje-tipi-preset) ya da ek paketler seçmek parçaları ekler
+veya çıkarır (örneğin `api` preset'i `templates/`'i atlar).
+
 Uygulamanın tüm önyükleme süreci `src/main.rs` içindedir — bir builder, veritabanı provider'ı
 ve otomatik bağlanan controller'lar:
 
@@ -72,7 +76,7 @@ impl HomeController {
 ## Bir kaynak ekle
 
 ```bash
-rustali make:model Post          # src/models/post.rs  (#[derive(Entity)])
+rustali make:model Post          # src/models/post.rs  (#[entity])
 rustali make:controller Post     # src/controllers/post.rs
 rustali make:migration create_posts
 ```
@@ -82,9 +86,8 @@ Tablonu tanımlamak için modeldeki kolonları düzenle:
 ```rust
 // src/models/post.rs
 use rustali::{orm::chrono::{DateTime, Utc}, prelude::*};
-use serde::Serialize;
 
-#[derive(Entity, Debug, Clone, Serialize)]
+#[entity]
 #[table("posts")]
 pub struct Post {
     pub id: i64,

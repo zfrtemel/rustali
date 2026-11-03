@@ -11,7 +11,7 @@ Bağlantı tablosu, her iki tarafa da birer yabancı anahtarı olan sıradan bir
 için bu entity `post_tags`'tir:
 
 ```rust
-#[derive(Entity, Clone)]
+#[entity]
 #[table("post_tags")]
 #[belongs_to(Post, from = post_id)]
 #[belongs_to(Tag, from = tag_id)]
@@ -31,7 +31,7 @@ bir `created_at`, bir `sort_order` gibi.)
 Her iki tarafta da `#[many_to_many(...)]` ile bağlantı üzerinden diğer tabloya işaret et:
 
 ```rust
-#[derive(Entity, Clone)]
+#[entity]
 #[table("posts")]
 #[many_to_many(Tag, via = PostTag, from = post_id, to = tag_id)]
 pub struct Post {
@@ -39,7 +39,7 @@ pub struct Post {
     pub title: String,
 }
 
-#[derive(Entity, Clone)]
+#[entity]
 #[table("tags")]
 #[many_to_many(Post, via = PostTag, from = tag_id, to = post_id)]
 pub struct Tag {
