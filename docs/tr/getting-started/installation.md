@@ -28,7 +28,7 @@ neler içerdiğini gezmek için [İlk Uygulaman](first-app) sayfasına bak.
 | Preset | Sana verdiği | Notlar |
 |---|---|---|
 | `api` | Swagger'lı JSON API; `openapi` açık, view yok. Controller metin bir `/` ve JSON bir `/api/ping` sunar. | `.routes(openapi_router())` bağlar. `openapi` paketini önceden işaretler. |
-| `fullstack` | SSR view'lar + session'lar + `auth`; `templates/home.html` ile Askama view'ları. | `auth` varsayılan olarak açık → users modeli + `create_users` migration'ı + session bağlantıları. `auth` paketini önceden işaretler. |
+| `fullstack` | SSR view'lar + session'lar + `auth`; `templates/home.html` ile Askama view'ları, ayrıca kendi view'leriyle çalışan bir register/login/logout akışı. | `auth` varsayılan olarak açık → users modeli + `create_users` migration'ı + session bağlantıları + `AuthController`. `auth` paketini önceden işaretler. |
 | `minimal` | Çıplak çekirdek: ORM ve tek bir controller. | View yok, önceden işaretli ek paket yok. |
 
 `--preset` vermezsen `rustali new`, yukarıdaki üç preset'i sunan etkileşimli bir **Project type**
@@ -46,13 +46,14 @@ etkileşimli bir **Extra packages** çoklu seçim listesi gösterir.
 | `cache` | Bellek içi cache deposu + provider | `CACHE_DRIVER=memory` |
 | `mail` | Mail taşıyıcısı + provider | `MAIL_TRANSPORT=log`, `MAIL_FROM=no-reply@example.com` |
 | `queue` | Arka plan queue'su + worker | `QUEUE_CAPACITY=1024` |
-| `auth` | Session'lar + auth; `src/models.rs`, `src/migrations.rs`, bir `create_users` migration'ı, `.migrations::<Migrator>()` ve `.configure(session_layers)` | `SESSION_CSRF=true` |
+| `auth` | Session'lar + auth; `src/models/user.rs`, `create_users` migration'ı, `.migrations::<Migrator>()`, `.configure(session_layers)` ve çalışan bir auth controller — view'li preset'te SSR register/login/logout + view'ler, aksi halde JWT bearer token'lı JSON API (`/api/register`, `/api/login`, `/api/me`) | `SESSION_CSRF=true` |
 | `openapi` | OpenAPI/Swagger router'ı | `OPENAPI_TITLE=API` |
 
 Her paket, `rustali` bağımlılığında bir Cargo feature'ı açar, `main.rs`'e bir `.provider(...)`
-ya da `.routes(...)` satırı ekler ve kendi `.env` satır(lar)ını yazar. `auth` ek olarak
-yukarıda gösterilen modelleri/migration'ları ve session bağlantılarını da üretir. Bir preset,
-ima ettiği paketi önceden işaretler (`api` → `openapi`, `fullstack` → `auth`).
+ya da `.routes(...)` satırı ekler ve kendi `.env` satır(lar)ını yazar. `auth` ek olarak user
+modelini/migration'ını, session bağlantılarını ve çalışmaya hazır bir `src/controllers/auth.rs`
+üretir (view'li preset'te SSR + view'ler, view yoksa JSON + JWT). Bir preset, ima ettiği paketi
+önceden işaretler (`api` → `openapi`, `fullstack` → `auth`).
 
 ### Etkileşimli ve bayraklar
 

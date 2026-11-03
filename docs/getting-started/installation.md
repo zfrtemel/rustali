@@ -28,7 +28,7 @@ of what a fresh project contains.
 | Preset | Gives you | Notes |
 |---|---|---|
 | `api` | JSON API with Swagger; `openapi` on, no views. Controller serves a text `/` and a JSON `/api/ping`. | Mounts `.routes(openapi_router())`. Pre-checks the `openapi` package. |
-| `fullstack` | SSR views + sessions + `auth`; Askama views with `templates/home.html`. | `auth` is on by default → users model + `create_users` migration + session wiring. Pre-checks the `auth` package. |
+| `fullstack` | SSR views + sessions + `auth`; Askama views with `templates/home.html`, plus a working register/login/logout flow with its own views. | `auth` is on by default → users model + `create_users` migration + session wiring + `AuthController`. Pre-checks the `auth` package. |
 | `minimal` | Bare core: the ORM and a single controller. | No views, no extra packages pre-checked. |
 
 With no `--preset`, `rustali new` shows an interactive **Project type** selector offering the
@@ -46,12 +46,13 @@ preset's implied package pre-checked.
 | `cache` | In-memory cache store + provider | `CACHE_DRIVER=memory` |
 | `mail` | Mail transport + provider | `MAIL_TRANSPORT=log`, `MAIL_FROM=no-reply@example.com` |
 | `queue` | Background queue + worker | `QUEUE_CAPACITY=1024` |
-| `auth` | Sessions + auth; `src/models.rs`, `src/migrations.rs`, a `create_users` migration, `.migrations::<Migrator>()` and `.configure(session_layers)` | `SESSION_CSRF=true` |
+| `auth` | Sessions + auth; `src/models/user.rs`, the `create_users` migration, `.migrations::<Migrator>()`, `.configure(session_layers)`, and a working auth controller — SSR register/login/logout + views when the preset has views, otherwise a JSON API with JWT bearer tokens (`/api/register`, `/api/login`, `/api/me`) | `SESSION_CSRF=true` |
 | `openapi` | OpenAPI/Swagger router | `OPENAPI_TITLE=API` |
 
 Each package turns on a Cargo feature on the `rustali` dependency, adds a `.provider(...)` or
 `.routes(...)` line in `main.rs`, and writes its `.env` line(s). `auth` additionally generates
-the models/migrations and the session wiring shown above. A preset pre-checks the package it
+the user model/migration, the session wiring, and a ready-to-run `src/controllers/auth.rs`
+(SSR with views, or JSON + JWT when the preset has no views). A preset pre-checks the package it
 implies (`api` → `openapi`, `fullstack` → `auth`).
 
 ### Interactive vs. flags
