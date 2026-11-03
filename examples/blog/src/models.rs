@@ -4,9 +4,8 @@ use rustali::{
     orm::chrono::{DateTime, Utc},
     prelude::*,
 };
-use serde::Serialize;
 
-#[derive(Entity, Debug, Clone, Serialize)]
+#[entity]
 #[table("posts")]
 pub struct Post {
     pub id: i64,

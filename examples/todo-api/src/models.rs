@@ -1,14 +1,13 @@
-//! Domain models: plain structs with `#[derive(Entity)]`.
+//! Domain models: plain structs marked with `#[entity]`.
 
 use rustali::{
     orm::chrono::{DateTime, Utc},
     prelude::*,
 };
-use serde::Serialize;
 
 /// One todo item. The struct *is* the API representation; SeaORM plumbing is
 /// generated into a hidden `todo_entity` module.
-#[derive(Entity, Debug, Clone, Serialize)]
+#[entity]
 #[table("todos")]
 pub struct Todo {
     pub id: i64,
